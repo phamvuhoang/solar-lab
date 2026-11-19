@@ -532,6 +532,77 @@
           "type": "string"
         }
       }
+    },
+    "pv": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tiltDeg": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "azimuthDeg": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 360
+        },
+        "albedo": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lossRatio": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "cellModel": {
+          "enum": [
+            "faiman",
+            "fixed"
+          ]
+        },
+        "fixedCellTempC": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -40,
+          "maximum": 120
+        },
+        "faimanU0": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "faimanU1": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "windFallbackMs": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 50
+        },
+        "irradianceInput": {
+          "enum": [
+            "auto",
+            "components",
+            "poa"
+          ]
+        },
+        "weatherId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   },
   "definitions": {

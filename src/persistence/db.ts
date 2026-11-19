@@ -1,5 +1,5 @@
 export const DB_NAME = 'mekoniq-solar-lab';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 /** One entry per version: migrations[n] upgrades the DB from n-1 to n. Never edit a shipped one. */
 const migrations: Record<number, (db: IDBDatabase, tx: IDBTransaction) => void> = {
@@ -12,13 +12,15 @@ const migrations: Record<number, (db: IDBDatabase, tx: IDBTransaction) => void> 
     const offers = db.createObjectStore('offers', { keyPath: 'offerId' });
     offers.createIndex('byModel', 'componentRef.modelId');
   },
+  // v2: imported weather series (large arrays, recreatable from the source file, so first to go when storage is short)
+  2: (db) => { db.createObjectStore('weather', { keyPath: 'seriesId' }); },
 };
 
-export function openDb(factory: IDBFactory = indexedDB, name = DB_NAME): Promise<IDBDatabase> {
+export function openDb(factory: IDBFactory = indexedDB, name = DB_NAME, version = DB_VERSION): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = factory.open(name, DB_VERSION);
+    const req = factory.open(name, version);
     req.onupgradeneeded = (ev) => {
-      for (let v = ev.oldVersion + 1; v <= DB_VERSION; v++) migrations[v](req.result, req.transaction!);
+      for (let v = ev.oldVersion + 1; v <= version; v++) migrations[v](req.result, req.transaction!);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

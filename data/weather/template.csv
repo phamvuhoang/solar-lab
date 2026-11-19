@@ -1,0 +1,19 @@
+# mekoniq-solar-lab weather v1
+# name: Tên chuỗi của bạn
+# latitude: 11.87
+# longitude: 108.2
+# elevation_m: 978
+# source: Tên nguồn dữ liệu (trạm đo, dịch vụ, năm)
+# source_version: 
+# source_url: 
+# retrieved: 2026-01-01
+# method: historical
+# period: 2023
+# timestamp_convention: start
+# step_seconds: 3600
+# license: 
+# Cột timestamp_utc: ISO 8601 có Z hoặc ±hh:mm. timestamp_convention: timestamp là đầu (start), giữa (mid) hay cuối (end) khoảng.
+# Đơn vị: W/m² cho bức xạ trung bình trong khoảng, °C, m/s. Cần GHI+DHI, DNI+DHI, GHI+DNI hoặc POA. Ô trống cả cột = không có cột đó.
+timestamp_utc,ghi_wm2,dni_wm2,dhi_wm2,poa_wm2,temp_air_c,wind_ms
+2023-01-01T00:00:00Z,0,0,0,,18.0,1.0
+2023-01-01T01:00:00Z,0,0,0,,17.5,1.0

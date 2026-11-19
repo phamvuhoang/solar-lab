@@ -2,6 +2,7 @@ import { technicalHash } from '../domain/component';
 import { hashOf } from '../domain/hash';
 import { newId, nowIso } from '../domain/ids';
 import type { Component, Offer, Project, Ref } from '../domain/types';
+import type { WeatherSeries } from '../weather/series';
 import { done, openDb, wrap } from './db';
 
 export interface ProjectHead { projectId: string; name: string; headRevision: number; updatedAt: string }
@@ -13,8 +14,8 @@ export class ConflictError extends Error {
 
 export class ProjectRepository {
   private constructor(private db: IDBDatabase, private now: () => string) {}
-  static async open(opts: { factory?: IDBFactory; name?: string; now?: () => string } = {}) {
-    return new ProjectRepository(await openDb(opts.factory, opts.name), opts.now ?? nowIso);
+  static async open(opts: { factory?: IDBFactory; name?: string; now?: () => string; version?: number } = {}) {
+    return new ProjectRepository(await openDb(opts.factory, opts.name, opts.version), opts.now ?? nowIso);
   }
   close() { this.db.close(); }
 
@@ -102,6 +103,23 @@ export class ProjectRepository {
   async saveOffer(o: Offer): Promise<void> {
     const tx = this.db.transaction('offers', 'readwrite');
     tx.objectStore('offers').put(o);
+    await done(tx);
+  }
+  // ---- weather ---------------------------------------------------------------------------------------
+  async saveWeather(series: WeatherSeries): Promise<void> {
+    const tx = this.db.transaction('weather', 'readwrite');
+    tx.objectStore('weather').put(series);
+    await done(tx);
+  }
+  async getWeather(seriesId: string): Promise<WeatherSeries | undefined> {
+    return wrap(this.db.transaction('weather').objectStore('weather').get(seriesId));
+  }
+  async listWeather(): Promise<WeatherSeries[]> {
+    return wrap(this.db.transaction('weather').objectStore('weather').getAll());
+  }
+  async deleteWeather(seriesId: string): Promise<void> {
+    const tx = this.db.transaction('weather', 'readwrite');
+    tx.objectStore('weather').delete(seriesId);
     await done(tx);
   }
   async listOffers(): Promise<Offer[]> {

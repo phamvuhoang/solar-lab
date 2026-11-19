@@ -7,7 +7,7 @@ import { RANGE_PAIRS, SPEC_DEFS } from './specs';
 import { DIMS } from './units';
 import { refKey, type Component, type Project, type Offer } from './types';
 
-export interface Issue { code: string; severity: 'error' | 'warning'; field: string; message: string }
+export interface Issue { code: string; severity: 'error' | 'warning' | 'info'; field: string; message: string }
 
 const ajv = new Ajv({ allErrors: true });
 addFormats(ajv);

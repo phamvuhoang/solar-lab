@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SKIP = new Set(['node_modules', 'dist', 'test-results', 'docs', '.git']);
+const SKIP = new Set(['node_modules', 'dist', 'test-results', 'docs', '.git', '.venv']);
 const SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])([^'"\n]+)\1/g;
 const EXT = /\.(?:[cm]?[jt]s|tsx?)$/;
 

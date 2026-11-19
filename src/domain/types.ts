@@ -37,6 +37,12 @@ export interface DesignSettings {
   /** Used only when a panel has no βVmp. Never derived from βPmax. */
   betaVmpAssumption: number | null; source: string;
 }
+/** Site/array settings for the PV run. Orientation has no default: it must be declared. */
+export interface PvSettings {
+  tiltDeg: number; azimuthDeg: number; albedo: number; lossRatio: number;
+  cellModel: 'faiman' | 'fixed'; fixedCellTempC: number | null; faimanU0: number; faimanU1: number; windFallbackMs: number | null;
+  irradianceInput: 'auto' | 'components' | 'poa'; weatherId: string | null;
+}
 export interface QuoteSettings { vatRateBp: number; requiredCategories: Category[]; waived: Category[] }
 
 export interface Project {
@@ -46,7 +52,7 @@ export interface Project {
   roofFaces: object[]; priceSelections: { componentRef: Ref; offerId: string }[];
   snapshots: { components: Component[]; offers: Offer[] };
   costLines?: CostLine[]; kits?: Kit[]; quote?: Partial<QuoteSettings>;
-  strings?: StringDef[]; design?: Partial<DesignSettings>;
+  strings?: StringDef[]; design?: Partial<DesignSettings>; pv?: Partial<PvSettings>;
 }
 export type Technical = Omit<Component, 'revision' | 'author' | 'editedAt' | 'review' | 'derivedFrom' | 'notes'>;
 export const refKey = (r: Ref) => `${r.modelId}@${r.revision}`;

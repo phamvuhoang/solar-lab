@@ -1,0 +1,117 @@
+{
+  "tolerances": {
+    "zenithDeg": 0.05,
+    "azimuthDeg": 0.05,
+    "poaRel": 0.01,
+    "tcellC": 0.05,
+    "energyRel": 0.02
+  },
+  "versions": {
+    "pvlib": "0.13.0",
+    "numpy": "2.0.2",
+    "pandas": "2.3.3",
+    "python": "3.9.17",
+    "generatedBy": "scripts/reference/pvlib_reference.py",
+    "models": {
+      "solarPosition": "pvlib nrel_numpy (SPA), apparent zenith",
+      "transposition": "isotropic",
+      "cellTemperature": "faiman u0=25.0 u1=6.84",
+      "dc": "pvwatts_dc linear",
+      "albedo": 0.2,
+      "refractionTempC": 12
+    }
+  },
+  "lamha_south_tilt10": {
+    "steps": 96,
+    "maxZenithErrDeg": 0.008294862037104167,
+    "maxAzimuthErrDeg": 0.0249430195775453,
+    "maxPoaRelErr": 0.0005957311669573905,
+    "maxTcellErrC": 0.0021595980973003748,
+    "maxPowerRelErrAbove10pct": 0.0005895180450778537,
+    "maxPowerAbsErrBelow10pctOfPstc": 0.00002329348748056939,
+    "powerChecksFailed": 0,
+    "energyRelErr": 0.000021896107704342564,
+    "eTsWh": 102186.22303155437,
+    "eRefWh": 102183.98560000001
+  },
+  "lamha_east_tilt30": {
+    "steps": 96,
+    "maxZenithErrDeg": 0.008294862037104167,
+    "maxAzimuthErrDeg": 0.0249430195775453,
+    "maxPoaRelErr": 0.0003202911276840855,
+    "maxTcellErrC": 0.0018931211695800698,
+    "maxPowerRelErrAbove10pct": 0.00031825400322975774,
+    "maxPowerAbsErrBelow10pctOfPstc": 0.000006515638593537317,
+    "powerChecksFailed": 0,
+    "energyRelErr": 0.0000048461629384001234,
+    "eTsWh": 94710.32997946678,
+    "eRefWh": 94709.87100000004
+  },
+  "lamha_west_tilt30": {
+    "steps": 96,
+    "maxZenithErrDeg": 0.008294862037104167,
+    "maxAzimuthErrDeg": 0.0249430195775453,
+    "maxPoaRelErr": 0.00031341153459360006,
+    "maxTcellErrC": 0.0014578093817831927,
+    "maxPowerRelErrAbove10pct": 0.00031022662487787187,
+    "maxPowerAbsErrBelow10pctOfPstc": 3.7843817198237165e-8,
+    "powerChecksFailed": 0,
+    "energyRelErr": 0.000028171473545136323,
+    "eTsWh": 89847.76187254264,
+    "eRefWh": 89845.2308
+  },
+  "lamha_north_tilt15": {
+    "steps": 96,
+    "maxZenithErrDeg": 0.008294862037104167,
+    "maxAzimuthErrDeg": 0.0249430195775453,
+    "maxPoaRelErr": 0.0003317621323235265,
+    "maxTcellErrC": 0.0019423889190548493,
+    "maxPowerRelErrAbove10pct": 0.0003260360252006256,
+    "maxPowerAbsErrBelow10pctOfPstc": 0.000023134587145385638,
+    "powerChecksFailed": 0,
+    "energyRelErr": 0.000031335649835747235,
+    "eTsWh": 93714.64991743662,
+    "eRefWh": 93711.71340000001
+  },
+  "hanoi_south_tilt20": {
+    "steps": 96,
+    "maxZenithErrDeg": 0.00807701972290431,
+    "maxAzimuthErrDeg": 0.015031919928233606,
+    "maxPoaRelErr": 0.0006420530402850681,
+    "maxTcellErrC": 0.0019932061110701227,
+    "maxPowerRelErrAbove10pct": 0.0006359812424865829,
+    "maxPowerAbsErrBelow10pctOfPstc": 0.0000222135626537644,
+    "powerChecksFailed": 0,
+    "energyRelErr": 0.000020305617795348952,
+    "eTsWh": 96118.32900242133,
+    "eRefWh": 96116.37730000001
+  },
+  "sydney_north_tilt30": {
+    "steps": 96,
+    "maxZenithErrDeg": 0.007466694122115314,
+    "maxAzimuthErrDeg": 0.006792613289746896,
+    "maxPoaRelErr": 0.0002534779531893517,
+    "maxTcellErrC": 0.0015780210842777365,
+    "maxPowerRelErrAbove10pct": 0.00021571031857722597,
+    "maxPowerAbsErrBelow10pctOfPstc": 0.00001489190445832332,
+    "powerChecksFailed": 0,
+    "energyRelErr": 0.000016848233282630672,
+    "eTsWh": 95345.28017245821,
+    "eRefWh": 95343.6738
+  },
+  "lamha_2023": {
+    "steps": 8760,
+    "maxZenithErrDeg": 0.0088571341319863,
+    "maxAzimuthErrDeg": 0.031332823482415506,
+    "maxPoaRelErr": 0.0005809894524495925,
+    "maxTcellErrC": 0.003067869683953006,
+    "maxPowerRelErrAbove10pct": 0.0005180102298712584,
+    "maxPowerAbsErrBelow10pctOfPstc": 0.00003998287901323108,
+    "powerChecksFailed": 0,
+    "energyRelErr": 0.0000191360312227968,
+    "eTsWh": 8915794.38905501,
+    "eRefWh": 8915623.779399997,
+    "annualKWhPvlib": 8915.6238,
+    "annualKWhTs": 8915.79438905501
+  }
+}

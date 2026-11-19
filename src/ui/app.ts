@@ -10,6 +10,9 @@ import { buildQuote } from '../cost/quote';
 import { exportProject, stageImport } from '../persistence/exchange';
 import { renderQuote } from './quote';
 import { renderDesign } from './design';
+import { renderPv } from './pv';
+import { BUNDLED_WEATHER, loadBundledWeather } from '../weather/bundled';
+import type { PvResult } from '../engine/pv';
 import { History } from '../app/history';
 import { ConflictError, ProjectRepository } from '../persistence/repository';
 import { componentForm } from './component-form';
@@ -28,6 +31,7 @@ export async function startApp(root: HTMLElement) {
   const history = new History<Project>();
   let selected: string | null = null;
   let pendingFocus: string[] = [];
+  let lastPvResult: PvResult | null = null;
   let filter: { kind: Kind | 'all'; text: string } = { kind: 'all', text: '' };
 
   const say = (m: string) => { message = m; };
@@ -48,7 +52,7 @@ export async function startApp(root: HTMLElement) {
 
   // ---- home ---------------------------------------------------------------------------------
   async function home() {
-    history.clear(); selected = null;
+    history.clear(); selected = null; lastPvResult = null;
     const heads = await repo.listProjects();
     const name = h('input', { name: 'name', value: 'Dự án mới', required: true });
     const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file' });
@@ -92,6 +96,7 @@ export async function startApp(root: HTMLElement) {
         h('ul', { id: 'devices' }, ...Object.entries(q.deviceCounts).map(([k, n]) => h('li', {}, `${n} × ${labelOf(k)}`))),
         h('p', { id: 'bom-total' }, p.instances.length ? `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}${q.complete ? '' : ' · tổng hoàn chỉnh: chưa đủ'}` : 'Chưa có linh kiện.')),
       h('button', { id: 'design-btn', onClick: () => designScreen() }, 'Thiết kế'),
+      h('button', { id: 'pv-btn', onClick: () => pvScreen() }, 'Mô phỏng PV'),
       h('button', { onClick: () => quoteScreen() }, 'Dự toán'),
       h('button', { onClick: () => catalogScreen() }, 'Thiết bị'),
       h('button', { onClick: async () => download(`${p.name}.json`, await exportProject(p)) }, 'Xuất JSON'),
@@ -129,6 +134,22 @@ export async function startApp(root: HTMLElement) {
     const target = pendingFocus.map((id) => document.getElementById(id)).find(Boolean);
     pendingFocus = [];
     target?.focus();
+  }
+
+  async function pvScreen() {
+    const p = project!;
+    const stored = await repo.listWeather();
+    const loadWeather = async (id: string) => {
+      if (BUNDLED_WEATHER.some((b) => b.id === id)) { const r = await loadBundledWeather(id); return r?.ok ? r.series : undefined; }
+      return repo.getWeather(id);
+    };
+    show(...(await renderPv({
+      project: p,
+      choices: [...BUNDLED_WEATHER.map((b) => ({ id: b.id, label: b.label, origin: 'bundled' as const })), ...stored.map((s) => ({ id: s.seriesId, label: s.name, origin: 'stored' as const }))],
+      loadWeather, saveWeather: (s) => repo.saveWeather(s),
+      apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await pvScreen(); },
+      lastResult: lastPvResult, setResult: (r) => { lastPvResult = r; }, rerender: () => { void pvScreen(); }, back: () => projectScreen(),
+    })));
   }
 
   async function quoteScreen() {
