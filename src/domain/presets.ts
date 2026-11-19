@@ -1,4 +1,4 @@
-import { addEdge, addString, dropInstances, suggestGrouping, stringsOf, type PortRef } from './graph';
+import { addEdge, addString, dropInstances, indexProject, suggestGrouping, stringsOf, type PortRef } from './graph';
 import { addInstances } from './project';
 import { refKey, type Component, type Offer, type Project } from './types';
 
@@ -51,15 +51,32 @@ export function addPumpBranch(p: Project, controller: Component, pump: Component
   return addEdge(next, { instanceId: ctl.instanceId, port: 'OUT' }, { instanceId: load.instanceId, port: 'DC' });
 }
 
+/**
+ * Proposed string sizes for n panels of one model on an inverter: spread over its trackers, but never into strings whose Vmp at STC sits within
+ * 20 % of the MPPT floor. A hot cell (≈ 70 °C) takes about that much off Vmp, and below the floor the inverter cannot hold the maximum power
+ * point. Fewer, longer strings are proposed instead, while one tracker still takes them (power, Vmp ceiling, Voc at STC). Without specs: even split.
+ * ponytail: a fixed 20 % margin for the proposal only; the validator checks the real hot Vmp once βVmp and the hot cell temperature are declared.
+ */
+export function proposeStrings(n: number, panel: Component, inverter: Component | undefined): number[] {
+  const trackers = inverter ? Math.max(1, Math.round(inverter.specs.mpptCount?.v ?? 1)) : 1;
+  const v = (c: Component | undefined, k: string) => c?.specs[k]?.v ?? null;
+  const vmp = v(panel, 'vmpV'), vmin = v(inverter, 'mpptVminV'), even = suggestGrouping(n, trackers);
+  if (vmp === null || vmin === null) return even;
+  const cap = (x: number | null, per: number) => (x === null ? Infinity : x / per);
+  const fits = (s: number[]) => { const m = Math.max(...s);
+    return m * (v(panel, 'pstcW') ?? 0) <= cap(v(inverter, 'pvMaxPowerW'), trackers) && m * vmp <= cap(v(inverter, 'mpptVmaxV'), 1) && m * (v(panel, 'vocV') ?? 0) <= cap(v(inverter, 'pvVocMaxV'), 1); };
+  for (let k = Math.min(trackers, n); k >= 1; k--) { const s = suggestGrouping(n, k); if (Math.min(...s) * vmp >= vmin * 1.2 && fits(s)) return s; }
+  return even;
+}
+
 /** "Thêm N tấm": add the panels and propose strings spread over the first inverter's trackers (or unconnected if none). */
 export function addPanelBatch(p: Project, panel: Component, n: number, invComp: Component | undefined, offers: readonly Offer[] = []): Project {
   const before = new Set(p.instances.map((i) => i.instanceId));
   let next = addInstances(p, panel, n, offers);
   const ids = next.instances.filter((i) => !before.has(i.instanceId)).map((i) => i.instanceId);
   const inv = firstOf(next, 'inverter');
-  const trackers = inv ? Math.max(1, Math.round(invComp?.specs.mpptCount?.v ?? 1)) : 1;
   let at = 0;
-  suggestGrouping(n, trackers).forEach((size, i) => {
+  proposeStrings(n, panel, inv ? invComp : undefined).forEach((size, i) => {
     next = addString(next, { panelIds: ids.slice(at, at + size), target: inv ? { instanceId: inv.instanceId, port: `M${i + 1}` } : null });
     at += size;
   });
@@ -76,8 +93,10 @@ const flat = (v: number) => new Array<number>(24).fill(v);
  * Default schedule: home load all day, pump one hour at 18h; both are assumptions the user edits.
  */
 export function buildLamHaConfig(p: Project, kind: LamHaConfig, c: { inverter: Component; battery: Component; home: Component; pump: Component; controller: Component }, offers: (x: Component) => readonly Offer[] = () => []): Project {
-  // schedules and pump data the user already set survive a rebuild (instance IDs change, so they are matched by role: first pump plan, first home plan)
-  const oldPump = p.loadPlans?.find((l) => l.pump), oldHome = p.loadPlans?.find((l) => !l.pump && p.instances.find((i) => i.instanceId === l.instanceId)?.kind === 'load');
+  // schedules and pump data the user already set survive a rebuild. Instance IDs change, so a plan is found through its device: the first
+  // instance of the home/pump component. Not by plan order or the pump flag: "Lưu lịch" moves a saved plan to the end and can drop the flag.
+  const planOf = (comp: Component) => { const inst = p.instances.find((i) => i.componentRef && refKey(i.componentRef) === refKey(comp)); return inst && p.loadPlans?.find((l) => l.instanceId === inst.instanceId); };
+  const oldPump = planOf(c.pump), oldHome = planOf(c.home);
   const keep = new Set<string>();
   const battery = p.instances.find((i) => i.kind === 'battery');
   for (const i of p.instances) if (i.kind === 'panel' || i === battery) keep.add(i.instanceId);
@@ -89,7 +108,8 @@ export function buildLamHaConfig(p: Project, kind: LamHaConfig, c: { inverter: C
   const inv = next.instances[next.instances.length - 1];
   const onInverter = kind === 'shared8' ? panels : panels.slice(0, panels.length - 2);
   let at = 0;
-  suggestGrouping(onInverter.length, 2).forEach((size, k) => {
+  const panelComp = indexProject(next).inst.get(onInverter[0])?.comp;
+  (panelComp ? proposeStrings(onInverter.length, panelComp, c.inverter) : suggestGrouping(onInverter.length, 2)).forEach((size, k) => {
     next = addString(next, { label: `Chuỗi ${k + 1}`, panelIds: onInverter.slice(at, at + size), target: { instanceId: inv.instanceId, port: `M${k + 1}` } });
     at += size;
   });

@@ -17,6 +17,9 @@ import { BUNDLED_WEATHER } from '../weather/bundled';
 import type { WeatherSeries } from '../weather/series';
 import { runPvInWorker, runSimInWorker, type Job } from '../worker/client';
 import { download, h } from './dom';
+import projectSchema from '../../schemas/project-v1.json';
+
+const OWNER_FIELDS = projectSchema.properties.owner.properties;
 
 /** Results computed for the report. They belong to one revision: any edit clears them so the page never mixes old numbers with a new design. */
 export interface ReportState { forRevision: number | null; pv: PvResult | null; runs: ReportRun[]; includeContact: boolean; includeSeries: boolean; weatherHash: string | null; message: string; aRevision: string }
@@ -136,8 +139,9 @@ export async function renderReport(ctx: ReportCtx): Promise<Node[]> {
 
   // ---- owner + options -------------------------------------------------------------------------------------------------
   const owner = p.owner ?? {};
-  const fld = (id: string, label: string, v?: string) => h('label', {}, `${label} `, h('input', { id, value: v ?? '', maxLength: 200 }));
-  const ownerForm = h('form', { id: 'rp-owner-form', 'aria-label': 'Thông tin liên hệ' }, fld('rp-o-name', 'Tên khách', owner.name), fld('rp-o-phone', 'Điện thoại', owner.phone), fld('rp-o-email', 'E-mail', owner.email), fld('rp-o-addr', 'Địa chỉ', owner.address),
+  // limits come from the schema: a contact the form accepts can always be exported and imported again
+  const fld = (id: string, label: string, key: keyof typeof OWNER_FIELDS, v?: string) => h('label', {}, `${label} `, h('input', { id, value: v ?? '', maxLength: OWNER_FIELDS[key].maxLength }));
+  const ownerForm = h('form', { id: 'rp-owner-form', 'aria-label': 'Thông tin liên hệ' }, fld('rp-o-name', 'Tên khách', 'name', owner.name), fld('rp-o-phone', 'Điện thoại', 'phone', owner.phone), fld('rp-o-email', 'E-mail', 'email', owner.email), fld('rp-o-addr', 'Địa chỉ', 'address', owner.address),
     h('button', { type: 'submit', id: 'rp-o-save' }, 'Lưu liên hệ'));
   ownerForm.addEventListener('submit', (e) => {
     e.preventDefault();

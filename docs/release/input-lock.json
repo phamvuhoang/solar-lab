@@ -43,7 +43,7 @@
     },
     "tests/fixtures/golden/lamha-matrix.json": {
       "group": "golden",
-      "sha256": "c6d6e118032045f63240c7376f58ec62d6c52568f7713300ceb5d321ba5638af"
+      "sha256": "d1186c738daea12b917d096d73f1e69e2c53f91e525279dab153a7678e094e34"
     }
   }
 }

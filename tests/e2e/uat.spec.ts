@@ -1,5 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { ENGINE_VERSION } from '../../src/engine/pv';
+import { DISPATCH_VERSION } from '../../src/engine/dispatch';
+import { SHADE_MODEL_VERSION } from '../../src/shade/geometry';
 
 /**
  * Role journeys written as scripts a person can also follow (docs/uat/). These run the SAME steps by machine, which proves the flow
@@ -161,7 +164,7 @@ test('Phiên bản: màn About đọc release-manifest, nói rõ đã/chưa đ�
   await page.locator('#about-btn').click();
   const t = page.locator('#about-table');
   await expect(t).toContainText('1.0.0-rc.1');
-  await expect(t).toContainText('pv-1.3.0 · dispatch-1.0.0 · shade-raycast-1.0.0');
+  await expect(t).toContainText(`${ENGINE_VERSION} · ${DISPATCH_VERSION} · ${SHADE_MODEL_VERSION}`);
   await expect(t).toContainText('11/11 thiết bị');
   await expect(t).toContainText('đã đối chiếu mô hình');
   await expect(t).toContainText('chưa đối chiếu thực địa');

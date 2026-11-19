@@ -226,3 +226,16 @@ describe('schema và CSV', () => {
     expect(csv).toContain('Chưa đủ để báo tổng: thiếu hạng mục Khung, Bảo vệ, Công lắp');
   });
 });
+
+describe('sau review W09: tải không phải hàng phải mua', () => {
+  test('tải sinh hoạt và bơm không thành dòng dự toán "thiếu giá", nên không chặn tổng hoàn chỉnh; vẫn được đếm trong thiết bị của dự án', () => {
+    const load = (id: string) => findComponent(BUILTIN_COMPONENTS, { modelId: id, revision: 1 })!;
+    // 8 tấm + pin cũ, mọi báo giá đã rõ VAT, không đòi hạng mục bắt buộc: tổng hoàn chỉnh có
+    const priced: Project = { ...openLamHa(), quote: { vatRateBp: 1000, requiredCategories: [], waived: [] }, snapshots: { ...openLamHa().snapshots, offers: openLamHa().snapshots.offers.map((o) => ({ ...o, vat: 'included' as const })) } };
+    const withLoads = addInstances(addInstances(priced, load('sample-home-load'), 1, []), load('sample-pump-load'), 1, []);
+    const q = buildQuote(withLoads);
+    expect(q.lines.filter((l) => /tải mẫu/.test(l.label))).toEqual([]);
+    expect([q.complete, q.totalMinor]).toEqual([true, '31872000']);
+    expect(q.deviceCounts['sample-home-load@1']).toBe(1);
+  });
+});

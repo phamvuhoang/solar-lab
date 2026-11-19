@@ -42,7 +42,7 @@ export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimit
         continue;
       }
       const idx = opts.shade ? opts.shade.panelIds.indexOf(id) : -1;
-      panels.push({ pstcW: pstc, gamma, vmpV: c.specs.vmpV?.v ?? null, id, ...(idx >= 0 ? { shadeIdx: idx } : {}) });
+      panels.push({ pstcW: pstc, gamma, vmpV: c.specs.vmpV?.v ?? null, betaVmp: c.specs.betaVmp?.v ?? null, id, ...(idx >= 0 ? { shadeIdx: idx } : {}) });
     }
     if (panels.length !== s.panelIds.length) continue;
     const on = s.panelIds.map((id) => placement.get(id));
@@ -58,7 +58,7 @@ export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimit
       if (target.inst.kind === 'inverter') {
         const total = v('pvMaxPowerW'), count = v('mpptCount');
         trackers.set(key, { id: key, label: `${target.inst.label.replace(/ #\d+$/, '')} · ${port.label}`, inverterId: target.inst.instanceId,
-          maxPowerW: total !== null && count ? total / count : null, maxCurrentA: v('pvImaxPerMpptA') });
+          maxPowerW: total !== null && count ? total / count : null, maxCurrentA: v('pvImaxPerMpptA'), mpptVminV: v('mpptVminV') });
         if (!inverters.has(target.inst.instanceId)) inverters.set(target.inst.instanceId, { id: target.inst.instanceId, label: target.inst.label.replace(/ #\d+$/, ''), maxPvPowerW: total });
       } else {
         trackers.set(key, { id: key, label: `${target.inst.label.replace(/ #\d+$/, '')} · ${port.label}`, inverterId: null, maxPowerW: v('ratedW'), maxCurrentA: null });
@@ -74,6 +74,7 @@ export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimit
   const model: PvModel = {
     irradianceInput: st.irradianceInput!, tiltDeg: st.tiltDeg ?? strings.find((x) => x.tiltDeg !== undefined)?.tiltDeg ?? 0, azimuthDeg: st.azimuthDeg ?? strings.find((x) => x.azimuthDeg !== undefined)?.azimuthDeg ?? 180, albedo: st.albedo!, cellModel: st.cellModel!, faimanU0: st.faimanU0!, faimanU1: st.faimanU1!,
     fixedCellTempC: st.fixedCellTempC ?? null, windFallbackMs: st.windFallbackMs ?? null, lossRatio: st.lossRatio!, applyLimits: opts.applyLimits ?? true,
+    betaVmpAssumption: p.design?.betaVmpAssumption ?? null,
     ...(opts.stringMode ? { stringMode: opts.stringMode } : {}),
   };
   return { input: { weather, weatherHash: '', model, strings, trackers: [...trackers.values()], inverters: [...inverters.values()], shade: opts.shade ?? null }, issues };

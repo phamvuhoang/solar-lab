@@ -9,7 +9,7 @@ Việc: "Mở mẫu Lâm Hà. Kho vừa báo pin cũ giá 15.500.000 đ đã g�
 | Tiêu chí đạt | Máy | Người |
 |---|---|---|
 | Nhập được báo giá; tổng phần đã biết đổi thành 31.372.000 đ | đạt | ☐ |
-| Hiểu vì sao tổng hoàn chỉnh "chưa đủ" (thiếu khung, dây, bảo vệ, công) | máy chỉ kiểm nội dung hiển thị | ☐ |
+| Hiểu vì sao tổng hoàn chỉnh "chưa đủ" (thiếu khung, dây, bảo vệ, công; sau khi dựng cấu hình còn thiếu giá inverter) | máy chỉ kiểm nội dung hiển thị | ☐ |
 | Chạy mô phỏng, bấm tới lần thiếu điện đầu tiên, đọc được giờ và lý do | đạt | ☐ |
 | Phát biểu lại đúng: kết luận chỉ cho dữ liệu thời tiết 2023 đã chọn | — | ☐ |
 

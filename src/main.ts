@@ -1,10 +1,15 @@
 import { registerOffline } from './offline/register';
-import { explainStartupError } from './persistence/backup';
+import { explainStartupError, exportUnopenable } from './persistence/backup';
 import { startApp } from './ui/app';
+import { download, h } from './ui/dom';
 
 document.getElementById('build-id')!.textContent = __BUILD_ID__;
 startApp(document.getElementById('app')!).catch((e) => {
-  document.getElementById('app')!.textContent = explainStartupError(e);
+  const app = document.getElementById('app')!;
+  app.replaceChildren(h('p', {}, explainStartupError(e)));
+  // data from a newer build: this one cannot open it for writing, but it can read it as it is and hand the user a copy
+  if ((e as { name?: string })?.name === 'VersionError')
+    app.append(h('button', { onClick: async () => download('mekoniq-tat-ca-du-an.json', await exportUnopenable()) }, 'Xuất dữ liệu ra file (chỉ đọc, không sửa gì)'));
 });
 // a storage or runtime failure outside a handler must not vanish silently
 window.addEventListener('unhandledrejection', (ev) => {

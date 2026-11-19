@@ -33,6 +33,18 @@ test('W09 migration N−1: mở bản mới trên DB v2 → sao lưu tự độn
   await expect(page.locator('#bom-total')).toContainText('31.872.000'); // dự án và giá nguyên vẹn sau khi nâng cấp
   await page.getByRole('button', { name: 'Quay lại' }).click();
   await expect(page.locator('.backup')).toContainText('từ v2');
+  // dự án trong máy y hệt bản sao lưu: khôi phục không tạo bản trùng
+  await page.locator('.restore-backup').click();
+  await expect(page.locator('#status')).toContainText('Đã khôi phục 0 dự án (bản mới nhất của từng dự án, không kèm lịch sử revision; bản sao lưu vẫn giữ nguyên); 1 dự án đã có sẵn, bỏ qua');
+  await expect(page.locator('#saved li')).toHaveCount(1);
+  // người dùng sửa tiếp sau khi nâng cấp rồi mới khôi phục: bản sao lưu quay lại thành bản sao, không ghi đè
+  await page.getByRole('button', { name: /^Mở: / }).click();
+  await page.getByRole('button', { name: 'Dự toán' }).click();
+  await page.locator('[data-device="vsun-620@1"]').getByLabel(/Số lượng/).fill('6');
+  await page.locator('[data-device="vsun-620@1"]').getByRole('button', { name: 'Cập nhật SL' }).click();
+  await expect(page.locator('#quote-known')).toContainText('27.904.000');
+  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
+  await page.getByRole('button', { name: 'Quay lại' }).click();
   await page.locator('.restore-backup').click();
   await expect(page.locator('#status')).toContainText('Đã khôi phục 1 dự án (bản mới nhất của từng dự án, không kèm lịch sử revision; bản sao lưu vẫn giữ nguyên); 1 dự án trùng ID được khôi phục thành bản sao');
   await expect(page.locator('#saved li')).toHaveCount(2);
@@ -60,10 +72,17 @@ test('W09 rollback: bản app cũ gặp DB mới hơn → thông báo rõ, khôn
     (window as unknown as { __rows: unknown[] }).__rows = rows;
     await new Promise<void>((ok) => { const r = indexedDB.open('mekoniq-solar-lab', 9); r.onsuccess = () => { r.result.close(); ok(); }; });
   });
+  // tab đang mở bị bản mới hơn lấy kho: báo ngay để người dùng tải lại, thay vì để các lần lưu sau hỏng với lỗi thô
+  await expect(page.locator('#reload-needed')).toContainText('Tải lại trang');
   await page.reload();
   await expect(page.locator('#app')).toContainText('MỚI HƠN');
   await expect(page.locator('#app')).toContainText('không có gì bị xóa');
-  await expect(page.locator('#app')).toContainText('Xuất tất cả');
+  await expect(page.locator('#app')).toContainText('Đừng xóa dữ liệu trang');
+  // bản này không có ô nhập file khi gặp kho mới hơn; nó vẫn cho lấy một bản dữ liệu ra file mà không sửa gì
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Xuất dữ liệu ra file' }).click()]);
+  const exported = JSON.parse(await readFile((await dl.path())!, 'utf8'));
+  expect(exported.format).toBe('mekoniq-solar-lab/backup');
+  expect(exported.projects.map((x: { project: { name: string } }) => x.project.name)).toEqual(['Lâm Hà']);
   const kept = await page.evaluate(async () => { const live = await new Promise<IDBDatabase>((ok) => { const r = indexedDB.open('mekoniq-solar-lab'); r.onsuccess = () => ok(r.result); }); const n = await new Promise<number>((ok) => { const r = live.transaction('projects').objectStore('projects').count(); r.onsuccess = () => ok(r.result); }); live.close(); return n; });
   expect(kept).toBe(1); // dữ liệu còn nguyên
 });

@@ -5,9 +5,9 @@ import { BUILTIN_OFFERS, offersFor } from '../../src/catalog/catalog';
 import { buildQuote } from '../../src/cost/quote';
 import { quoteToCsv } from '../../src/reports/csv';
 import { demoGableRoof, fillFace } from '../../src/domain/layout-edit';
-import { buildLamHaConfig } from '../../src/domain/presets';
+import { addAcLoad, buildLamHaConfig } from '../../src/domain/presets';
 import { createProject, openLamHa } from '../../src/domain/project';
-import type { Kit, Project } from '../../src/domain/types';
+import type { Kit, LoadPlan, Project } from '../../src/domain/types';
 import { parseMoney, parseQuantity } from '../../src/domain/units';
 import { validateProject } from '../../src/domain/validate';
 import { compilePv } from '../../src/engine/compile';
@@ -37,13 +37,15 @@ describe('soát trước phát hành: sửa các lỗi toàn vẹn', () => {
   test('kit ghi nhiều linh kiện hơn thiết kế có: không báo tổng hoàn chỉnh, CSV nói rõ lý do', () => {
     const ref = { modelId: 'vsun-620', revision: 1 };
     const kit = (qty: number, count: number): Kit => ({ kitId: 'kit-1', label: 'Gói 6 tấm', count, parts: [{ componentRef: ref, qty }], priceMinor: '10000000', vat: 'included', seller: 'X', recordedAt: '2026-01-01', covers: [] });
-    const over = { ...openLamHa(), quote: { requiredCategories: [], waived: [] }, kits: [kit(6, 2)] } as Project; // 12 tấm trong kit, thiết kế có 8
-    const q = buildQuote(over);
+    // mọi thứ khác đã đủ (báo giá rõ VAT, không đòi hạng mục): chỉ riêng kit thừa linh kiện quyết định tổng có hay không
+    const lam = openLamHa();
+    const base = { ...lam, quote: { vatRateBp: 1000, requiredCategories: [], waived: [] }, snapshots: { ...lam.snapshots, offers: lam.snapshots.offers.map((o) => ({ ...o, vat: 'included' as const })) } } as Project;
+    const fits = buildQuote({ ...base, kits: [kit(4, 2)] }); // 8 tấm đúng bằng thiết kế: kit 2 × 10.000.000 + pin 16.000.000
+    expect([fits.issues.map((i) => i.code), fits.complete, fits.totalMinor]).toEqual([[], true, '36000000']);
+    const q = buildQuote({ ...base, kits: [kit(6, 2)] }); // 12 tấm trong kit, thiết kế có 8
     expect(q.issues.map((i) => i.code)).toContain('KIT_PART_NOT_IN_DESIGN');
-    expect(q.complete).toBe(false); expect(q.totalMinor).toBeNull();
+    expect([q.complete, q.totalMinor]).toEqual([false, null]);
     expect(quoteToCsv(q, 'x')).toContain('kit ghi nhiều linh kiện hơn thiết kế có');
-    const fits = buildQuote({ ...openLamHa(), quote: { requiredCategories: [], waived: [] }, kits: [kit(4, 2)] } as Project); // 8 tấm đúng bằng thiết kế
-    expect(fits.issues.map((i) => i.code)).not.toContain('KIT_PART_NOT_IN_DESIGN');
   });
   test('bóng che: tấm chưa đặt lên mái được ghi trong kết quả (không âm thầm coi là bị che)', async () => {
     let p = { ...buildLamHaConfig(openLamHa(), 'shared8', parts(), offers), pv: { tiltDeg: 10, azimuthDeg: 180 }, shade: { enabled: true, mode: 'standard', grid: 4 } } as Project;
@@ -90,5 +92,31 @@ describe('soát trước phát hành: sửa các lỗi toàn vẹn', () => {
     expect([pump.priority, home.priority]).toEqual([1, 2]);
     expect(home.fractions.every((x) => x === 0.5)).toBe(true);
     expect(b.loadPlans!.every((l) => b.instances.some((i) => i.instanceId === l.instanceId))).toBe(true); // vẫn trỏ vào thiết bị mới
+  });
+
+  test('dựng lại cấu hình nhận lịch theo thiết bị, kể cả khi "Lưu lịch" đã đổi thứ tự kế hoạch hoặc bỏ dấu "là bơm"', () => {
+    // "Lưu lịch" (src/ui/sim.ts) đưa kế hoạch vừa lưu xuống cuối mảng và bỏ trường pump khi bỏ chọn "là bơm"
+    const save = (p: Project, id: string, hours: number[], priority: number): Project =>
+      ({ ...p, loadPlans: [...p.loadPlans!.filter((l) => l.instanceId !== id), { instanceId: id, fractions: Array.from({ length: 24 }, (_, h) => (hours.includes(h) ? 1 : 0)), priority }] });
+    const idOf = (p: Project, model: string) => p.instances.find((i) => i.componentRef?.modelId === model)!.instanceId;
+    const planOf = (p: Project, model: string): LoadPlan => p.loadPlans!.find((l) => l.instanceId === idOf(p, model))!;
+    const hours = (l: LoadPlan) => l.fractions.flatMap((f, h) => (f ? [h] : []));
+
+    // 1) thêm một tải sinh hoạt nữa, lưu lịch của nó trước rồi mới lưu lịch tải nhà
+    let a = buildLamHaConfig(openLamHa(), 'shared8', parts(), offers);
+    const home = idOf(a, 'sample-home-load');
+    a = addAcLoad(a, catalog('sample-home-load'), offers(catalog('sample-home-load')));
+    a = save(a, a.instances[a.instances.length - 1].instanceId, [6, 7, 8], 5);
+    a = save(a, home, [18, 19, 20, 21, 22], 1);
+    const b = buildLamHaConfig(a, 'split6+2', parts(), offers);
+    expect([hours(planOf(b, 'sample-home-load')), planOf(b, 'sample-home-load').priority]).toEqual([[18, 19, 20, 21, 22], 1]);
+
+    // 2) lưu lịch bơm với "là bơm" bỏ chọn, rồi lưu lịch tải nhà
+    let c = buildLamHaConfig(openLamHa(), 'shared8', parts(), offers);
+    c = save(c, idOf(c, 'sample-pump-load'), [6, 7, 8, 9], 3);
+    c = save(c, idOf(c, 'sample-home-load'), Array.from({ length: 24 }, (_, h) => h), 2);
+    const d = buildLamHaConfig(c, 'split6+2', parts(), offers);
+    expect([hours(planOf(d, 'sample-pump-load')), planOf(d, 'sample-pump-load').priority]).toEqual([[6, 7, 8, 9], 3]);
+    expect(hours(planOf(d, 'sample-home-load'))).toHaveLength(24);
   });
 });

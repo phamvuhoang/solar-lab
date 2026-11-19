@@ -7,6 +7,7 @@ import { cloneForEdit } from '../../src/domain/component';
 import { diff } from '../../src/domain/diff';
 import { addInstances, createProject, openLamHa } from '../../src/domain/project';
 import type { Component, Offer } from '../../src/domain/types';
+import { DB_NAME, DB_VERSION, done, openDb } from '../../src/persistence/db';
 import { exportProject, stageImport } from '../../src/persistence/exchange';
 import { ConflictError, ProjectRepository } from '../../src/persistence/repository';
 
@@ -175,4 +176,27 @@ test.runIf(process.env.W01_EVIDENCE)('ghi snapshot bằng chứng W01', async ()
   writeFileSync(`${dir}/snapshot-1-lam-ha-rev1.json`, JSON.stringify(before, null, 2));
   writeFileSync(`${dir}/snapshot-2-lam-ha-rev2-clone-180ah.json`, JSON.stringify(after, null, 2));
   writeFileSync(`${dir}/diff-rev1-rev2.json`, JSON.stringify(diff(before, after), null, 2));
+});
+
+describe('sau review W09: lỗi lưu trữ phải mang theo nguyên nhân', () => {
+  test('lỗi ở một request (trùng khóa; Safari báo hết chỗ theo kiểu này) làm done() reject bằng chính lỗi đó, không phải null', async () => {
+    const db = await openDb(factory, 'probe', 1);
+    const tx = db.transaction('offers', 'readwrite');
+    tx.objectStore('offers').add({ offerId: 'o1' });
+    tx.objectStore('offers').add({ offerId: 'o1' }); // request thứ hai lỗi ConstraintError, nổi lên transaction
+    const err = await done(tx).then(() => 'resolved', (e) => e);
+    expect(err).not.toBeNull();
+    expect((err as DOMException).name).toBe('ConstraintError');
+    db.close();
+  });
+});
+
+describe('sau review W09: tab cũ khi bản mới nâng kho', () => {
+  test('tab khác mở kho ở phiên bản cao hơn: kết nối tab này đóng lại (không chặn bản mới) và tab này được báo để nhắc tải lại trang', async () => {
+    let told = 0;
+    const repo = await ProjectRepository.open({ factory, onClosed: () => told++ });
+    await new Promise((ok, no) => { const r = factory.open(DB_NAME, DB_VERSION + 1); r.onsuccess = () => { r.result.close(); ok(null); }; r.onblocked = () => no(new Error('bị chặn')); });
+    expect(told).toBe(1);
+    expect(await repo.listProjects().then(() => 'mở', (e) => (e as DOMException).name)).toBe('InvalidStateError');
+  });
 });

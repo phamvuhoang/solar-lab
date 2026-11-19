@@ -10,7 +10,7 @@ import { buildQuote } from '../cost/quote';
 import { exportProject, stageImport } from '../persistence/exchange';
 import { commitPackage, isQuotaError, storageEstimate } from '../persistence/import';
 import { isPackage, stagePackage } from '../reports/package';
-import { backupBeforeUpgrade, deleteBackup, exportAll, listBackups, restoreBackup, stageBackup, BACKUP_FORMAT } from '../persistence/backup';
+import { backupBeforeUpgrade, contentKeys, deleteBackup, exportAll, listBackups, restoreBackup, stageBackup, BACKUP_FORMAT } from '../persistence/backup';
 import { renderAbout } from './about';
 import { freshLessons, renderLessons } from './lessons';
 import { freshReport, renderReport } from './report';
@@ -35,7 +35,11 @@ const AUTHOR = 'người dùng';
 
 export async function startApp(root: HTMLElement) {
   const upgrade = await backupBeforeUpgrade(); // copy of the user's work BEFORE the schema moves
-  const repo = await ProjectRepository.open();
+  // another tab opened a newer build that upgraded the store: this tab's connection is gone, so say so now and refuse to pretend to save
+  const RELOAD = 'Solar Lab vừa được cập nhật ở một tab khác nên tab này đã ngắt kho dữ liệu. Tải lại trang để làm tiếp (dự án đã lưu vẫn còn nguyên).';
+  let reloadNeeded = false;
+  const reloadNote = () => h('p', { id: 'reload-needed', role: 'alert' }, RELOAD);
+  const repo = await ProjectRepository.open({ onClosed: () => { reloadNeeded = true; if (!document.getElementById('reload-needed')) root.prepend(reloadNote()); } });
   let project: Project | null = null;
   let userComponents: Component[] = [];
   let userOffers: Offer[] = [];
@@ -59,6 +63,7 @@ export async function startApp(root: HTMLElement) {
   const say = (m: string) => { message = m; };
   const reload = async () => { [userComponents, userOffers] = [await repo.listComponents(), await repo.listOffers()]; };
   const save = async (next: Project): Promise<boolean> => {
+    if (reloadNeeded) { say(`${RELOAD} Thay đổi này chưa được lưu.`); return false; }
     try { project = await repo.saveRevision(project!.revision, next); say(''); return true; }
     catch (e) {
       if (!(e instanceof ConflictError)) {
@@ -75,7 +80,7 @@ export async function startApp(root: HTMLElement) {
     if (!roofActive) releaseRoofView();
     if (!shadeActive) releaseShadeView();
     roofActive = false; shadeActive = false;
-    root.replaceChildren(h('h1', {}, 'Mekoniq Solar Lab'), message && h('p', { role: 'status', id: 'status' }, message), ...kids.filter(Boolean) as Node[]);
+    root.replaceChildren(...(reloadNeeded ? [reloadNote()] : []), h('h1', {}, 'Mekoniq Solar Lab'), message && h('p', { role: 'status', id: 'status' }, message), ...kids.filter(Boolean) as Node[]);
   };
 
   // ---- home ---------------------------------------------------------------------------------
@@ -89,7 +94,7 @@ export async function startApp(root: HTMLElement) {
       if (!f) return;
       const text = await f.text(), ids = new Set((await repo.listProjects()).map((x) => x.projectId));
       if (isPackage(text)) return void (await importPackage(text, ids));
-      if (text.slice(0, 500).includes(BACKUP_FORMAT)) return void (await importBackupFile(text, ids));
+      if (text.slice(0, 500).includes(BACKUP_FORMAT)) return void (await importBackupFile(text));
       const staged = await stageImport(text, ids);
       if (!staged.ok) {
         say('Không nhập được file; dự án hiện có không bị thay đổi.');
@@ -114,7 +119,12 @@ export async function startApp(root: HTMLElement) {
       h('label', {}, 'Nhập dự án hoặc gói (JSON) ', file), h('p', { id: 'storage-note' }),
       h('button', { id: 'export-all', type: 'button', onClick: async () => { download('mekoniq-tat-ca-du-an.json', await exportAll(repo)); } }, 'Xuất tất cả dự án (sao lưu)'),
       ...backups.map((b) => h('p', { className: 'backup', 'data-backup': b.name }, `Có bản sao lưu tự động trước khi nâng cấp kho từ v${b.fromVersion}. `,
-        h('button', { className: 'restore-backup', onClick: async () => { try { const r = await restoreBackup(repo, b.name); say(`Đã khôi phục ${r.restored} dự án (bản mới nhất của từng dự án, không kèm lịch sử revision; bản sao lưu vẫn giữ nguyên)${r.copies ? `; ${r.copies} dự án trùng ID được khôi phục thành bản sao` : ''}.`); } catch (e) { say(`${isQuotaError(e) ? 'Hết dung lượng.' : 'Lỗi lưu trữ.'} Khôi phục dở: ${(e as Error).message}. Bản sao lưu vẫn còn nguyên.`); } await home(); } }, 'Khôi phục'),
+        h('button', { className: 'restore-backup', onClick: async (ev: Event) => {
+          (ev.currentTarget as HTMLButtonElement).disabled = true; // a second click while it runs would race the first
+          try { const r = await restoreBackup(repo, b.name); say(`Đã khôi phục ${r.restored} dự án (bản mới nhất của từng dự án, không kèm lịch sử revision; bản sao lưu vẫn giữ nguyên)${r.copies ? `; ${r.copies} dự án trùng ID được khôi phục thành bản sao` : ''}${r.skipped ? `; ${r.skipped} dự án đã có sẵn, bỏ qua` : ''}.`); }
+          catch (e) { say((e as Error)?.name === 'BackupGone' ? (e as Error).message : `${isQuotaError(e) ? 'Hết dung lượng.' : 'Lỗi lưu trữ.'} Khôi phục dở: ${(e as Error)?.message}. Bản sao lưu vẫn còn nguyên; bấm "Khôi phục" lần nữa sẽ chỉ thêm phần còn thiếu.`); }
+          await home();
+        } }, 'Khôi phục'),
         h('button', { className: 'delete-backup', onClick: async () => { await deleteBackup(b.name); await home(); } }, 'Xóa bản sao lưu'))),
       h('button', { id: 'about-btn', type: 'button', onClick: async () => show(...(await renderAbout(() => { void home(); }))) }, 'Phiên bản và phạm vi kiểm chứng'),
       h('button', { id: 'lessons-home-btn', type: 'button', onClick: () => lessonsScreen(() => home(), 'Về danh sách') }, 'Bài học'),
@@ -135,13 +145,13 @@ export async function startApp(root: HTMLElement) {
     await importedScreen();
   }
 
-  async function importBackupFile(text: string, ids: ReadonlySet<string>) {
-    const staged = await stageBackup(text, ids);
+  async function importBackupFile(text: string) {
+    const staged = await stageBackup(text, await contentKeys(repo));
     if (!staged.ok) { say('Không nhập được file sao lưu; dự án hiện có không bị thay đổi.'); show(...issueList(staged.issues), h('button', { onClick: () => home() }, 'Quay lại')); return; }
     try { for (const it of staged.items) await repo.createProject(it.project); }
-    catch (e) { say(`${isQuotaError(e) ? 'Hết dung lượng lưu trữ.' : 'Lỗi lưu trữ.'} Nhập dở: ${(e as Error).message}. Các dự án đã nhập trước đó vẫn còn; dự án hiện có không bị thay đổi.`); return void (await home()); }
-    say(`Đã nhập ${staged.items.length} dự án từ file sao lưu${staged.items.some((i) => i.renamed) ? ' (ID trùng được nhập thành bản sao)' : ''}.`);
-    const warn = staged.items.flatMap((i) => i.issues.map((x) => ({ ...x, message: `${i.project.name}: ${x.message}` })));
+    catch (e) { say(`${isQuotaError(e) ? 'Hết dung lượng lưu trữ.' : 'Lỗi lưu trữ.'} Nhập dở: ${(e as Error)?.message}. Các dự án đã nhập trước đó vẫn còn; nhập lại cùng file sau khi giải phóng chỗ sẽ chỉ thêm phần còn thiếu.`); return void (await home()); }
+    say(`Đã nhập ${staged.items.length} dự án từ file sao lưu${staged.items.some((i) => i.renamed) ? ' (ID trùng được nhập thành bản sao)' : ''}${staged.skipped ? `; ${staged.skipped} dự án đã có sẵn, bỏ qua` : ''}${staged.rejected.length ? '; có dự án hỏng không nhập được (xem bên dưới)' : ''}.`);
+    const warn = [...staged.rejected, ...staged.items.flatMap((i) => i.issues.map((x) => ({ ...x, message: `${i.project.name}: ${x.message}` })))];
     if (warn.length) show(...issueList(warn), h('button', { id: 'back-home', onClick: () => home() }, 'Tiếp tục'));
     else await home();
   }

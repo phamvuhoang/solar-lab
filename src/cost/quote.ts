@@ -71,6 +71,7 @@ export function buildQuote(p: Project): Quote {
   const usedOffers = new Set<string>();
   for (const [k, g] of groups) {
     const c = comps.get(k);
+    if (c?.kind === 'load') continue; // what the system powers (house, pump) is not bought with it; a new pump goes in as an extra line
     const name = c?.name ?? g.ref.modelId;
     const kit = inKit.get(k);
     if (kit) lines.push({ ...blank(), key: `design:${k}:kit`, source: 'design', category: 'equipment', label: name, qty: kit.qty, qtyUnit: 'piece',

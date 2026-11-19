@@ -18,8 +18,8 @@ export class ConflictError extends Error {
 
 export class ProjectRepository {
   private constructor(private db: IDBDatabase, private now: () => string) {}
-  static async open(opts: { factory?: IDBFactory; name?: string; now?: () => string; version?: number } = {}) {
-    return new ProjectRepository(await openDb(opts.factory, opts.name, opts.version), opts.now ?? nowIso);
+  static async open(opts: { factory?: IDBFactory; name?: string; now?: () => string; version?: number; onClosed?: () => void } = {}) {
+    return new ProjectRepository(await openDb(opts.factory, opts.name, opts.version, opts.onClosed), opts.now ?? nowIso);
   }
   close() { this.db.close(); }
 

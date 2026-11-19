@@ -104,6 +104,7 @@ export async function compileSim(p: Project, weather: WeatherSeries, opts: { sha
     const key = portKey({ instanceId: id, port: 'PV' });
     const fed = stringsOf(p).some((s) => s.target && portKey(s.target) === key && s.panelIds.length);
     const outs = ix.edgesAt({ instanceId: id, port: 'OUT' }).map((e) => (e.from.instanceId === id ? e.to : e.from).instanceId);
+    if (fed && branchTrackerId) issues.push(err('BRANCH_COUNT', `/instances/${id}`, 'Nhiều hơn một nhánh bơm DC có PV; v1 chỉ mô hình một nhánh (mỗi nhánh cần sổ năng lượng riêng)'));
     if (fed) branchTrackerId = key;
     for (const lid of outs) { if (!fed) issues.push(err('BRANCH_WITHOUT_PV', `/instances/${lid}`, `${ix.inst.get(lid)?.inst.label}: nhánh bơm DC chưa có chuỗi PV`)); else addLoad(lid, 'controller'); }
   }

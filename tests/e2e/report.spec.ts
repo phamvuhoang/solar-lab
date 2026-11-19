@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { ENGINE_VERSION } from '../../src/engine/pv';
 
 const pick = async (select: Locator, text: RegExp) => select.selectOption((await select.locator('option', { hasText: text }).first().getAttribute('value')) as string);
 const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đã lưu: revision');
@@ -34,6 +35,9 @@ test('W08: báo cáo A4 có giả định, cấp độ kiểm tra, ngày giá, b
   await setup(page);
   await page.locator('#report-btn').click();
   await page.locator('#rp-o-name').fill('Anh Hùng');
+  // ô liên hệ không nhận dài hơn schema cho phép (nếu nhận, dự án lưu được nhưng file "Xuất tất cả" không nhập lại được)
+  await page.locator('#rp-o-phone').pressSequentially('0909 123 456 (anh Hùng) / 0912 345 678 (chị Lan)');
+  expect((await page.locator('#rp-o-phone').inputValue()).length).toBe(40);
   await page.locator('#rp-o-phone').fill('0909 123 456');
   await page.locator('#rp-o-save').click();
   await saved(page);
@@ -52,7 +56,7 @@ test('W08: báo cáo A4 có giả định, cấp độ kiểm tra, ngày giá, b
   await expect(page.locator('#rp-lines')).toContainText('CHƯA CÓ GIÁ');
   await expect(page.locator('#rp-levels')).toContainText('Thi công và an toàn');
   await expect(page.locator('#rp-levels')).toContainText('ngoài phạm vi công cụ');
-  await expect(page.locator('#rp-levels')).toContainText('pv-1.3.0');
+  await expect(page.locator('#rp-levels')).toContainText(ENGINE_VERSION);
   await expect(page.locator('#rp-assumptions')).toContainText('SoC đầu');
   await expect(page.locator('#rp-weather')).toContainText('PVGIS');
   await expect(page.locator('#rp-weather')).toContainText('Giấy phép');
@@ -86,7 +90,7 @@ test('W08: báo cáo A4 có giả định, cấp độ kiểm tra, ngày giá, b
   expect(bom).toContain('chưa có giá');
   expect(bom).toContain('Chưa đủ để báo tổng');
   const pvCsv = await download(page, '#rp-csv-pv');
-  expect(pvCsv).toContain('# engine: pv-1.3.0');
+  expect(pvCsv).toContain(`# engine: ${ENGINE_VERSION}`);
   expect(pvCsv.split('\r\n').filter((l) => /^\d{4}-\d{2}-\d{2}T/.test(l))).toHaveLength(8760);
 
   // gói đầy đủ, bỏ liên hệ

@@ -1,5 +1,6 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { ENGINE_VERSION } from '../../src/engine/pv';
 
 const pick = async (select: Locator, text: RegExp) => select.selectOption((await select.locator('option', { hasText: text }).first().getAttribute('value')) as string);
 
@@ -44,7 +45,7 @@ test('W04: chọn dataset → khai hướng → chạy PV trong worker → công
 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#pv-csv').click()]);
   const csv = await readFile((await dl.path())!, 'utf8');
-  expect(csv).toContain('# engine: pv-1.3.0');
+  expect(csv).toContain(`# engine: ${ENGINE_VERSION}`);
   expect(csv).toMatch(/# input_hash: [0-9a-f]{64}/);
   expect(csv).toContain('# model.transposition: isotropic (Liu–Jordan)');
   expect(csv.split('\r\n').filter((l) => /^\d{4}-\d{2}-\d{2}T/.test(l))).toHaveLength(8760);

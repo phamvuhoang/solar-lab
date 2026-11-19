@@ -3,7 +3,9 @@ import { History } from '../../src/app/history';
 import { buildQuote } from '../../src/cost/quote';
 import { setQuantity } from '../../src/cost/edit';
 import { addEdge, addString, dropInstances, removeEdge, removeString, setStringSize, setStringTarget, suggestGrouping, unassignedPanels } from '../../src/domain/graph';
-import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset } from '../../src/domain/presets';
+import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset, buildLamHaConfig, proposeStrings } from '../../src/domain/presets';
+import { BUILTIN_OFFERS, offersFor } from '../../src/catalog/catalog';
+import type { Project } from '../../src/domain/types';
 import { openLamHa } from '../../src/domain/project';
 import { hasErrors, validateProject } from '../../src/domain/validate';
 import { badgeOf, validateDesign, type Finding } from '../../src/validation/strings';
@@ -210,17 +212,29 @@ describe('chỉnh sửa graph: BOM, undo, tham chiếu', () => {
     expect(() => setStringSize(p, id, 9)).toThrow('NOT_ENOUGH_PANELS');
     expect(removeString(p, id).strings).toEqual([]);
   });
-  test('thêm theo lô: chia đều qua các tracker của inverter; chưa có inverter thì một chuỗi chưa nối; BOM tăng đúng', () => {
+  test('thêm theo lô: chia qua các tracker khi mỗi chuỗi còn đủ áp trên đáy MPPT, không thì gộp; chưa có inverter thì một chuỗi chưa nối; BOM tăng đúng', () => {
     const inv = catalog('luxpower-sna6000wpv');
     const withInv = applyPreset(openLamHa(), 'one-string', inv);
-    const batch = addPanelBatch(withInv, catalog('hestia-650'), 5, inv);
-    expect(batch.strings!.slice(1).map((s) => [s.panelIds.length, s.target?.port])).toEqual([[3, 'M1'], [2, 'M2']]);
-    expect(buildQuote(batch).deviceCounts['hestia-650@1']).toBe(5);
+    const batch = addPanelBatch(withInv, catalog('hestia-650'), 8, inv);
+    expect(batch.strings!.slice(1).map((s) => [s.panelIds.length, s.target?.port])).toEqual([[4, 'M1'], [4, 'M2']]);
+    // 5 tấm chia 3 + 2 thì chuỗi 2 tấm chỉ 2 × 42,4 = 84,8 V, dưới đáy MPPT 120 V ngay ở STC: đề xuất một chuỗi 5 tấm (212 V)
+    expect(addPanelBatch(withInv, catalog('hestia-650'), 5, inv).strings!.slice(1).map((s) => [s.panelIds.length, s.target?.port])).toEqual([[5, 'M1']]);
+    expect(buildQuote(batch).deviceCounts['hestia-650@1']).toBe(8);
     const noInv = addPanelBatch(openLamHa(), catalog('hestia-650'), 4, undefined);
     expect(noInv.strings).toHaveLength(1);
     expect(noInv.strings![0]).toMatchObject({ target: null, panelIds: expect.any(Array) });
     expect(noInv.strings![0].panelIds).toHaveLength(4);
     expect(hasErrors(validateProject(batch))).toBe(false);
+  });
+  test('đề xuất chuỗi không tạo chuỗi quá ngắn, sát đáy dải MPPT: 6 × VSUN 620 trên SNA6000 thành 1 chuỗi 6, 8 tấm vẫn 4 + 4', () => {
+    const vsun = catalog('vsun-620'), sna = catalog('luxpower-sna6000wpv');
+    // Vmp STC: 3 tấm 123,7 V sát đáy 120 V (nóng thì rơi dưới); 4 tấm 164,9 V; 6 tấm 247,4 V
+    expect([proposeStrings(6, vsun, sna), proposeStrings(8, vsun, sna), proposeStrings(4, vsun, sna)]).toEqual([[6], [4, 4], [4]]);
+    expect(proposeStrings(16, vsun, sna)).toEqual([8, 8]); // 1 chuỗi 16 vượt công suất một MPPT: giữ chia đều
+    // cấu hình B Lâm Hà (6 tấm vào inverter + 2 tấm bơm): với βVmp giả định −0,33 %/°C, Tcell nóng 70 °C, Vmp nóng 6 × 41,23 × 0,8515 ≈ 210,6 V ≥ 120 V
+    const parts = { inverter: sna, battery: catalog('used-battery'), home: catalog('sample-home-load'), pump: catalog('sample-pump-load'), controller: catalog('sample-pump-controller') };
+    const b = { ...buildLamHaConfig(openLamHa(), 'split6+2', parts, (c) => offersFor(BUILTIN_OFFERS, c)), design: { coldCellTempC: 5, hotCellTempC: 70, iscFactor: 1, betaVmpAssumption: -0.0033, source: 'giả định kiểm thử' } } as Project;
+    expect(code(validateDesign(b), 'VMP_HOT_MIN').map((f) => [f.status, f.value])).toEqual([['pass', 210.64407]]);
   });
   test('suggestGrouping chia đều', () => {
     expect([suggestGrouping(8, 2), suggestGrouping(7, 2), suggestGrouping(1, 2), suggestGrouping(8, 1)]).toEqual([[4, 4], [4, 3], [1], [8]]);

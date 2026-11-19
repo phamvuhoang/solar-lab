@@ -1,6 +1,6 @@
 import { renderDiagram } from '../diagrams/editor';
-import { addEdge, indexProject, isStringTarget, portKey, removeEdge, removeString, setStringSize, setStringTarget, stringsOf, suggestGrouping, dropInstances, unassignedPanels, PORT_TYPE_LABEL } from '../domain/graph';
-import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset, PRESET_LABEL, type PresetKind } from '../domain/presets';
+import { addEdge, indexProject, isStringTarget, portKey, removeEdge, removeString, setStringSize, setStringTarget, stringsOf, dropInstances, unassignedPanels, PORT_TYPE_LABEL } from '../domain/graph';
+import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset, proposeStrings, PRESET_LABEL, type PresetKind } from '../domain/presets';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { parseNumber, parseQuantity } from '../domain/units';
 import { designOf, validateDesign, type Finding } from '../validation/strings';
@@ -96,8 +96,7 @@ function batchForm(ctx: DesignCtx, invComp: Component | undefined, fail: (m: str
   const update = () => {
     const n = Number(count.value), c = panels.find((x) => refKey(x) === model.value);
     if (!c || !Number.isInteger(n) || n < 1) { preview.textContent = 'Nhập số tấm nguyên dương'; return; }
-    const trackers = invComp ? Math.max(1, Math.round(invComp.specs.mpptCount?.v ?? 1)) : 1;
-    const sizes = suggestGrouping(n, trackers);
+    const sizes = proposeStrings(n, c, invComp);
     preview.textContent = `Thêm ${n} × ${c.name} → ${sizes.length} chuỗi (${sizes.join(' + ')} tấm)` + (invComp ? ` vào MPPT 1…${sizes.length}` : ', chưa nối vì chưa có inverter');
   };
   [model, count].forEach((el) => el.addEventListener('input', update));

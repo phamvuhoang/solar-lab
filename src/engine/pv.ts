@@ -3,7 +3,7 @@ import type { Issue } from '../domain/validate';
 import type { ShadeField } from '../shade/sampler';
 import type { WeatherSeries } from '../weather/series';
 
-export const ENGINE_VERSION = 'pv-1.3.0';
+export const ENGINE_VERSION = 'pv-1.4.0';
 const D2R = Math.PI / 180;
 
 export interface PvModel {
@@ -19,15 +19,19 @@ export interface PvModel {
    * 'weakest' makes every panel of a string produce what its weakest panel does (no bypass at all, a lower bound).
    */
   stringMode?: 'sum' | 'weakest';
+  /** βVmp (1/°C) the designer assumed for panels whose datasheet gives none; used only to tell when Vmp falls below the MPPT floor. */
+  betaVmpAssumption?: number | null;
 }
 /** id and shadeIdx tie a panel to its row in the shade field; panels without them are never shaded. */
-export interface PvPanel { pstcW: number; gamma: number; vmpV: number | null; id?: string; shadeIdx?: number }
+export interface PvPanel { pstcW: number; gamma: number; vmpV: number | null; betaVmp?: number | null; id?: string; shadeIdx?: number }
 /** tiltDeg/azimuthDeg override the model's: a string on a roof face takes that face's orientation. */
 export interface PvString { id: string; label: string; panels: PvPanel[]; trackerId: string; tiltDeg?: number; azimuthDeg?: number }
 export interface PvTracker {
   id: string; label: string; inverterId: string | null;
   /** null = unknown, so the limit is not applied and the result says so. */
   maxPowerW: number | null; maxCurrentA: number | null;
+  /** Lowest voltage at which the tracker holds the maximum power point; null = unknown or not a MPPT. */
+  mpptVminV?: number | null;
 }
 export interface PvInverter { id: string; label: string; maxPvPowerW: number | null }
 export interface PvInput {
@@ -46,6 +50,8 @@ export interface PvTotals {
 }
 export interface PvShadeReport {
   key: string; modelVersion: string; mode: 'preview' | 'standard'; samplesPerPanel: number; stringMode: 'sum' | 'weakest';
+  /** Panels in a string but not placed on a roof: computed as never shaded. */
+  unplacedPanels: number;
   /** Per panel, at the ideal stage (before DC loss and limits): energy with and without the shadow, and direct-weighted access. */
   panels: { id: string; eIdealWh: number; eIdealNoShadeWh: number; directAccess: number | null }[];
   notes: string[];
@@ -167,6 +173,15 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
   const inverterIdx = new Map(input.inverters.map((v, i) => [v.id, i]));
   const applied: string[] = [], skipped: string[] = [];
   const yieldEvery = hooks.yieldEvery ?? 1000;
+  // The model assumes the maximum power point is always held. Where the string's Vmp at the cell temperature falls below the tracker's MPPT floor
+  // it cannot be (the inverter's behaviour there needs I–V data), so the result says how much energy came in those steps instead of changing it.
+  const floorOf = input.strings.map((st) => {
+    const vmin = input.trackers[trackerIdx.get(st.trackerId)!]?.mpptVminV ?? null;
+    if (vmin === null) return null;
+    const betas = st.panels.map((q) => q.betaVmp ?? m.betaVmpAssumption ?? null);
+    return { vmin, betas, ok: st.panels.every((q) => q.vmpV !== null) && betas.every((b) => b !== null), assumed: st.panels.some((q) => q.betaVmp == null) };
+  });
+  const belowWh = input.strings.map(() => 0), belowH = input.strings.map(() => 0), checkedWh = input.strings.map(() => 0);
 
   // Limits are fixed for the whole run: work them out once. An unknown limit is not applied, and the result says so.
   const trackerCap = input.trackers.map((t) => {
@@ -250,7 +265,22 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
       input.strings.forEach((st, k) => { if (st.trackerId === t.id) perString[k].tracker[i] = trackerSum[ti] > 0 ? (p * perString[k].lossed[i]) / trackerSum[ti] : 0; });
     });
     input.inverters.forEach((_, vi) => { const p = Math.min(inverterSum[vi], inverterCap[vi]); s.pInverterW[i] += p; perInverter[vi].pW[i] = p; });
+    input.strings.forEach((st, k) => {
+      const f = floorOf[k], pw = perString[k].tracker[i];
+      if (!f?.ok || pw <= 0) return;
+      const tc = tcellO[orientOf[k]], vmp = st.panels.reduce((a, q, j) => a + q.vmpV! * (1 + f.betas[j]! * (tc - 25)), 0);
+      checkedWh[k] += pw * dtH;
+      if (vmp < f.vmin) { belowWh[k] += pw * dtH; belowH[k] += dtH; }
+    });
   }
+  const unchecked: string[] = [];
+  input.strings.forEach((st, k) => {
+    const f = floorOf[k];
+    if (!f) return;
+    if (!f.ok) { unchecked.push(st.label); return; }
+    if (belowWh[k] > 0) assumptions.push(`${st.label}: ${(100 * belowWh[k] / checkedWh[k]).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} % điện năng (${Math.round(belowH[k])} giờ) sinh ra lúc Vmp theo nhiệt độ cell dưới ${f.vmin} V, đáy dải MPPT (βVmp ${f.assumed ? `giả định thiết kế ${((m.betaVmpAssumption ?? 0) * 100).toLocaleString('vi-VN')} %/°C` : 'theo datasheet'}). Mô hình vẫn coi inverter bám được điểm công suất cực đại nên sản lượng thật của chuỗi này có thể thấp hơn`);
+  });
+  if (unchecked.length) assumptions.push(`Chưa kiểm Vmp theo nhiệt độ so với đáy dải MPPT cho ${unchecked.join(', ')} (thiếu βVmp): sản lượng giả định inverter luôn bám được điểm công suất cực đại`);
   hooks.onProgress?.(n, n);
 
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0) * dtH;
@@ -259,7 +289,7 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
   const eIdeal = sum(s.pIdealW), eLossed = sum(s.pLossedW), eTracker = sum(s.pTrackerW), eInv = sum(s.pInverterW);
   return {
     engineVersion: ENGINE_VERSION, inputHash, models: modelNames(mode, m), period: periodOf(w), series: s, orientations: orients,
-    shade: shade ? { key: shade.key, modelVersion: shade.modelVersion, mode: shade.mode, samplesPerPanel: shade.samplesPerPanel, stringMode,
+    shade: shade ? { key: shade.key, modelVersion: shade.modelVersion, mode: shade.mode, samplesPerPanel: shade.samplesPerPanel, stringMode, unplacedPanels: unshadedPanels,
       panels: [...stat].map(([id, v]) => ({ id, eIdealWh: v.shaded, eIdealNoShadeWh: v.free, directAccess: v.dir > 0 ? v.dirAcc / v.dir : null })),
       notes: ['Chỉ trực xạ bị bóng che; khuếch tán trời và phản xạ đất giữ nguyên (vật cản không làm giảm góc nhìn bầu trời)', 'Không giải bypass diode, IV từng cell hay hotspot: cận trên = cộng công suất từng tấm, cận dưới = tấm yếu nhất quyết định cả chuỗi', 'Chỉ vật cản và mặt mái khác che; tấm không che nhau', ...(unshadedPanels ? [`${unshadedPanels} tấm chưa đặt lên mái nên KHÔNG bị bóng che (coi là đủ nắng); kết quả có bóng chỉ áp cho các tấm còn lại`] : [])] } : null,
     strings: input.strings.map((st, k) => ({ id: st.id, label: st.label, panelCount: st.panels.length, pstcW: st.panels.reduce((a, p) => a + p.pstcW, 0), orientation: orientOf[k], trackerId: st.trackerId, inverterId: input.trackers.find((t) => t.id === st.trackerId)!.inverterId, pIdealW: perString[k].ideal, pLossedW: perString[k].lossed, pTrackerW: perString[k].tracker })),

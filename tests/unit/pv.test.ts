@@ -2,7 +2,10 @@ import { describe, expect, test } from 'vitest';
 import { applyPreset } from '../../src/domain/presets';
 import { openLamHa } from '../../src/domain/project';
 import { compilePv, hashPvInput } from '../../src/engine/compile';
-import { completeIrradiance, faimanTcell, isotropicPoa, panelDcW, simulatePv } from '../../src/engine/pv';
+import { completeIrradiance, faimanTcell, isotropicPoa, panelDcW, simulatePv, type PvResult } from '../../src/engine/pv';
+import { setQuantity } from '../../src/cost/edit';
+import type { Project } from '../../src/domain/types';
+import { loadBundledWeather } from '../../src/weather/bundled';
 import { sunPosition } from '../../src/engine/solar';
 import { catalog, withSpecs } from './helpers';
 import { input, model, panel, str, wx } from './pv-helpers';
@@ -215,5 +218,24 @@ describe('compile từ project', () => {
     const { input: i, issues } = compilePv(p, w);
     expect(issues).toEqual([]);
     expect(i!.trackers[0]).toMatchObject({ inverterId: null, maxPowerW: 750, maxCurrentA: null });
+  });
+});
+
+describe('sau review W09: Vmp theo nhiệt độ so với đáy dải MPPT', () => {
+  test('chuỗi 3 tấm trên SNA6000 (đáy 120 V): kết quả nói phần điện năng sinh ra khi Vmp dưới đáy; thiếu βVmp thì nói chưa kiểm; chuỗi 4 tấm không bị cảnh báo', async () => {
+    const w = await loadBundledWeather('lam-ha-2023-pvgis-era5');
+    if (!w?.ok) throw new Error('weather');
+    const sna = catalog('luxpower-sna6000wpv'), vsun = { modelId: 'vsun-620', revision: 1 };
+    const sim = async (p: Project) => { const c = compilePv(p, w.series); return (await simulatePv(c.input!, await hashPvInput(c.input!)))!; };
+    const assumeBeta = (p: Project) => ({ ...p, design: { coldCellTempC: null, hotCellTempC: null, iscFactor: 1, betaVmpAssumption: -0.0033, source: 'giả định kiểm thử' } }) as Project;
+    const below = (r: PvResult) => r.assumptions.filter((a) => a.includes('đáy dải MPPT'));
+    // người dùng chọn rõ "2 tracker độc lập" cho 6 tấm: 3 + 3, Vmp STC 123,7 V sát đáy 120 V
+    const p6 = { ...applyPreset(setQuantity(openLamHa(), vsun, 6), 'two-trackers', sna), pv: { tiltDeg: 10, azimuthDeg: 180 } } as Project;
+    const r6 = await sim(assumeBeta(p6));
+    expect(below(r6)).toHaveLength(2);
+    expect(Number(/([\d,]+) % điện năng/.exec(below(r6)[0])![1].replace(',', '.'))).toBeCloseTo(79.4, 0); // tính độc lập trên cùng dữ liệu: 79,4 %
+    expect((await sim(p6)).assumptions.some((a) => a.startsWith('Chưa kiểm Vmp theo nhiệt độ'))).toBe(true);
+    const p8 = { ...applyPreset(openLamHa(), 'two-trackers', sna), pv: { tiltDeg: 10, azimuthDeg: 180 } } as Project; // 4 + 4: 164,9 V
+    expect(below(await sim(assumeBeta(p8)))).toEqual([]);
   });
 });

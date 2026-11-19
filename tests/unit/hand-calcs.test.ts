@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BUILTIN_OFFERS, offersFor } from '../../src/catalog/catalog';
+import { addCostLine } from '../../src/cost/edit';
 import { buildQuote } from '../../src/cost/quote';
 import { buildLamHaConfig } from '../../src/domain/presets';
 import { openLamHa } from '../../src/domain/project';
@@ -78,9 +79,11 @@ describe('fixture giải tay từ datasheet', () => {
     expect(o.result.dispatch.ledger.toleranceOk).toBe(true);
   });
   test('H6 · tiền: 8 tấm × 620 W × 3.200 đ/W = 15.872.000 đ; + pin 16.000.000 = 31.872.000 đ; dây 12,5 m × 18.000 đ/m = 225.000 đ', () => {
-    expect(8 * 620 * 3200).toBe(15_872_000);
-    expect(15_872_000 + 16_000_000).toBe(31_872_000);
-    expect(buildQuote(openLamHa()).knownSubtotalMinor).toBe('31872000');
-    expect((12_500 * 18_000) / 1000).toBe(225_000); // mm × (đ/m) / 1000
+    // đáp số giải tay; phép tính đi qua dự toán thật (đơn giá theo W, cộng bằng BOM, dây theo mm làm tròn từng dòng)
+    const q = buildQuote(openLamHa());
+    expect(q.lines.find((l) => l.key === 'design:vsun-620@1')!.totalMinor).toBe('15872000');
+    expect(q.knownSubtotalMinor).toBe('31872000');
+    const wired = buildQuote(addCostLine(openLamHa(), { category: 'cable', label: 'Dây DC', qty: 12_500, qtyUnit: 'mm', unitPriceMinor: '18000', vat: 'included', seller: null, recordedAt: null }));
+    expect(wired.lines.find((l) => l.label === 'Dây DC')!.totalMinor).toBe('225000');
   });
 });

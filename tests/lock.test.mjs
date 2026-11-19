@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { cpSync, mkdtempSync, writeFileSync, appendFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { checkLock } from '../scripts/lock.mjs';
 
-const here = new URL('../', import.meta.url).pathname;
+const here = fileURLToPath(new URL('../', import.meta.url)); // .pathname stays percent-encoded: breaks on spaces, Vietnamese letters, Windows
 function copy() {
   const d = mkdtempSync(join(tmpdir(), 'lock-'));
   for (const p of ['data', 'schemas', 'tests/fixtures', 'docs/release']) cpSync(join(here, p), join(d, p), { recursive: true });

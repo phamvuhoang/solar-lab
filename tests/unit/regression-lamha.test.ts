@@ -20,7 +20,8 @@ import type { WeatherSeries } from '../../src/weather/series';
 import { catalog } from './helpers';
 
 /**
- * Lâm Hà regression matrix: 6 panels and 8 panels × pump at 18h and at 11h, and the water tank next to the roof.
+ * Lâm Hà regression matrix: 6 panels and 8 panels × pump at 18h and at 11h, the water tank next to / away from the roof,
+ * and configuration B (6 panels on the inverter + 2 panels feeding the DC pump) at both pump hours.
  * Numbers are frozen in tests/fixtures/golden/lamha-matrix.json (regenerate with UPDATE_GOLDEN=1 and READ the diff:
  * a change in a golden number is a change in what the product tells the user).
  */
@@ -30,9 +31,9 @@ const offers = (c: ReturnType<typeof catalog>) => offersFor(BUILTIN_OFFERS, c);
 const vsun = { modelId: 'vsun-620', revision: 1 };
 const pumpAt = (p: Project, hour: number): Project => ({ ...p, loadPlans: p.loadPlans!.map((l) => (l.pump ? { ...l, fractions: l.fractions.map((_, k) => (k === hour ? 1 : 0)) } : l)) });
 const design = { coldCellTempC: 5, hotCellTempC: 70 };
-function lamHa(panels: 6 | 8, pumpHour: 11 | 18, tank: 'none' | 'near' | 'far' = 'none'): Project {
+function lamHa(panels: 6 | 8, pumpHour: 11 | 18, tank: 'none' | 'near' | 'far' = 'none', kind: 'shared8' | 'split6+2' = 'shared8'): Project {
   let p = panels === 8 ? openLamHa() : setQuantity(openLamHa(), vsun, 6);
-  p = { ...buildLamHaConfig(p, 'shared8', parts(), offers), design, pv: { tiltDeg: 10, azimuthDeg: 180, weatherId: 'lam-ha-2023-pvgis-era5' } } as Project;
+  p = { ...buildLamHaConfig(p, kind, parts(), offers), design, pv: { tiltDeg: 10, azimuthDeg: 180, weatherId: 'lam-ha-2023-pvgis-era5' } } as Project;
   p = pumpAt(p, pumpHour);
   if (tank !== 'none') {
     p = demoGableRoof(p);
@@ -65,6 +66,7 @@ describe('ma trận Lâm Hà: 6/8 tấm × bơm 18h/11h × bồn nước', () =>
   beforeAll(async () => {
     for (const n of [6, 8] as const) for (const h of [18, 11] as const) { const k = `${n}tam-bom${h}h`; const { r } = await run(lamHa(n, h)); results[k] = pick(r); raw[k] = r; }
     for (const t of ['near', 'far'] as const) { const k = `8tam-bom11h-bon-${t}`; const { r } = await run(lamHa(8, 11, t)); results[k] = pick(r); raw[k] = r; }
+    for (const h of [18, 11] as const) { const k = `8tam-6+2-bom${h}h`; const { r } = await run(lamHa(8, h, 'none', 'split6+2')); results[k] = pick(r); raw[k] = r; }
     CASES.push(['x', lamHa(8, 11)]);
   }, 180000);
 
@@ -83,12 +85,17 @@ describe('ma trận Lâm Hà: 6/8 tấm × bơm 18h/11h × bồn nước', () =>
     expect(BigInt(q6.knownSubtotalMinor) <= 30_000_000n).toBe(true);
     expect(q8.totalMinor).toBeNull(); expect(q6.totalMinor).toBeNull();
   });
-  test('quan hệ vật lý: 6 tấm cho PV bằng 3/4 của 8 tấm; bơm 11h xả pin ít hơn 18h; bồn sát mái làm giảm PV, bồn xa thì không', () => {
+  test('quan hệ vật lý: 6 tấm cho PV bằng 3/4 của 8 tấm; bơm 11h xả pin ít hơn 18h; bồn sát mái che nhiều hơn hẳn bồn xa (bồn xa vẫn che một ít lúc nắng thấp); B: bơm DC chỉ chạy được khi có nắng', () => {
     const e = (k: string) => raw[k].pv.totals.eInverterWh;
     expect(e('6tam-bom11h') / e('8tam-bom11h')).toBeCloseTo(0.75, 2);
     for (const n of [6, 8]) expect(results[`${n}tam-bom11h`]['dispatch.dischargeBusWh']!).toBeLessThan(results[`${n}tam-bom18h`]['dispatch.dischargeBusWh']!);
-    expect(e('8tam-bom11h-bon-near')).toBeLessThan(e('8tam-bom11h-bon-far'));
-    expect(e('8tam-bom11h-bon-far')).toBeLessThanOrEqual(e('8tam-bom11h') + 1e-6);
+    const loss = (k: string) => e('8tam-bom11h') - e(k); // cùng mặt mái 10° hướng Nam; khác nhau chỉ ở bóng
+    expect(loss('8tam-bom11h-bon-near')).toBeGreaterThan(5 * loss('8tam-bom11h-bon-far')); // ≈ 63,6 so với ≈ 9,4 kWh/năm
+    expect(loss('8tam-bom11h-bon-far')).toBeGreaterThan(0);
+    expect(loss('8tam-bom11h-bon-far') / e('8tam-bom11h')).toBeLessThan(0.002);
+    const pump = (k: string) => raw[k].dispatch.loads.find((l) => l.feed === 'controller')!;
+    expect(pump('8tam-6+2-bom18h').servedWh).toBeLessThan(0.01 * pump('8tam-6+2-bom18h').requestedWh); // 18h không còn nắng
+    expect(pump('8tam-6+2-bom11h').servedWh).toBeGreaterThan(0.9 * pump('8tam-6+2-bom11h').requestedWh);
   });
   test('golden: kết quả khóa theo từng tổ hợp (sai lệch tương đối ≤ 1e-9)', () => {
     if (process.env.UPDATE_GOLDEN || !existsSync(GOLDEN)) { mkdirSync(new URL('./', GOLDEN), { recursive: true }); writeFileSync(GOLDEN, JSON.stringify({ engines: { pv: raw['8tam-bom11h'].pv.engineVersion, dispatch: raw['8tam-bom11h'].dispatch.version }, weather: weather.seriesId, cases: results }, null, 2) + '\n'); }

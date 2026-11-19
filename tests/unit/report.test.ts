@@ -13,6 +13,8 @@ import { CURRENT_ENGINES } from '../../src/reports/replay';
 import { loadBundledWeather } from '../../src/weather/bundled';
 import type { WeatherSeries } from '../../src/weather/series';
 import { catalog } from './helpers';
+import { demoGableRoof, fillFace } from '../../src/domain/layout-edit';
+import { buildShadeSpec, computeShade } from '../../src/shade/sampler';
 
 const parts = () => ({ inverter: catalog('luxpower-sna6000wpv'), battery: catalog('used-battery'), home: catalog('sample-home-load'), pump: catalog('sample-pump-load'), controller: catalog('sample-pump-controller') });
 const offers = (c: ReturnType<typeof catalog>) => offersFor(BUILTIN_OFFERS, c);
@@ -46,6 +48,18 @@ describe('dữ liệu báo cáo A4', () => {
     expect(f.quote.date === null || /^\d{4}-\d{2}-\d{2}$/.test(f.quote.date)).toBe(true);
     expect(f.quote.quote.knownSubtotalMinor).toBe('31872000'); // 8 tấm + bộ pin theo báo giá Lâm Hà
   });
+  test('bóng che: còn tấm chưa đặt lên mái (bị coi là đủ nắng) thì mức "Bóng che" là còn thiếu, không phải "đã thực hiện"', async () => {
+    let p = demoGableRoof({ ...B, shade: { enabled: true, mode: 'standard', grid: 4 } } as Project);
+    p = fillFace(p, p.roofFaces[0].roofFaceId, p.strings![0].panelIds).project; // chuỗi 1 lên mái, chuỗi 2 chưa đặt
+    const field = (await computeShade(await buildShadeSpec(p, weather, { mode: 'standard', grid: 4 }), null))!.field;
+    const c = compilePv(p, weather, { shade: field });
+    const shaded = (await simulatePv(c.input!, await hashPvInput(c.input!)))!;
+    expect(facts({ project: p, pv: shaded }).levels[4]).toMatchObject({ name: 'Bóng che', state: 'gaps' });
+    const all = fillFace(p, p.roofFaces[0].roofFaceId, p.strings![1].panelIds).project; // đặt nốt: đủ thì mới là đã thực hiện
+    const f2 = (await computeShade(await buildShadeSpec(all, weather, { mode: 'standard', grid: 4 }), null))!.field;
+    const c2 = compilePv(all, weather, { shade: f2 });
+    expect(facts({ project: all, pv: (await simulatePv(c2.input!, await hashPvInput(c2.input!)))! }).levels[4].state).toBe('done');
+  }, 60000);
   test('cấp độ kiểm tra có đủ sáu lớp, thi công luôn ngoài phạm vi, bóng che tắt thì ghi "không bật"', () => {
     const f = facts();
     expect(f.levels.map((l) => l.state)).toEqual(['done', expect.stringMatching(/done|gaps/), 'done', 'done', 'off', 'out-of-scope']);

@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { BUILTIN_COMPONENTS, BUILTIN_OFFERS, findComponent, offersFor } from '../../src/catalog/catalog';
-import { buildLamHaConfig } from '../../src/domain/presets';
+import { addPumpBranch, buildLamHaConfig } from '../../src/domain/presets';
+import { stringsOf } from '../../src/domain/graph';
+import { setQuantity } from '../../src/cost/edit';
 import { openLamHa } from '../../src/domain/project';
 import type { Project } from '../../src/domain/types';
 import { hasErrors, validateProject } from '../../src/domain/validate';
@@ -42,9 +44,9 @@ describe('cấu hình mẫu Lâm Hà và biên dịch', () => {
     expect(hasErrors(validateProject(p))).toBe(false);
     expect(p.loadPlans!.map((l) => l.priority)).toEqual([1, 2]);
   });
-  test('B: 6 tấm vào inverter (3+3), 2 tấm vào controller, bơm DC; dựng lại hai lần cho cùng thiết kế', () => {
+  test('B: 6 tấm vào inverter (một chuỗi 6: chia 3 + 3 thì Vmp sát đáy MPPT), 2 tấm vào controller, bơm DC; dựng lại hai lần cho cùng thiết kế', () => {
     const p = config('split6+2');
-    expect(p.strings!.map((s) => s.panelIds.length)).toEqual([3, 3, 2]);
+    expect(p.strings!.map((s) => [s.panelIds.length, s.target?.port])).toEqual([[6, 'M1'], [2, 'PV']]);
     expect(p.instances.filter((i) => i.kind === 'controller')).toHaveLength(1);
     const again = buildLamHaConfig(p, 'split6+2', parts(), offers);
     expect(again.instances.map((i) => i.label)).toEqual(p.instances.map((i) => i.label));
@@ -157,4 +159,19 @@ describe('chạy hệ thống, worker và A/B trên dữ liệu Lâm Hà 2023', 
     expect(await hash(repriced)).toBe(await hash(base));
     expect(await simHash((await compileSim(base, weather.series)).input!)).toBe(await hash(base));
   }, 60000);
+});
+
+describe('sau review W09: topology ngoài phạm vi phải bị từ chối, không cho số sai', () => {
+  test('hai controller bơm cùng có PV: từ chối (BRANCH_COUNT) thay vì ghép hai bơm vào một nhánh và bỏ PV nhánh kia khỏi sổ', async () => {
+    const vsun = { modelId: 'vsun-620', revision: 1 };
+    let p = buildLamHaConfig(setQuantity(openLamHa(), vsun, 10), 'split6+2', parts(), offers);
+    p = setQuantity(p, vsun, 12);
+    const used = new Set(stringsOf(p).flatMap((s) => s.panelIds));
+    p = addPumpBranch(p, catalog('sample-pump-controller'), catalog('sample-pump-load'), p.instances.filter((i) => i.kind === 'panel' && !used.has(i.instanceId)).map((i) => i.instanceId));
+    const pump2 = p.instances[p.instances.length - 1].instanceId;
+    p = { ...p, pv: { tiltDeg: 10, azimuthDeg: 180 }, loadPlans: [...p.loadPlans!, { instanceId: pump2, fractions: Array.from({ length: 24 }, (_, h) => (h === 11 ? 1 : 0)), priority: 3 }] } as Project;
+    const r = await compileSim(p, w());
+    expect(r.input).toBeNull();
+    expect(r.issues.map((i) => i.code)).toContain('BRANCH_COUNT');
+  });
 });
