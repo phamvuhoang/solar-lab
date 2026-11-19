@@ -254,13 +254,14 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
   hooks.onProgress?.(n, n);
 
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0) * dtH;
+  const unshadedPanels = shade ? input.strings.reduce((a, st) => a + st.panels.filter((p) => p.shadeIdx === undefined).length, 0) : 0;
   const kWp = input.strings.reduce((a, st) => a + st.panels.reduce((b, p) => b + p.pstcW, 0), 0) / 1000;
   const eIdeal = sum(s.pIdealW), eLossed = sum(s.pLossedW), eTracker = sum(s.pTrackerW), eInv = sum(s.pInverterW);
   return {
     engineVersion: ENGINE_VERSION, inputHash, models: modelNames(mode, m), period: periodOf(w), series: s, orientations: orients,
     shade: shade ? { key: shade.key, modelVersion: shade.modelVersion, mode: shade.mode, samplesPerPanel: shade.samplesPerPanel, stringMode,
       panels: [...stat].map(([id, v]) => ({ id, eIdealWh: v.shaded, eIdealNoShadeWh: v.free, directAccess: v.dir > 0 ? v.dirAcc / v.dir : null })),
-      notes: ['Chỉ trực xạ bị bóng che; khuếch tán trời và phản xạ đất giữ nguyên (vật cản không làm giảm góc nhìn bầu trời)', 'Không giải bypass diode, IV từng cell hay hotspot: cận trên = cộng công suất từng tấm, cận dưới = tấm yếu nhất quyết định cả chuỗi', 'Chỉ vật cản và mặt mái khác che; tấm không che nhau'] } : null,
+      notes: ['Chỉ trực xạ bị bóng che; khuếch tán trời và phản xạ đất giữ nguyên (vật cản không làm giảm góc nhìn bầu trời)', 'Không giải bypass diode, IV từng cell hay hotspot: cận trên = cộng công suất từng tấm, cận dưới = tấm yếu nhất quyết định cả chuỗi', 'Chỉ vật cản và mặt mái khác che; tấm không che nhau', ...(unshadedPanels ? [`${unshadedPanels} tấm chưa đặt lên mái nên KHÔNG bị bóng che (coi là đủ nắng); kết quả có bóng chỉ áp cho các tấm còn lại`] : [])] } : null,
     strings: input.strings.map((st, k) => ({ id: st.id, label: st.label, panelCount: st.panels.length, pstcW: st.panels.reduce((a, p) => a + p.pstcW, 0), orientation: orientOf[k], trackerId: st.trackerId, inverterId: input.trackers.find((t) => t.id === st.trackerId)!.inverterId, pIdealW: perString[k].ideal, pLossedW: perString[k].lossed, pTrackerW: perString[k].tracker })),
     inverters: input.inverters.map((v, vi) => ({ id: v.id, label: v.label, pW: perInverter[vi].pW, pLossedW: perInverter[vi].lossed })),
     branches: freeTrackers.map((t, bi) => ({ trackerId: t.id, label: t.label, pW: perBranch[bi].pW, pLossedW: perBranch[bi].lossed })),

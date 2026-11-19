@@ -1,3 +1,4 @@
+import { hashOf } from '../domain/hash';
 import type { Issue } from '../domain/validate';
 import { nowIso } from '../domain/ids';
 import type { Project } from '../domain/types';
@@ -23,6 +24,7 @@ export async function commitPackage(repo: Pick<ProjectRepository, 'createProject
     try {
       const had = await repo.getWeather(w.seriesId);
       if (!had) { await repo.saveWeather(w); weatherAdded = true; }
+      else if ((await hashOf(had)) !== (await hashOf(w))) issues.push(issue('WEATHER_ID_CONFLICT', 'warning', '/weather/data', `Máy này đã có dữ liệu thời tiết cùng mã "${w.seriesId}" nhưng nội dung khác dữ liệu trong gói. Giữ bản đã có (không ghi đè); chạy PV sẽ dùng dữ liệu trong máy, không phải dữ liệu trong gói.`));
       weatherStored = true;
     } catch (e) {
       issues.push(isQuotaError(e)

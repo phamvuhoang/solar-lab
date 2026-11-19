@@ -76,6 +76,8 @@ const flat = (v: number) => new Array<number>(24).fill(v);
  * Default schedule: home load all day, pump one hour at 18h; both are assumptions the user edits.
  */
 export function buildLamHaConfig(p: Project, kind: LamHaConfig, c: { inverter: Component; battery: Component; home: Component; pump: Component; controller: Component }, offers: (x: Component) => readonly Offer[] = () => []): Project {
+  // schedules and pump data the user already set survive a rebuild (instance IDs change, so they are matched by role: first pump plan, first home plan)
+  const oldPump = p.loadPlans?.find((l) => l.pump), oldHome = p.loadPlans?.find((l) => !l.pump && p.instances.find((i) => i.instanceId === l.instanceId)?.kind === 'load');
   const keep = new Set<string>();
   const battery = p.instances.find((i) => i.kind === 'battery');
   for (const i of p.instances) if (i.kind === 'panel' || i === battery) keep.add(i.instanceId);
@@ -100,8 +102,8 @@ export function buildLamHaConfig(p: Project, kind: LamHaConfig, c: { inverter: C
   else { next = addPumpBranch(next, c.controller, c.pump, panels.slice(-2), [...offers(c.controller), ...offers(c.pump)]); pumpId = next.instances[next.instances.length - 1].instanceId; }
   const at18 = flat(0); at18[18] = 1;
   next.loadPlans = [
-    { instanceId: home.instanceId, fractions: flat(1), priority: 1 },
-    { instanceId: pumpId, fractions: at18, priority: 2, pump: { staticHeadM: null, frictionK: null, curve: null } },
+    { instanceId: home.instanceId, fractions: oldHome ? [...oldHome.fractions] : flat(1), priority: oldHome?.priority ?? 1 },
+    { instanceId: pumpId, fractions: oldPump ? [...oldPump.fractions] : at18, priority: oldPump?.priority ?? 2, pump: oldPump?.pump ? structuredClone(oldPump.pump) : { staticHeadM: null, frictionK: null, curve: null } },
   ];
   return next;
 }

@@ -8,8 +8,10 @@ import { refKey, type Component, type Offer, type Project } from '../domain/type
 import { formatNumber } from '../domain/units';
 import { buildQuote } from '../cost/quote';
 import { exportProject, stageImport } from '../persistence/exchange';
-import { commitPackage, storageEstimate } from '../persistence/import';
+import { commitPackage, isQuotaError, storageEstimate } from '../persistence/import';
 import { isPackage, stagePackage } from '../reports/package';
+import { backupBeforeUpgrade, deleteBackup, exportAll, listBackups, restoreBackup, stageBackup, BACKUP_FORMAT } from '../persistence/backup';
+import { renderAbout } from './about';
 import { freshLessons, renderLessons } from './lessons';
 import { freshReport, renderReport } from './report';
 import { freshImported, renderImported } from './imported';
@@ -32,11 +34,12 @@ const HEADLINE: Record<Kind, string> = { panel: 'pstcW', inverter: 'acRatedW', b
 const AUTHOR = 'người dùng';
 
 export async function startApp(root: HTMLElement) {
+  const upgrade = await backupBeforeUpgrade(); // copy of the user's work BEFORE the schema moves
   const repo = await ProjectRepository.open();
   let project: Project | null = null;
   let userComponents: Component[] = [];
   let userOffers: Offer[] = [];
-  let message = '';
+  let message = upgrade.backedUp ? `Đã sao lưu ${upgrade.projects} dự án trước khi nâng cấp kho dữ liệu (từ v${upgrade.fromVersion}).` : upgrade.error ? `Không sao lưu được trước khi nâng cấp kho dữ liệu: ${upgrade.error}. Hãy bấm "Xuất tất cả" để giữ một bản.` : '';
   const history = new History<Project>();
   let selected: string | null = null;
   let pendingFocus: string[] = [];
@@ -58,7 +61,10 @@ export async function startApp(root: HTMLElement) {
   const save = async (next: Project): Promise<boolean> => {
     try { project = await repo.saveRevision(project!.revision, next); say(''); return true; }
     catch (e) {
-      if (!(e instanceof ConflictError)) throw e;
+      if (!(e instanceof ConflictError)) {
+        say(isQuotaError(e) ? 'Hết dung lượng lưu trữ của trình duyệt nên thay đổi này CHƯA được lưu. Giải phóng dung lượng (xóa dự án hoặc dữ liệu thời tiết cũ, hoặc bấm "Xuất tất cả" rồi xóa bớt) rồi làm lại.' : `Không lưu được thay đổi: ${(e as Error).message}. Thay đổi này chưa được lưu.`);
+        return false;
+      }
       say(`Dự án đã được sửa ở tab khác (revision ${e.head.headRevision}). Bấm "Mở bản mới nhất" để xem; thay đổi của bạn chưa được lưu.`);
       return false;
     }
@@ -75,7 +81,7 @@ export async function startApp(root: HTMLElement) {
   // ---- home ---------------------------------------------------------------------------------
   async function home() {
     history.clear(); selected = null; selection = []; shadeState = { date: null, step: 0, scenes: [], dayEnergy: null, stepLabel: '' }; reportState = freshReport(); importedState = freshImported(); lastPvResult = null; simState = { runs: [], side: 0, step: 0, progress: {} };
-    const heads = await repo.listProjects();
+    const heads = await repo.listProjects(), backups = await listBackups();
     const name = h('input', { name: 'name', value: 'Dự án mới', required: true });
     const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file' });
     file.addEventListener('change', async () => {
@@ -83,21 +89,34 @@ export async function startApp(root: HTMLElement) {
       if (!f) return;
       const text = await f.text(), ids = new Set((await repo.listProjects()).map((x) => x.projectId));
       if (isPackage(text)) return void (await importPackage(text, ids));
+      if (text.slice(0, 500).includes(BACKUP_FORMAT)) return void (await importBackupFile(text, ids));
       const staged = await stageImport(text, ids);
       if (!staged.ok) {
         say('Không nhập được file; dự án hiện có không bị thay đổi.');
         show(...issueList(staged.issues), h('button', { onClick: () => home() }, 'Quay lại'));
         return;
       }
-      project = await repo.createProject(staged.project);
+      try { project = await repo.createProject(staged.project); }
+      catch (e) {
+        say('Không nhập được file; dự án hiện có không bị thay đổi.');
+        show(...issueList([{ code: isQuotaError(e) ? 'STORAGE_FULL' : 'STORAGE_ERROR', severity: 'error', field: '/', message: isQuotaError(e) ? 'Hết dung lượng lưu trữ của trình duyệt. Xóa bớt dự án hoặc dữ liệu cũ rồi thử lại.' : (e as Error).message }]), h('button', { onClick: () => home() }, 'Quay lại'));
+        return;
+      }
       say(staged.renamed ? 'ID trùng: đã nhập thành bản sao mới.' : 'Đã nhập dự án.');
-      projectScreen();
+      // a hand-edited file (hash differs) or other warnings must be seen before the work starts, not dropped
+      if (staged.issues.length) show(...issueList(staged.issues), h('button', { id: 'open-imported', onClick: () => projectScreen() }, 'Mở dự án'));
+      else projectScreen();
     });
     show(
       h('form', { onSubmit: async (e: Event) => { e.preventDefault(); project = await repo.createProject(createProject(name.value)); say(''); projectScreen(); } },
         h('label', {}, 'Tên dự án ', name), h('button', { type: 'submit' }, 'Tạo dự án')),
       h('button', { type: 'button', onClick: async () => { project = await repo.createProject(openLamHa()); say(''); projectScreen(); } }, 'Mở mẫu Lâm Hà'),
       h('label', {}, 'Nhập dự án hoặc gói (JSON) ', file), h('p', { id: 'storage-note' }),
+      h('button', { id: 'export-all', type: 'button', onClick: async () => { download('mekoniq-tat-ca-du-an.json', await exportAll(repo)); } }, 'Xuất tất cả dự án (sao lưu)'),
+      ...backups.map((b) => h('p', { className: 'backup', 'data-backup': b.name }, `Có bản sao lưu tự động trước khi nâng cấp kho từ v${b.fromVersion}. `,
+        h('button', { className: 'restore-backup', onClick: async () => { try { const r = await restoreBackup(repo, b.name); say(`Đã khôi phục ${r.restored} dự án (bản mới nhất của từng dự án, không kèm lịch sử revision; bản sao lưu vẫn giữ nguyên)${r.copies ? `; ${r.copies} dự án trùng ID được khôi phục thành bản sao` : ''}.`); } catch (e) { say(`${isQuotaError(e) ? 'Hết dung lượng.' : 'Lỗi lưu trữ.'} Khôi phục dở: ${(e as Error).message}. Bản sao lưu vẫn còn nguyên.`); } await home(); } }, 'Khôi phục'),
+        h('button', { className: 'delete-backup', onClick: async () => { await deleteBackup(b.name); await home(); } }, 'Xóa bản sao lưu'))),
+      h('button', { id: 'about-btn', type: 'button', onClick: async () => show(...(await renderAbout(() => { void home(); }))) }, 'Phiên bản và phạm vi kiểm chứng'),
       h('button', { id: 'lessons-home-btn', type: 'button', onClick: () => lessonsScreen(() => home(), 'Về danh sách') }, 'Bài học'),
       h('h2', {}, 'Dự án đã lưu'),
       heads.length ? h('ul', { id: 'saved' }, ...heads.map((p) => h('li', {},
@@ -114,6 +133,17 @@ export async function startApp(root: HTMLElement) {
     project = done.project; importIssues = done.issues; importedState = freshImported();
     say(staged.renamed ? 'ID trùng: đã nhập thành bản sao mới.' : 'Đã nhập gói.');
     await importedScreen();
+  }
+
+  async function importBackupFile(text: string, ids: ReadonlySet<string>) {
+    const staged = await stageBackup(text, ids);
+    if (!staged.ok) { say('Không nhập được file sao lưu; dự án hiện có không bị thay đổi.'); show(...issueList(staged.issues), h('button', { onClick: () => home() }, 'Quay lại')); return; }
+    try { for (const it of staged.items) await repo.createProject(it.project); }
+    catch (e) { say(`${isQuotaError(e) ? 'Hết dung lượng lưu trữ.' : 'Lỗi lưu trữ.'} Nhập dở: ${(e as Error).message}. Các dự án đã nhập trước đó vẫn còn; dự án hiện có không bị thay đổi.`); return void (await home()); }
+    say(`Đã nhập ${staged.items.length} dự án từ file sao lưu${staged.items.some((i) => i.renamed) ? ' (ID trùng được nhập thành bản sao)' : ''}.`);
+    const warn = staged.items.flatMap((i) => i.issues.map((x) => ({ ...x, message: `${i.project.name}: ${x.message}` })));
+    if (warn.length) show(...issueList(warn), h('button', { id: 'back-home', onClick: () => home() }, 'Tiếp tục'));
+    else await home();
   }
 
   const issueList = (issues: { code: string; severity: string; field: string; message: string }[]) =>

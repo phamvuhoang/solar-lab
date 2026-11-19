@@ -1,0 +1,56 @@
+{
+  "machine": {
+    "cpu": "Apple M2 Pro",
+    "cores": 10,
+    "memGB": 17,
+    "platform": "darwin 25.5.0",
+    "node": "v26.3.0",
+    "rssMbStart": 56,
+    "rssMbEnd": 197,
+    "maxRssKb": 200160
+  },
+  "edit40": {
+    "coldMs": 34.8,
+    "warmRuns": 25,
+    "p50Ms": 1.5,
+    "p95Ms": 3.5
+  },
+  "pvYear": {
+    "coldMs": 36.1,
+    "warmRuns": 5,
+    "p50Ms": 21.6,
+    "p95Ms": 24.6
+  },
+  "systemYear": {
+    "coldMs": 60.3,
+    "warmRuns": 5,
+    "p50Ms": 60.7,
+    "p95Ms": 70.7
+  },
+  "package": {
+    "build": {
+      "coldMs": 9.3,
+      "warmRuns": 5,
+      "p50Ms": 6.1,
+      "p95Ms": 7.3
+    },
+    "stage": {
+      "coldMs": 8.5,
+      "warmRuns": 5,
+      "p50Ms": 4.8,
+      "p95Ms": 5.2
+    },
+    "fullBytes": 388715
+  },
+  "shadeYear": {
+    "coldMs": 1142.1,
+    "warmRuns": 5,
+    "p50Ms": 1149.8,
+    "p95Ms": 1201.6,
+    "panels": 40,
+    "obstacles": 10,
+    "samplesPerPanel": 16,
+    "steps": 8760,
+    "cancelMs": 1.8
+  }
+}

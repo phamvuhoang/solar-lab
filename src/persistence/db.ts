@@ -24,7 +24,8 @@ export function openDb(factory: IDBFactory = indexedDB, name = DB_NAME, version 
     req.onupgradeneeded = (ev) => {
       for (let v = ev.oldVersion + 1; v <= version; v++) migrations[v](req.result, req.transaction!);
     };
-    req.onsuccess = () => resolve(req.result);
+    // Another tab (a newer build) wants to upgrade or delete the database: let go instead of blocking it forever.
+    req.onsuccess = () => { req.result.onversionchange = () => req.result.close(); resolve(req.result); };
     req.onerror = () => reject(req.error);
     req.onblocked = () => reject(new Error('DB_BLOCKED: đóng các tab Solar Lab khác rồi thử lại'));
   });

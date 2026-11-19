@@ -27,9 +27,9 @@ export function parseNumber(token: string): number | null {
   let t = token;
   if (/^[+-]?\d+$/.test(t)) return Number(t);
   if (t.includes(',')) {
-    if (!/^[+-]?(\d{1,3}(\.\d{3})+|\d+),\d+$/.test(t)) return null;
+    if (!/^[+-]?([1-9]\d{0,2}(\.\d{3})+|\d+),\d+$/.test(t)) return null;
     t = t.replace(/\./g, '').replace(',', '.');
-  } else if (/^[+-]?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+  } else if (/^[+-]?[1-9]\d{0,2}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, ''); // a dot group is thousands only if it does not start with 0: "0.500" is 0,5
   else if (!/^[+-]?\d+\.\d+$/.test(t)) return null;
   return Number(t);
 }
@@ -64,7 +64,8 @@ export function formatQuantity(v: number, dim: Dim): string {
 export function parseMoney(text: string): { ok: true; minor: string } | { ok: false; message: string } {
   const t = (text ?? '').replace(/\s*(đ|₫|vnd)\s*$/i, '').replace(/(?<=\d) (?=\d{3}\b)/g, '').trim();
   if (!t) return { ok: false, message: 'Chưa nhập giá' };
-  const n = /^\d[\d.]*$/.test(t) ? parseNumber(t) : null;
+  // dots are thousands separators only: "18.00" or "0.500" are typos, not 18 or 500 đồng
+  const n = /^(\d+|[1-9]\d{0,2}(\.\d{3})+)$/.test(t) ? parseNumber(t) : null;
   if (n === null || !Number.isSafeInteger(n)) return { ok: false, message: `"${text}" không phải số tiền nguyên (đồng)` };
   return { ok: true, minor: String(n) };
 }

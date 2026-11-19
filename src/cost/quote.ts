@@ -154,7 +154,9 @@ function summarize(p: Project, st: QuoteSettings, lines: QuoteLine[], deviceCoun
     scope: st.requiredCategories.filter((c) => !covered.has(c)),
     unknownVatKeys: known.filter((l) => l.vat === 'unknown' && l.totalMinor !== '0').map((l) => l.key),
   };
-  const complete = !missing.lineKeys.length && !missing.scope.length && !missing.unknownVatKeys.length && lines.length > 0;
+  // a kit that claims more parts than the design has would be charged in full for parts that do not exist: never report a total then
+  const kitOver = issues.some((i) => i.code === 'KIT_PART_NOT_IN_DESIGN');
+  const complete = !missing.lineKeys.length && !missing.scope.length && !missing.unknownVatKeys.length && lines.length > 0 && !kitOver;
   return {
     policy: { rounding: 'half-up per line to whole đồng', vatRateBp: st.vatRateBp, currency: 'VND' }, lines, deviceCounts,
     knownSubtotalMinor: String(subtotal), vatMinor: String(vat), shippingMinor: String(byCat.shipping ?? 0n),

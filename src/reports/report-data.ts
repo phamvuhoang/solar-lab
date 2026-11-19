@@ -48,6 +48,7 @@ export function reportFacts(i: ReportInput): ReportFacts {
     quote.missing.lineKeys.length && `${quote.missing.lineKeys.length} dòng chưa có giá`,
     quote.missing.scope.length && `thiếu hạng mục ${quote.missing.scope.join(', ')}`,
     quote.missing.unknownVatKeys.length && `${quote.missing.unknownVatKeys.length} dòng chưa rõ VAT`,
+    quote.issues.some((x) => x.code === 'KIT_PART_NOT_IN_DESIGN') && 'kit ghi nhiều linh kiện hơn thiết kế có',
   ].filter(Boolean) as string[];
 
   let monthly: ReportFacts['monthly'] = null, typicalDay: ReportFacts['typicalDay'] = null;
@@ -69,7 +70,7 @@ export function reportFacts(i: ReportInput): ReportFacts {
     { name: 'Mô phỏng PV theo giờ', state: i.pv ? 'done' : 'not-run', detail: i.pv ? `Engine ${i.pv.engineVersion}, mã đầu vào ${i.pv.inputHash.slice(0, 12)}.` : 'Chưa chạy cho báo cáo này.' },
     { name: 'Hệ thống pin, tải, bơm (dispatch)', state: i.runs.length ? (i.runs.every((r) => r.result.dispatch.ledger.toleranceOk) ? 'done' : 'gaps') : 'not-run',
       detail: i.runs.length ? `${i.runs[0].result.dispatch.version}; sổ năng lượng cân trong ngưỡng ở ${i.runs.filter((r) => r.result.dispatch.ledger.toleranceOk).length}/${i.runs.length} phương án.` : 'Chưa chạy cho báo cáo này.' },
-    { name: 'Bóng che', state: i.pv?.shade ? 'done' : sh.enabled ? 'not-run' : 'off', detail: i.pv?.shade ? `${i.pv.shade.modelVersion}, ${i.pv.shade.samplesPerPanel} mẫu mỗi tấm, chuỗi tính ${i.pv.shade.stringMode === 'sum' ? 'cộng tấm' : 'tấm yếu nhất'}; bypass diode chưa giải.` : sh.enabled ? 'Bật nhưng kết quả này không kèm bóng.' : 'Không bật: kết quả giả định không bị che.' },
+    { name: 'Bóng che', state: i.pv?.shade ? 'done' : sh.enabled ? 'not-run' : 'off', detail: i.pv?.shade ? `${i.pv.shade.modelVersion}, ${i.pv.shade.samplesPerPanel} mẫu mỗi tấm, chuỗi tính ${i.pv.shade.stringMode === 'sum' ? 'cộng tấm' : 'tấm yếu nhất'}; bypass diode chưa giải.${i.pv.shade.notes.filter((n) => /chưa đặt lên mái/.test(n)).map((n) => ' ' + n).join('')}` : sh.enabled ? 'Bật nhưng kết quả này không kèm bóng.' : 'Không bật: kết quả giả định không bị che.' },
     { name: 'Thi công và an toàn', state: 'out-of-scope', detail: 'Ngoài phạm vi công cụ. Tiết diện dây, thiết bị bảo vệ, tiếp địa, vị trí lắp thực tế phải do người lắp xác nhận.' },
   ];
 
@@ -88,6 +89,7 @@ export function reportFacts(i: ReportInput): ReportFacts {
   const scope = [
     w ? `Kết luận chỉ đúng cho dữ liệu thời tiết "${w.name}" (${w.source.period ?? 'không rõ kỳ'}); không suy ra cho năm hay địa điểm khác.` : 'Chưa có dữ liệu thời tiết nên báo cáo không có kết quả sản lượng.',
     'Đây là ước tính thiết kế sơ bộ, không thay cho bản vẽ thi công hay khảo sát tại chỗ.',
+    'Trạng thái kiểm chứng: đã đối chiếu mô hình (PV với pvlib, sổ năng lượng, hình học bóng); CHƯA đối chiếu thực địa vì chưa có phép đo công trình.',
     'Giá là giá trong báo giá đã nhập, theo ngày ghi; giá thiếu được giữ là thiếu, không ước lượng.',
   ];
   return {

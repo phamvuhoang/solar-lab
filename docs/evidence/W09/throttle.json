@@ -1,0 +1,6 @@
+{
+  "emulation": "Chrome DevTools Emulation.setCPUThrottlingRate=6 (KHÔNG phải thiết bị Android thật)",
+  "flow": "Lâm Hà cấu hình A, mô phỏng hệ thống 8.760 giờ, từ bấm chạy tới có kết quả",
+  "ms": 594,
+  "workerCount": 1
+}

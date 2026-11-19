@@ -74,6 +74,7 @@ export function validateProject(p: unknown): Issue[] {
   if (!vProject(p)) return fromAjv(vProject.errors);
   const proj = p as unknown as Project;
   const out: Issue[] = [];
+  if (proj.location) { try { new Intl.DateTimeFormat('en', { timeZone: proj.location.timezone }); } catch { out.push({ code: 'INVALID_TIMEZONE', severity: 'error', field: '/location/timezone', message: `Múi giờ "${proj.location.timezone}" không hợp lệ (cần dạng IANA như Asia/Ho_Chi_Minh)` }); } }
   proj.snapshots.components.forEach((c, i) => out.push(...checkComponent(c, `/snapshots/components/${i}`)));
   const comps = new Set(proj.snapshots.components.map(refKey));
   const offers = new Map(proj.snapshots.offers.map((o: Offer) => [o.offerId, o]));

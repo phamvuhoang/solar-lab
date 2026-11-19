@@ -12,6 +12,7 @@ export function pvResultToCsv(r: PvResult, meta: { weatherName: string; source: 
     `# weather: ${clean(meta.weatherName)}`, `# weather_source: ${clean(meta.source)}`,
     `# step_seconds: ${step}`, '# timestamp_utc: start of interval; sun position evaluated at the midpoint',
     ...Object.entries(r.models).map(([k, v]) => `# model.${k}: ${clean(v)}`),
+    ...(r.shade ? [`# shade: ${r.shade.modelVersion}, ${r.shade.samplesPerPanel} samples per panel, string bound ${r.shade.stringMode}`, ...r.shade.notes.map((n) => `# shade_note: ${clean(n)}`)] : []),
     ...r.assumptions.map((a) => `# assumption: ${clean(a)}`), ...r.limitsApplied.map((a) => `# limit_applied: ${clean(a)}`), ...r.limitsSkipped.map((a) => `# limit_skipped: ${clean(a)}`),
     `timestamp_utc,local_date_${meta.timeZone.replace(/\W/g, '_')},local_hour,poa_wm2,tcell_c,apparent_zenith_deg,azimuth_deg,p_ideal_w,p_after_loss_w,p_after_tracker_w,p_after_inverter_w,e_after_inverter_wh`,
   ];

@@ -17,7 +17,9 @@ pnpm build        # typecheck + dist/ + dist/build-meta.json
 pnpm run ci       # import guard, typecheck, node/vitest/Playwright, build
 ```
 
-Bằng chứng nghiệm thu: [docs/evidence/W00.md](docs/evidence/W00.md).
+Bằng chứng nghiệm thu: `docs/evidence/W00.md` … `W09.md`. Bản ứng viên: [docs/release/v1.0.0-rc.1.md](docs/release/v1.0.0-rc.1.md) · [ma trận nghiệm thu](docs/release/acceptance-matrix.md) · [rollback](docs/release/rollback.md) · [UAT](docs/uat/protocol.md).
+
+Khóa đầu vào: `node scripts/lock.mjs` (kiểm), `node scripts/lock.mjs --write` (khóa lại sau khi đọc diff).
 
 | Đọc theo thứ tự | Nội dung |
 |---|---|

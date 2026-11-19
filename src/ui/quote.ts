@@ -43,6 +43,7 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
     q.missing.lineKeys.length && `${q.missing.lineKeys.length} dòng chưa có giá`,
     q.missing.scope.length && `thiếu hạng mục: ${q.missing.scope.map((c) => CAT[c]).join(', ')}`,
     q.missing.unknownVatKeys.length && `${q.missing.unknownVatKeys.length} dòng chưa rõ VAT`,
+    q.issues.some((i) => i.code === 'KIT_PART_NOT_IN_DESIGN') && 'kit ghi nhiều linh kiện hơn thiết kế có',
   ].filter(Boolean).join('; ');
 
   const waive = h('div', {}, h('strong', {}, 'Phạm vi cần có: '), ...st.requiredCategories.map((c) => {

@@ -33,7 +33,8 @@ export function quoteToCsv(q: Quote, projectName: string): string {
     sum('Tổng hoàn chỉnh', q.totalMinor),
     ...(q.complete ? [] : [['', 'Chưa đủ để báo tổng: ' + [
       q.missing.lineKeys.length && `${q.missing.lineKeys.length} dòng chưa có giá`, q.missing.scope.length && `thiếu hạng mục ${q.missing.scope.map((c) => CATEGORY_VI[c]).join(', ')}`,
-      q.missing.unknownVatKeys.length && `${q.missing.unknownVatKeys.length} dòng chưa rõ VAT`].filter(Boolean).join('; ')]]),
+      q.missing.unknownVatKeys.length && `${q.missing.unknownVatKeys.length} dòng chưa rõ VAT`,
+      q.issues.some((i) => i.code === 'KIT_PART_NOT_IN_DESIGN') && 'kit ghi nhiều linh kiện hơn thiết kế có'].filter(Boolean).join('; ')]]),
     ['', `Làm tròn: ${q.policy.rounding}`],
   ];
   return '﻿' + out.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';

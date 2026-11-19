@@ -1,0 +1,69 @@
+{
+  "engines": {
+    "pv": "pv-1.3.0",
+    "dispatch": "dispatch-1.0.0"
+  },
+  "weather": "lam-ha-2023-pvgis-era5",
+  "cases": {
+    "6tam-bom18h": {
+      "pv.eInverterWh": 6686845.791791233,
+      "dispatch.loadServedWh": 2891512.2742559677,
+      "dispatch.unservedWh": 10237.725744032194,
+      "dispatch.dischargeBusWh": 1798073.5259244016,
+      "dispatch.curtailedWh": 3384892.3786566313,
+      "metrics.hoursShort": 37,
+      "metrics.minSoc": 0.2,
+      "metrics.socEnd": 0.33679966044142656
+    },
+    "6tam-bom11h": {
+      "pv.eInverterWh": 6686845.791791233,
+      "dispatch.loadServedWh": 2892367.62770429,
+      "dispatch.unservedWh": 9382.372295709734,
+      "dispatch.dischargeBusWh": 1507516.3080690925,
+      "dispatch.curtailedWh": 3414468.906511659,
+      "metrics.hoursShort": 35,
+      "metrics.minSoc": 0.2,
+      "metrics.socEnd": 0.437284560374544
+    },
+    "8tam-bom18h": {
+      "pv.eInverterWh": 8915794.38905501,
+      "dispatch.loadServedWh": 2897137.134641686,
+      "dispatch.unservedWh": 4612.865358313949,
+      "dispatch.dischargeBusWh": 1778137.8299821613,
+      "dispatch.curtailedWh": 5609946.45679066,
+      "metrics.hoursShort": 18,
+      "metrics.minSoc": 0.2,
+      "metrics.socEnd": 0.33679966044142656
+    },
+    "8tam-bom11h": {
+      "pv.eInverterWh": 8915794.38905501,
+      "dispatch.loadServedWh": 2898763.391771906,
+      "dispatch.unservedWh": 2986.60822809387,
+      "dispatch.dischargeBusWh": 1486790.6274005903,
+      "dispatch.curtailedWh": 5638779.400565796,
+      "metrics.hoursShort": 11,
+      "metrics.minSoc": 0.2,
+      "metrics.socEnd": 0.437284560374544
+    },
+    "8tam-bom11h-bon-near": {
+      "pv.eInverterWh": 8852212.64665734,
+      "dispatch.loadServedWh": 2898677.9252592605,
+      "dispatch.unservedWh": 3072.0747407396,
+      "dispatch.dischargeBusWh": 1490863.1700446277,
+      "dispatch.curtailedWh": 5574849.58766314,
+      "metrics.hoursShort": 11,
+      "metrics.minSoc": 0.2,
+      "metrics.socEnd": 0.437284560374544
+    },
+    "8tam-bom11h-bon-far": {
+      "pv.eInverterWh": 8906390.759168414,
+      "dispatch.loadServedWh": 2898756.591902032,
+      "dispatch.unservedWh": 2993.408097968111,
+      "dispatch.dischargeBusWh": 1490065.7555145156,
+      "dispatch.curtailedWh": 5629029.259662397,
+      "metrics.hoursShort": 11,
+      "metrics.minSoc": 0.2,
+      "metrics.socEnd": 0.437284560374544
+    }
+  }
+}

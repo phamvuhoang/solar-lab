@@ -1,0 +1,49 @@
+{
+  "lockVersion": 1,
+  "files": {
+    "data/catalog/components.json": {
+      "group": "catalog",
+      "sha256": "f24d93cf48a60418fb810ecbc09895c7f8899f0a925701b788f8c11c29e957c9"
+    },
+    "data/catalog/offers.json": {
+      "group": "catalog",
+      "sha256": "5a79ba7134422a0de568f3a5bb4330dfb573bc09054eff2365a4f16dece66c36"
+    },
+    "data/presets/lam-ha.json": {
+      "group": "preset",
+      "sha256": "4c264a8d1fd404299c9c95a9830de44e840a751c457e0d8cd68af3fe4b30f7f8"
+    },
+    "data/weather/lam-ha-2023-pvgis-era5.csv": {
+      "group": "weather",
+      "sha256": "3dcb0951260e7d8676673fb2b5e42b7fa2b8c2ba1b770d81b50468d2fa81fbbd"
+    },
+    "data/weather/template.csv": {
+      "group": "weather",
+      "sha256": "5a3ab0e12fa46b15b24defc9545e51bf02f9fac153e499b2042fc0ade0c10eea"
+    },
+    "schemas/component-v1.json": {
+      "group": "schemas",
+      "sha256": "e69e02266c2908ede02904d221b1e4cab29055c8ad4776086bd3d814e29c036a"
+    },
+    "schemas/offer-v1.json": {
+      "group": "schemas",
+      "sha256": "cf05a0208b0936b043cf3bcb07232002a9c17b677c064bfb779174a9dc022121"
+    },
+    "schemas/project-v1.json": {
+      "group": "schemas",
+      "sha256": "8252808309d0adea1014af495a6912b59952e32714b06cdce1adb571f254ff23"
+    },
+    "tests/fixtures/reference/lam-ha-2023.json": {
+      "group": "reference",
+      "sha256": "99d2add25d06b719afa23787792f762a21beb09b03690d7b1e153d2db99739d1"
+    },
+    "tests/fixtures/reference/synthetic.json": {
+      "group": "reference",
+      "sha256": "718cc08fd7610d5b4815514619f7cf52410fd8e0dbf34f099a0270706b4c3973"
+    },
+    "tests/fixtures/golden/lamha-matrix.json": {
+      "group": "golden",
+      "sha256": "c6d6e118032045f63240c7376f58ec62d6c52568f7713300ceb5d321ba5638af"
+    }
+  }
+}

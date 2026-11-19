@@ -76,7 +76,15 @@ export async function renderSim(ctx: SimCtx): Promise<Node[]> {
 function configButtons(ctx: SimCtx, say: (l: string[]) => void): HTMLElement {
   const c = (id: string) => ctx.components.find((x) => x.modelId === id)!;
   const off = (x: Component) => ctx.offers.filter((o) => refKey(o.componentRef) === refKey(x));
-  const build = (k: LamHaConfig) => h('button', { id: `cfg-${k}`, onClick: () => {
+  // rebuilding replaces inverter, loads, strings and wiring: if there is a design already, ask for a second click first
+  const hasDesign = ctx.project.edges.length > 0 || (ctx.project.strings ?? []).length > 0 || (ctx.project.loadPlans ?? []).length > 0;
+  const build = (k: LamHaConfig) => h('button', { id: `cfg-${k}`, onClick: (e: Event) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    if (hasDesign && btn.dataset.armed !== '1') {
+      btn.dataset.armed = '1'; btn.textContent = 'Bấm lần nữa để xác nhận dựng lại';
+      say(['Dựng lại sẽ THAY inverter, tải, controller, chuỗi và kết nối hiện có (giữ các tấm, pin đầu tiên, lịch bơm/tải và thông số bơm đã đặt). Mỗi lần dựng là một revision mới nên xem lại được ở lịch sử revision của dự án.']);
+      return;
+    }
     try { ctx.apply(buildLamHaConfig(ctx.project, k, { inverter: c('luxpower-sna6000wpv'), battery: c('used-battery'), home: c('sample-home-load'), pump: c('sample-pump-load'), controller: c('sample-pump-controller') }, off)); }
     catch (e) { say([(e as Error).message === 'NO_PANELS' ? 'Cần ít nhất 3 tấm trong dự án' : (e as Error).message]); }
   } }, `Dựng ${LAMHA_CONFIG_LABEL[k]}`);
