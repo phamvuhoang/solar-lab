@@ -107,6 +107,15 @@ export function validateProject(p: unknown): Issue[] {
     if (c && c.qM3h.length !== c.headM.length) bad('CURVE_LENGTH', `/loadPlans/${i}/pump/curve`, 'Q và H phải cùng số điểm');
     if (c && c.qM3h.some((q, k) => k > 0 && q <= c.qM3h[k - 1])) bad('CURVE_ORDER', `/loadPlans/${i}/pump/curve/qM3h`, 'Q phải tăng dần');
   });
+  dup('DUPLICATE_ID', 'roofFaces', proj.roofFaces.map((f) => f.roofFaceId));
+  dup('DUPLICATE_ID', 'obstacles', (proj.obstacles ?? []).map((o) => o.obstacleId));
+  const faceIds = new Set(proj.roofFaces.map((f) => f.roofFaceId));
+  (proj.placements ?? []).forEach((pl, i) => {
+    if (!ids.has(pl.instanceId)) bad('BROKEN_REF', `/placements/${i}/instanceId`, `Không có instance ${pl.instanceId}`);
+    else if (kindOf.get(pl.instanceId) !== 'panel') bad('NOT_A_PANEL', `/placements/${i}/instanceId`, `${pl.instanceId} không phải tấm pin`);
+    if (!faceIds.has(pl.roofFaceId)) bad('BROKEN_REF', `/placements/${i}/roofFaceId`, `Không có mặt mái ${pl.roofFaceId}`);
+  });
+  (proj.obstacles ?? []).forEach((o, i) => { if (o.roofFaceId && !faceIds.has(o.roofFaceId)) bad('BROKEN_REF', `/obstacles/${i}/roofFaceId`, `Không có mặt mái ${o.roofFaceId}`); });
   proj.snapshots.offers.forEach((o, i) => {
     if (!comps.has(refKey(o.componentRef))) bad('BROKEN_REF', `/snapshots/offers/${i}/componentRef`, `Báo giá ${o.offerId} trỏ tới linh kiện thiếu`);
   });

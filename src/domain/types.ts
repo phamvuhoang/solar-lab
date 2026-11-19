@@ -58,17 +58,39 @@ export interface LoadPlan {
   instanceId: string; fractions: number[]; priority: number;
   pump?: { staticHeadM: number | null; frictionK: number | null; curve: { qM3h: number[]; headM: number[] } | null };
 }
+/**
+ * One planar roof face. World data is ENU in metres (East, North, Up). The face has its own frame (a, b):
+ *   a = along the eave, to the viewer's right when looking at the face from outside;
+ *   b = up the slope, along the surface.
+ * `azimuthDeg` is the direction the face looks (down-slope), clockwise from North; `tiltDeg` its slope from horizontal.
+ */
+export interface RoofFace {
+  roofFaceId: string; label: string;
+  outline: [number, number][]; holes: [number, number][][];
+  tiltDeg: number; azimuthDeg: number; origin: { e: number; n: number; up: number };
+  /** Required clearance between a panel and the outline or a hole. */
+  setbackM: number; setbackSource: 'assumption' | 'user';
+}
+/** A panel instance placed on a face: centre in the face frame, angleDeg 0 = long side up the slope (portrait), 90 = landscape. */
+export interface Placement { instanceId: string; roofFaceId: string; center: [number, number]; angleDeg: number }
+/** box: size = {x, y, z} footprint and height; cylinder: x = y = diameter, z = height. Free-standing unless roofFaceId is set. */
+export interface Obstacle {
+  obstacleId: string; label: string; kind: 'box' | 'cylinder'; roofFaceId: string | null;
+  center: { e: number; n: number }; baseUp: number; angleDeg: number; size: { x: number; y: number; z: number };
+}
+export interface LayoutSettings { gridM: number; gapM: number }
 export interface QuoteSettings { vatRateBp: number; requiredCategories: Category[]; waived: Category[] }
 
 export interface Project {
   schemaVersion: 1; projectId: string; revision: number; name: string; createdAt: string; updatedAt: string;
   location: { latitude: number; longitude: number; timezone: string } | null;
   instances: Instance[]; edges: { edgeId: string; from: { instanceId: string; port: string }; to: { instanceId: string; port: string } }[];
-  roofFaces: object[]; priceSelections: { componentRef: Ref; offerId: string }[];
+  roofFaces: RoofFace[]; priceSelections: { componentRef: Ref; offerId: string }[];
   snapshots: { components: Component[]; offers: Offer[] };
   costLines?: CostLine[]; kits?: Kit[]; quote?: Partial<QuoteSettings>;
   strings?: StringDef[]; design?: Partial<DesignSettings>; pv?: Partial<PvSettings>;
   sim?: Partial<SimPolicy>; loadPlans?: LoadPlan[];
+  placements?: Placement[]; obstacles?: Obstacle[]; layout?: Partial<LayoutSettings>;
 }
 export type Technical = Omit<Component, 'revision' | 'author' | 'editedAt' | 'review' | 'derivedFrom' | 'notes'>;
 export const refKey = (r: Ref) => `${r.modelId}@${r.revision}`;

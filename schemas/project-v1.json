@@ -150,7 +150,97 @@
     "roofFaces": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "roofFaceId",
+          "label",
+          "outline",
+          "holes",
+          "tiltDeg",
+          "azimuthDeg",
+          "origin",
+          "setbackM",
+          "setbackSource"
+        ],
+        "properties": {
+          "roofFaceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "outline": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "holes": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "tiltDeg": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 89.9
+          },
+          "azimuthDeg": {
+            "type": "number",
+            "minimum": 0,
+            "exclusiveMaximum": 360
+          },
+          "origin": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "e",
+              "n",
+              "up"
+            ],
+            "properties": {
+              "e": {
+                "type": "number"
+              },
+              "n": {
+                "type": "number"
+              },
+              "up": {
+                "type": "number"
+              }
+            }
+          },
+          "setbackM": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "setbackSource": {
+            "enum": [
+              "assumption",
+              "user"
+            ]
+          }
+        }
       }
     },
     "priceSelections": {
@@ -744,6 +834,140 @@
               }
             }
           }
+        }
+      }
+    },
+    "placements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "instanceId",
+          "roofFaceId",
+          "center",
+          "angleDeg"
+        ],
+        "properties": {
+          "instanceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "roofFaceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "center": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            }
+          },
+          "angleDeg": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "obstacles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "obstacleId",
+          "label",
+          "kind",
+          "roofFaceId",
+          "center",
+          "baseUp",
+          "angleDeg",
+          "size"
+        ],
+        "properties": {
+          "obstacleId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "box",
+              "cylinder"
+            ]
+          },
+          "roofFaceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "center": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "e",
+              "n"
+            ],
+            "properties": {
+              "e": {
+                "type": "number"
+              },
+              "n": {
+                "type": "number"
+              }
+            }
+          },
+          "baseUp": {
+            "type": "number"
+          },
+          "angleDeg": {
+            "type": "number"
+          },
+          "size": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "y": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "z": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gridM": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "gapM": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       }
     }

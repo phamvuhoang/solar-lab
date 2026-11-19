@@ -17,6 +17,8 @@ export interface QuoteCtx {
   project: Project; offers: Offer[]; revisions: { revision: number }[];
   loadRevision(n: number): Promise<Project | undefined>; saveOffer(o: Offer): Promise<void>;
   apply(next: Project): Promise<void>; back(): void;
+  /** Quote line keys (design:model@rev) of the panels selected elsewhere; their rows are highlighted. */
+  selectedKeys?: string[];
 }
 
 const num = (v: string) => (v.trim() ? parseNumber(v.trim()) : null);
@@ -28,7 +30,8 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
   const errBox = h('p', { role: 'alert', id: 'quote-error' });
   const fail = (m: string) => { errBox.textContent = m; };
 
-  const row = (l: QuoteLine) => h('tr', { 'data-key': l.key },
+  const picked = new Set(ctx.selectedKeys ?? []);
+  const row = (l: QuoteLine) => h('tr', { 'data-key': l.key, className: picked.has(l.key.replace(/:kit$/, '')) ? 'selected' : '', 'aria-selected': String(picked.has(l.key.replace(/:kit$/, ''))) },
     h('td', {}, CAT[l.category]), h('td', {}, l.label),
     h('td', {}, l.qtyUnit === 'mm' ? `${(l.qty / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m` : String(l.qty)),
     h('td', {}, l.status === 'missing' ? `chưa có giá (${REASON[l.reason!]})` : l.basis),

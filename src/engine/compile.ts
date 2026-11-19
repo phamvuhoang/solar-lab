@@ -15,9 +15,11 @@ export const weatherHash = (w: WeatherSeries) => hashOf(w);
 export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimits?: boolean } = {}): { input: PvInput | null; issues: Issue[] } {
   const issues: Issue[] = [];
   const st = pvSettingsOf(p);
-  if (st.tiltDeg === undefined) issues.push(err('ORIENTATION_MISSING', '/pv/tiltDeg', 'Chưa khai độ nghiêng của tấm'));
-  if (st.azimuthDeg === undefined) issues.push(err('ORIENTATION_MISSING', '/pv/azimuthDeg', 'Chưa khai azimuth của tấm (Bắc = 0°, theo chiều kim đồng hồ)'));
   const ix = indexProject(p);
+  // A string whose panels are all placed on one roof face takes that face's tilt and azimuth. Otherwise the project's declared orientation is used.
+  const placement = new Map((p.placements ?? []).map((x) => [x.instanceId, x.roofFaceId]));
+  const faces = new Map(p.roofFaces.map((f) => [f.roofFaceId, f]));
+  let usesDefault = false;
 
   const strings: PvString[] = [];
   const trackers = new Map<string, PvTracker>();
@@ -41,6 +43,13 @@ export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimit
       panels.push({ pstcW: pstc, gamma, vmpV: c.specs.vmpV?.v ?? null });
     }
     if (panels.length !== s.panelIds.length) continue;
+    const on = s.panelIds.map((id) => placement.get(id));
+    const placed = on.filter((x): x is string => !!x), roofIds = [...new Set(placed)];
+    let orient: { tiltDeg: number; azimuthDeg: number } | null = null;
+    if (placed.length === 0) usesDefault = true;
+    else if (placed.length < s.panelIds.length) { issues.push(err('STRING_PARTLY_PLACED', `/strings/${s.stringId}`, `${s.label}: ${placed.length}/${s.panelIds.length} tấm đã đặt lên mái; đặt hết hoặc bỏ hết vị trí để biết hướng của chuỗi`)); continue; }
+    else if (roofIds.length > 1) { issues.push(err('STRING_MIXED_FACES', `/strings/${s.stringId}`, `${s.label}: tấm nằm trên ${roofIds.length} mặt mái khác hướng; một chuỗi chỉ được ở một mặt mái (nối tiếp tấm khác hướng gây mismatch)`)); continue; }
+    else { const f = faces.get(roofIds[0]); if (!f) { issues.push(err('STRING_FACE_MISSING', `/strings/${s.stringId}`, `${s.label}: mặt mái ${roofIds[0]} không tồn tại`)); continue; } orient = { tiltDeg: f.tiltDeg, azimuthDeg: f.azimuthDeg }; }
     const key = portKey(s.target);
     if (!trackers.has(key)) {
       const c = target.comp, v = (k: string) => c?.specs[k]?.v ?? null;
@@ -53,13 +62,15 @@ export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimit
         trackers.set(key, { id: key, label: `${target.inst.label.replace(/ #\d+$/, '')} · ${port.label}`, inverterId: null, maxPowerW: v('ratedW'), maxCurrentA: null });
       }
     }
-    strings.push({ id: s.stringId, label: s.label, panels, trackerId: key });
+    strings.push({ id: s.stringId, label: s.label, panels, trackerId: key, ...(orient ?? {}) });
   }
   if (!strings.length && !issues.length) issues.push(err('NO_STRINGS', '/strings', 'Chưa có chuỗi nào nối vào MPPT hoặc controller: vào Thiết kế để tạo chuỗi'));
+  if (usesDefault && st.tiltDeg === undefined) issues.push(err('ORIENTATION_MISSING', '/pv/tiltDeg', 'Chưa khai độ nghiêng của tấm (chuỗi chưa đặt lên mái cần độ nghiêng của dự án)'));
+  if (usesDefault && st.azimuthDeg === undefined) issues.push(err('ORIENTATION_MISSING', '/pv/azimuthDeg', 'Chưa khai azimuth của tấm (Bắc = 0°, theo chiều kim đồng hồ)'));
   if (issues.length) return { input: null, issues };
 
   const model: PvModel = {
-    irradianceInput: st.irradianceInput!, tiltDeg: st.tiltDeg!, azimuthDeg: st.azimuthDeg!, albedo: st.albedo!, cellModel: st.cellModel!, faimanU0: st.faimanU0!, faimanU1: st.faimanU1!,
+    irradianceInput: st.irradianceInput!, tiltDeg: st.tiltDeg ?? strings.find((x) => x.tiltDeg !== undefined)?.tiltDeg ?? 0, azimuthDeg: st.azimuthDeg ?? strings.find((x) => x.azimuthDeg !== undefined)?.azimuthDeg ?? 180, albedo: st.albedo!, cellModel: st.cellModel!, faimanU0: st.faimanU0!, faimanU1: st.faimanU1!,
     fixedCellTempC: st.fixedCellTempC ?? null, windFallbackMs: st.windFallbackMs ?? null, lossRatio: st.lossRatio!, applyLimits: opts.applyLimits ?? true,
   };
   return { input: { weather, weatherHash: '', model, strings, trackers: [...trackers.values()], inverters: [...inverters.values()] }, issues };

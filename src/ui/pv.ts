@@ -84,7 +84,7 @@ function weatherSection(ctx: PvCtx, w: WeatherSeries | undefined, say: (l: strin
 function settingsForm(ctx: PvCtx, st: Partial<PvSettings>, say: (l: string[]) => void): HTMLElement {
   const f = (id: string, label: string, v: string, ph = '') => { const el = h('input', { id, value: v, size: 7, placeholder: ph }); return { el, node: h('label', {}, label + ' ', el) }; };
   const dec = (x: number | null | undefined) => (x === null || x === undefined ? '' : String(x).replace('.', ','));
-  const tilt = f('pv-tilt', 'Độ nghiêng (°)', dec(st.tiltDeg), 'bắt buộc'), az = f('pv-az', 'Azimuth (°, Bắc=0, theo chiều kim đồng hồ)', dec(st.azimuthDeg), 'bắt buộc');
+  const tilt = f('pv-tilt', 'Độ nghiêng (°)', dec(st.tiltDeg), 'chuỗi chưa lên mái'), az = f('pv-az', 'Azimuth (°, Bắc=0, theo chiều kim đồng hồ)', dec(st.azimuthDeg), 'chuỗi chưa lên mái');
   const alb = f('pv-albedo', 'Albedo', dec(st.albedo)), loss = f('pv-loss', 'Tổn hao DC (%)', dec((st.lossRatio ?? 0) * 100));
   const cell = h('select', { id: 'pv-cell' }, h('option', { value: 'faiman' }, 'Faiman'), h('option', { value: 'fixed' }, 'Nhiệt độ cell cố định'));
   cell.value = st.cellModel ?? 'faiman';
@@ -101,16 +101,16 @@ function settingsForm(ctx: PvCtx, st: Partial<PvSettings>, say: (l: string[]) =>
       if (v === null || v < lo || v > hi) { say([`${name}: cần số trong [${lo}, ${hi}]`]); return 'bad'; }
       return v;
     };
-    const vals = { tiltDeg: n(tilt, 'Độ nghiêng', 0, 90), azimuthDeg: n(az, 'Azimuth', 0, 359.999), albedo: n(alb, 'Albedo', 0, 1), loss: n(loss, 'Tổn hao', 0, 99.9), fixed: n(fixed, 'Tcell cố định', -40, 120, false), u0: n(u0, 'u0', 0.1, 100), u1: n(u1, 'u1', 0, 50), wind: n(wind, 'Gió dự phòng', 0, 50, false) };
+    const vals = { tiltDeg: n(tilt, 'Độ nghiêng', 0, 90, false), azimuthDeg: n(az, 'Azimuth', 0, 359.999, false), albedo: n(alb, 'Albedo', 0, 1), loss: n(loss, 'Tổn hao', 0, 99.9), fixed: n(fixed, 'Tcell cố định', -40, 120, false), u0: n(u0, 'u0', 0.1, 100), u1: n(u1, 'u1', 0, 50), wind: n(wind, 'Gió dự phòng', 0, 50, false) };
     if (Object.values(vals).includes('bad' as never)) return;
     if (cell.value === 'fixed' && vals.fixed === null) return say(['Chọn nhiệt độ cell cố định thì phải nhập Tcell cố định']);
     say([]);
     const v = vals as Record<keyof typeof vals, number | null>;
-    ctx.apply({ ...structuredClone(ctx.project), pv: { ...ctx.project.pv, tiltDeg: v.tiltDeg!, azimuthDeg: v.azimuthDeg!, albedo: v.albedo!, lossRatio: v.loss! / 100, cellModel: cell.value as PvSettings['cellModel'],
+    ctx.apply({ ...structuredClone(ctx.project), pv: { ...ctx.project.pv, ...(v.tiltDeg === null ? {} : { tiltDeg: v.tiltDeg }), ...(v.azimuthDeg === null ? {} : { azimuthDeg: v.azimuthDeg }), albedo: v.albedo!, lossRatio: v.loss! / 100, cellModel: cell.value as PvSettings['cellModel'],
       fixedCellTempC: v.fixed, faimanU0: v.u0!, faimanU1: v.u1!, windFallbackMs: v.wind, irradianceInput: irr.value as PvSettings['irradianceInput'] } });
   } }, tilt.node, az.node, alb.node, loss.node, h('label', {}, 'Nhiệt độ cell ', cell), fixed.node, u0.node, u1.node, wind.node, h('label', {}, 'Nguồn bức xạ ', irr),
   h('button', { type: 'submit', id: 'pv-save' }, 'Lưu thiết lập'),
-  h('p', {}, `Mặc định chỉ cho tham số mô hình (albedo ${PV_DEFAULTS.albedo}, Faiman u0=${PV_DEFAULTS.faimanU0}, u1=${PV_DEFAULTS.faimanU1}, tổn hao 0 %). Độ nghiêng và hướng phải do bạn khai.`));
+  h('p', {}, `Mặc định chỉ cho tham số mô hình (albedo ${PV_DEFAULTS.albedo}, Faiman u0=${PV_DEFAULTS.faimanU0}, u1=${PV_DEFAULTS.faimanU1}, tổn hao 0 %). Độ nghiêng và hướng bắt buộc với chuỗi chưa đặt lên mái; chuỗi đã đặt lên mặt mái lấy hướng từ mái.`));
 }
 
 function runSection(ctx: PvCtx, input: ReturnType<typeof compilePv>['input'], hash: string | null, issues: { code: string; field: string; message: string }[], w: WeatherSeries | undefined, say: (l: string[]) => void): HTMLElement {

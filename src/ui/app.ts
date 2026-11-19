@@ -12,6 +12,8 @@ import { renderQuote } from './quote';
 import { renderDesign } from './design';
 import { renderPv } from './pv';
 import { renderSim, type SimState } from './sim';
+import { renderRoof, releaseRoofView, type RoofState } from './roof';
+import { ALL_LAYERS } from '../scene/three-view';
 import { BUNDLED_WEATHER, loadBundledWeather } from '../weather/bundled';
 import type { PvResult } from '../engine/pv';
 import { History } from '../app/history';
@@ -32,6 +34,9 @@ export async function startApp(root: HTMLElement) {
   const history = new History<Project>();
   let selected: string | null = null;
   let pendingFocus: string[] = [];
+  let selection: string[] = []; // selected panel instance ids, shared by the diagram, the roof views and the BOM
+  let roofState: RoofState = { layers: ALL_LAYERS, faceId: null, angle: 0, stepCm: 5, fps: null };
+  let roofActive = false;
   let lastPvResult: PvResult | null = null;
   let simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
   let filter: { kind: Kind | 'all'; text: string } = { kind: 'all', text: '' };
@@ -49,12 +54,14 @@ export async function startApp(root: HTMLElement) {
   /** Every edit is a new stored revision; undo restores the previous content as another new revision. */
   const mutate = async (next: Project) => { const prev = project!; if (await save(next)) history.record(prev); };
   const show = (...kids: (Node | false)[]) => {
+    if (!roofActive) releaseRoofView();
+    roofActive = false;
     root.replaceChildren(h('h1', {}, 'Mekoniq Solar Lab'), message && h('p', { role: 'status', id: 'status' }, message), ...kids.filter(Boolean) as Node[]);
   };
 
   // ---- home ---------------------------------------------------------------------------------
   async function home() {
-    history.clear(); selected = null; lastPvResult = null; simState = { runs: [], side: 0, step: 0, progress: {} };
+    history.clear(); selected = null; selection = []; lastPvResult = null; simState = { runs: [], side: 0, step: 0, progress: {} };
     const heads = await repo.listProjects();
     const name = h('input', { name: 'name', value: 'Dự án mới', required: true });
     const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file' });
@@ -98,6 +105,7 @@ export async function startApp(root: HTMLElement) {
         h('ul', { id: 'devices' }, ...Object.entries(q.deviceCounts).map(([k, n]) => h('li', {}, `${n} × ${labelOf(k)}`))),
         h('p', { id: 'bom-total' }, p.instances.length ? `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}${q.complete ? '' : ' · tổng hoàn chỉnh: chưa đủ'}` : 'Chưa có linh kiện.')),
       h('button', { id: 'design-btn', onClick: () => designScreen() }, 'Thiết kế'),
+      h('button', { id: 'roof-btn', onClick: () => roofScreen() }, 'Mái nhà 3D'),
       h('button', { id: 'pv-btn', onClick: () => pvScreen() }, 'Mô phỏng PV'),
       h('button', { id: 'sim-btn', onClick: () => simScreen() }, 'Hệ thống (pin, tải, bơm)'),
       h('button', { onClick: () => quoteScreen() }, 'Dự toán'),
@@ -116,6 +124,40 @@ export async function startApp(root: HTMLElement) {
       diffOut);
   }
 
+  const stringOfPanel = (id: string) => project?.strings?.find((x) => x.panelIds.includes(id))?.stringId ?? null;
+  /** Roof/plan/list selection → the diagram's selected object (a string if all chosen panels share one). */
+  const setSelection = (ids: string[]) => {
+    selection = [...new Set(ids)];
+    const owners = new Set(selection.map(stringOfPanel).filter(Boolean));
+    selected = owners.size === 1 ? [...owners][0]! : null;
+  };
+  const historyFor = (refresh: () => Promise<void>) => ({
+    canUndo: history.canUndo, canRedo: history.canRedo,
+    undo: () => { const cur = project!; const prev = history.undo(cur); void (async () => { if (prev) { if (await save(prev)) say(`Đã lưu: revision ${project!.revision}`); else history.redo(prev); } await refresh(); })(); },
+    redo: () => { const cur = project!; const nxt = history.redo(cur); void (async () => { if (nxt) { if (await save(nxt)) say(`Đã lưu: revision ${project!.revision}`); else history.undo(nxt); } await refresh(); })(); },
+  });
+
+  /** Selector for the control that has keyboard focus, so it can get focus back when the screen is rebuilt (every edit rebuilds it). */
+  const focusKey = (): string | null => {
+    const a = document.activeElement as HTMLElement | SVGElement | null;
+    if (!a || !root.contains(a)) return null;
+    if (a.id) return `#${CSS.escape(a.id)}`;
+    const id = (a as HTMLElement).dataset?.id;
+    return id ? `[data-id="${CSS.escape(id)}"]` : null;
+  };
+  async function roofScreen() {
+    roofActive = true;
+    const p = project!;
+    const keep = focusKey();
+    show(...renderRoof({
+      project: p, selection, state: roofState,
+      apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await roofScreen(); },
+      setSelection: (ids) => { setSelection(ids); void roofScreen(); }, rerender: () => { void roofScreen(); },
+      history: historyFor(roofScreen), back: () => projectScreen(), goDesign: () => designScreen(),
+    }));
+    if (keep) root.querySelector<HTMLElement | SVGElement>(keep)?.focus({ preventScroll: true }); // synchronous: no key can arrive in between
+  }
+
   async function designScreen() {
     await reload();
     const p = project!;
@@ -125,7 +167,8 @@ export async function startApp(root: HTMLElement) {
     };
     show(...renderDesign({
       project: p, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], selected,
-      select: (id, focusIds = []) => { selected = id; pendingFocus = focusIds; designScreen(); },
+      select: (id, focusIds = []) => { selected = id; const st = id ? project!.strings?.find((x) => x.stringId === id) : undefined; if (st) selection = [...st.panelIds]; pendingFocus = focusIds; designScreen(); },
+      openRoof: () => roofScreen(),
       apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await designScreen(); },
       history: {
         canUndo: history.canUndo, canRedo: history.canRedo,
@@ -177,6 +220,7 @@ export async function startApp(root: HTMLElement) {
       project: p, offers: [...BUILTIN_OFFERS, ...userOffers], revisions: await repo.listRevisions(p.projectId),
       loadRevision: (n) => repo.loadRevision(p.projectId, n), saveOffer: (o) => repo.saveOffer(o),
       apply: async (next) => { await mutate(next); await quoteScreen(); }, back: () => projectScreen(),
+      selectedKeys: selection.flatMap((id) => { const r = p.instances.find((i) => i.instanceId === id)?.componentRef; return r ? [`design:${refKey(r)}`] : []; }),
     }));
   }
 
