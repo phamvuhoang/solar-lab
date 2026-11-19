@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { ENGINE_VERSION } from '../../src/engine/pv';
 import { DISPATCH_VERSION } from '../../src/engine/dispatch';
 import { SHADE_MODEL_VERSION } from '../../src/shade/geometry';
+import { readFileSync } from 'node:fs';
 
 /**
  * Role journeys written as scripts a person can also follow (docs/uat/). These run the SAME steps by machine, which proves the flow
@@ -163,7 +164,7 @@ test('Phiên bản: màn About đọc release-manifest, nói rõ đã/chưa đ�
   await page.reload();
   await page.locator('#about-btn').click();
   const t = page.locator('#about-table');
-  await expect(t).toContainText('1.0.0-rc.1');
+  await expect(t).toContainText(JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version);
   await expect(t).toContainText(`${ENGINE_VERSION} · ${DISPATCH_VERSION} · ${SHADE_MODEL_VERSION}`);
   await expect(t).toContainText('11/11 thiết bị');
   await expect(t).toContainText('đã đối chiếu mô hình');
