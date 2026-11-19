@@ -603,6 +603,149 @@
           ]
         }
       }
+    },
+    "sim": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minSoc": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "soc0": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "etaCharge": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "etaDischarge": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "inverterEfficiency": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "standbyW": {
+          "type": "number",
+          "minimum": 0
+        },
+        "gridAvailable": {
+          "type": "boolean"
+        },
+        "importAllowed": {
+          "type": "boolean"
+        },
+        "exportAllowed": {
+          "type": "boolean"
+        },
+        "outageLocalHours": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 23
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "loadPlans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "instanceId",
+          "fractions",
+          "priority"
+        ],
+        "properties": {
+          "instanceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fractions": {
+            "type": "array",
+            "minItems": 24,
+            "maxItems": 24,
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "pump": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "staticHeadM",
+              "frictionK",
+              "curve"
+            ],
+            "properties": {
+              "staticHeadM": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "frictionK": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "curve": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "required": [
+                  "qM3h",
+                  "headM"
+                ],
+                "properties": {
+                  "qM3h": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "headM": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {

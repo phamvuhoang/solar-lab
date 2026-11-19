@@ -44,7 +44,7 @@ test('W04: chọn dataset → khai hướng → chạy PV trong worker → công
 
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#pv-csv').click()]);
   const csv = await readFile((await dl.path())!, 'utf8');
-  expect(csv).toContain('# engine: pv-1.0.0');
+  expect(csv).toContain('# engine: pv-1.1.0');
   expect(csv).toMatch(/# input_hash: [0-9a-f]{64}/);
   expect(csv).toContain('# model.transposition: isotropic (Liu–Jordan)');
   expect(csv.split('\r\n').filter((l) => /^\d{4}-\d{2}-\d{2}T/.test(l))).toHaveLength(8760);

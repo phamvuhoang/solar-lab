@@ -2,7 +2,7 @@ import { sunPosition, pressureAt } from './solar';
 import type { Issue } from '../domain/validate';
 import type { WeatherSeries } from '../weather/series';
 
-export const ENGINE_VERSION = 'pv-1.0.0';
+export const ENGINE_VERSION = 'pv-1.1.0';
 const D2R = Math.PI / 180;
 
 export interface PvModel {
@@ -39,7 +39,11 @@ export interface PvResult {
   models: Record<'solarPosition' | 'transposition' | 'cellTemperature' | 'dc' | 'limits' | 'irradianceInput', string>;
   period: { startUtc: string; endUtc: string; stepSeconds: number; n: number };
   series: PvSeries;
-  strings: { id: string; label: string; panelCount: number; pstcW: number; pIdealW: number[]; pLossedW: number[]; pTrackerW: number[] }[];
+  strings: { id: string; label: string; panelCount: number; pstcW: number; trackerId: string; inverterId: string | null; pIdealW: number[]; pLossedW: number[]; pTrackerW: number[] }[];
+  /** After tracker and inverter limits: the PV power each inverter's DC bus receives. */
+  inverters: { id: string; label: string; pW: number[]; pLossedW: number[] }[];
+  /** Trackers with no inverter (pump controllers): power after the tracker limit, and before it (after DC loss). */
+  branches: { trackerId: string; label: string; pW: number[]; pLossedW: number[] }[];
   totals: PvTotals; assumptions: string[]; limitsApplied: string[]; limitsSkipped: string[]; issues: Issue[];
 }
 
@@ -114,6 +118,9 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
 
   const s: PvSeries = { t: new Array(n), poaWm2: new Array(n), tcellC: new Array(n), zenithDeg: new Array(n), azimuthDeg: new Array(n),
     pIdealW: new Array(n).fill(0), pLossedW: new Array(n).fill(0), pTrackerW: new Array(n).fill(0), pInverterW: new Array(n).fill(0) };
+  const perInverter = input.inverters.map(() => ({ pW: new Array<number>(n).fill(0), lossed: new Array<number>(n).fill(0) }));
+  const freeTrackers = input.trackers.filter((t) => t.inverterId === null);
+  const perBranch = freeTrackers.map(() => ({ pW: new Array<number>(n).fill(0), lossed: new Array<number>(n).fill(0) }));
   const perString = input.strings.map((st) => ({ ideal: new Array<number>(n).fill(0), lossed: new Array<number>(n).fill(0), tracker: new Array<number>(n).fill(0) }));
   const trackerIdx = new Map(input.trackers.map((t, i) => [t.id, i]));
   const inverterIdx = new Map(input.inverters.map((v, i) => [v.id, i]));
@@ -171,11 +178,12 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
     input.trackers.forEach((t, ti) => {
       const p = Math.min(trackerSum[ti], trackerCap[ti]);
       s.pTrackerW[i] += p;
-      if (t.inverterId !== null) inverterSum[inverterIdx.get(t.inverterId)!] += p; else s.pInverterW[i] += p; // no inverter: pump controller branch
+      if (t.inverterId !== null) { inverterSum[inverterIdx.get(t.inverterId)!] += p; perInverter[inverterIdx.get(t.inverterId)!].lossed[i] += trackerSum[ti]; }
+      else { s.pInverterW[i] += p; const b = perBranch[freeTrackers.indexOf(t)]; b.pW[i] = p; b.lossed[i] = trackerSum[ti]; } // pump controller branch
       // a clipped tracker gives each string back its proportional share
       input.strings.forEach((st, k) => { if (st.trackerId === t.id) perString[k].tracker[i] = trackerSum[ti] > 0 ? (p * perString[k].lossed[i]) / trackerSum[ti] : 0; });
     });
-    input.inverters.forEach((_, vi) => { s.pInverterW[i] += Math.min(inverterSum[vi], inverterCap[vi]); });
+    input.inverters.forEach((_, vi) => { const p = Math.min(inverterSum[vi], inverterCap[vi]); s.pInverterW[i] += p; perInverter[vi].pW[i] = p; });
   }
   hooks.onProgress?.(n, n);
 
@@ -184,7 +192,9 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
   const eIdeal = sum(s.pIdealW), eLossed = sum(s.pLossedW), eTracker = sum(s.pTrackerW), eInv = sum(s.pInverterW);
   return {
     engineVersion: ENGINE_VERSION, inputHash, models: modelNames(mode, m), period: periodOf(w), series: s,
-    strings: input.strings.map((st, k) => ({ id: st.id, label: st.label, panelCount: st.panels.length, pstcW: st.panels.reduce((a, p) => a + p.pstcW, 0), pIdealW: perString[k].ideal, pLossedW: perString[k].lossed, pTrackerW: perString[k].tracker })),
+    strings: input.strings.map((st, k) => ({ id: st.id, label: st.label, panelCount: st.panels.length, pstcW: st.panels.reduce((a, p) => a + p.pstcW, 0), trackerId: st.trackerId, inverterId: input.trackers.find((t) => t.id === st.trackerId)!.inverterId, pIdealW: perString[k].ideal, pLossedW: perString[k].lossed, pTrackerW: perString[k].tracker })),
+    inverters: input.inverters.map((v, vi) => ({ id: v.id, label: v.label, pW: perInverter[vi].pW, pLossedW: perInverter[vi].lossed })),
+    branches: freeTrackers.map((t, bi) => ({ trackerId: t.id, label: t.label, pW: perBranch[bi].pW, pLossedW: perBranch[bi].lossed })),
     totals: { kWp, eIdealWh: eIdeal, lossWh: eIdeal - eLossed, eLossedWh: eLossed, clippedTrackerWh: eLossed - eTracker, eTrackerWh: eTracker, clippedInverterWh: eTracker - eInv, eInverterWh: eInv,
       peakW: Math.max(0, ...s.pInverterW), specificYieldKWhPerKWp: kWp > 0 ? eInv / 1000 / kWp : null },
     assumptions, limitsApplied: applied, limitsSkipped: skipped, issues,
@@ -202,7 +212,7 @@ const modelNames = (mode: 'components' | 'poa', m: PvModel): PvResult['models'] 
 const periodOf = (w: WeatherSeries) => ({ startUtc: new Date(w.t0 * 1000).toISOString(), endUtc: new Date((w.t0 + w.n * w.stepSeconds) * 1000).toISOString(), stepSeconds: w.stepSeconds, n: w.n });
 function emptyResult(input: PvInput, inputHash: string, mode: 'components' | 'poa'): PvResult {
   const z = { t: [], poaWm2: [], tcellC: [], zenithDeg: [], azimuthDeg: [], pIdealW: [], pLossedW: [], pTrackerW: [], pInverterW: [] };
-  return { engineVersion: ENGINE_VERSION, inputHash, models: modelNames(mode, input.model), period: periodOf(input.weather), series: z, strings: [],
+  return { engineVersion: ENGINE_VERSION, inputHash, models: modelNames(mode, input.model), period: periodOf(input.weather), series: z, strings: [], inverters: [], branches: [],
     totals: { kWp: 0, eIdealWh: 0, lossWh: 0, eLossedWh: 0, clippedTrackerWh: 0, eTrackerWh: 0, clippedInverterWh: 0, eInverterWh: 0, peakW: 0, specificYieldKWhPerKWp: null },
     assumptions: [], limitsApplied: [], limitsSkipped: [], issues: [] };
 }

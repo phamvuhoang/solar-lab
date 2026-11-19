@@ -100,6 +100,13 @@ export function validateProject(p: unknown): Issue[] {
     st.panelIds.forEach((id, j) => { if (!ids.has(id)) bad('BROKEN_REF', `/strings/${i}/panelIds/${j}`, `Không có instance ${id}`); else if (kindOf.get(id) !== 'panel') bad('NOT_A_PANEL', `/strings/${i}/panelIds/${j}`, `${id} không phải tấm pin`); });
     if (st.target && !ids.has(st.target.instanceId)) bad('BROKEN_REF', `/strings/${i}/target/instanceId`, `Không có instance ${st.target.instanceId}`);
   });
+  dup('DUPLICATE_ID', 'loadPlans', (proj.loadPlans ?? []).map((l) => l.instanceId));
+  (proj.loadPlans ?? []).forEach((l, i) => {
+    if (kindOf.get(l.instanceId) !== 'load') bad('NOT_A_LOAD', `/loadPlans/${i}/instanceId`, `${l.instanceId} không phải tải`);
+    const c = l.pump?.curve;
+    if (c && c.qM3h.length !== c.headM.length) bad('CURVE_LENGTH', `/loadPlans/${i}/pump/curve`, 'Q và H phải cùng số điểm');
+    if (c && c.qM3h.some((q, k) => k > 0 && q <= c.qM3h[k - 1])) bad('CURVE_ORDER', `/loadPlans/${i}/pump/curve/qM3h`, 'Q phải tăng dần');
+  });
   proj.snapshots.offers.forEach((o, i) => {
     if (!comps.has(refKey(o.componentRef))) bad('BROKEN_REF', `/snapshots/offers/${i}/componentRef`, `Báo giá ${o.offerId} trỏ tới linh kiện thiếu`);
   });

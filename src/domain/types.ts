@@ -43,6 +43,21 @@ export interface PvSettings {
   cellModel: 'faiman' | 'fixed'; fixedCellTempC: number | null; faimanU0: number; faimanU1: number; windFallbackMs: number | null;
   irradianceInput: 'auto' | 'components' | 'poa'; weatherId: string | null;
 }
+/** Dispatch policy. Every number here is a modelling choice and is echoed back in the result as an assumption. */
+export interface SimPolicy {
+  /** Reserve: the bank is never discharged below this SoC (ratio of nominal × SoH). */
+  minSoc: number; soc0: number; etaCharge: number; etaDischarge: number;
+  /** null = use the inverter's efficiencyMax from its datasheet. */
+  inverterEfficiency: number | null; standbyW: number;
+  gridAvailable: boolean; importAllowed: boolean; exportAllowed: boolean;
+  /** Local clock hours (0–23) in which the grid is down every day. */
+  outageLocalHours: number[];
+}
+/** When a load runs: fractions[h] = share of local hour h it is on. Power = component powerW × fraction. */
+export interface LoadPlan {
+  instanceId: string; fractions: number[]; priority: number;
+  pump?: { staticHeadM: number | null; frictionK: number | null; curve: { qM3h: number[]; headM: number[] } | null };
+}
 export interface QuoteSettings { vatRateBp: number; requiredCategories: Category[]; waived: Category[] }
 
 export interface Project {
@@ -53,6 +68,7 @@ export interface Project {
   snapshots: { components: Component[]; offers: Offer[] };
   costLines?: CostLine[]; kits?: Kit[]; quote?: Partial<QuoteSettings>;
   strings?: StringDef[]; design?: Partial<DesignSettings>; pv?: Partial<PvSettings>;
+  sim?: Partial<SimPolicy>; loadPlans?: LoadPlan[];
 }
 export type Technical = Omit<Component, 'revision' | 'author' | 'editedAt' | 'review' | 'derivedFrom' | 'notes'>;
 export const refKey = (r: Ref) => `${r.modelId}@${r.revision}`;

@@ -1,4 +1,4 @@
-import { addEdge, addString, suggestGrouping, stringsOf, type PortRef } from './graph';
+import { addEdge, addString, dropInstances, suggestGrouping, stringsOf, type PortRef } from './graph';
 import { addInstances } from './project';
 import { refKey, type Component, type Offer, type Project } from './types';
 
@@ -63,5 +63,45 @@ export function addPanelBatch(p: Project, panel: Component, n: number, invComp: 
     next = addString(next, { panelIds: ids.slice(at, at + size), target: inv ? { instanceId: inv.instanceId, port: `M${i + 1}` } : null });
     at += size;
   });
+  return next;
+}
+
+export type LamHaConfig = 'shared8' | 'split6+2';
+export const LAMHA_CONFIG_LABEL: Record<LamHaConfig, string> = { shared8: 'A · tất cả tấm vào inverter, bơm AC', 'split6+2': 'B · 6 tấm vào inverter + 2 tấm cấp bơm DC riêng' };
+const flat = (v: number) => new Array<number>(24).fill(v);
+
+/**
+ * Rebuilds the electrical part of a project into one of the two Lâm Hà layouts, keeping its panels and its first battery.
+ * Everything else (inverter, controllers, loads, strings, edges, load plans) is replaced, so applying it twice gives the same design.
+ * Default schedule: home load all day, pump one hour at 18h; both are assumptions the user edits.
+ */
+export function buildLamHaConfig(p: Project, kind: LamHaConfig, c: { inverter: Component; battery: Component; home: Component; pump: Component; controller: Component }, offers: (x: Component) => readonly Offer[] = () => []): Project {
+  const keep = new Set<string>();
+  const battery = p.instances.find((i) => i.kind === 'battery');
+  for (const i of p.instances) if (i.kind === 'panel' || i === battery) keep.add(i.instanceId);
+  let next = dropInstances(p, new Set(p.instances.filter((i) => !keep.has(i.instanceId)).map((i) => i.instanceId)));
+  next = { ...next, strings: [], edges: [], loadPlans: [] };
+  const panels = next.instances.filter((i) => i.kind === 'panel').map((i) => i.instanceId);
+  if (panels.length < 3) throw new Error('NO_PANELS');
+  next = addInstances(next, c.inverter, 1, offers(c.inverter));
+  const inv = next.instances[next.instances.length - 1];
+  const onInverter = kind === 'shared8' ? panels : panels.slice(0, panels.length - 2);
+  let at = 0;
+  suggestGrouping(onInverter.length, 2).forEach((size, k) => {
+    next = addString(next, { label: `Chuỗi ${k + 1}`, panelIds: onInverter.slice(at, at + size), target: { instanceId: inv.instanceId, port: `M${k + 1}` } });
+    at += size;
+  });
+  if (battery) next = addEdge(next, { instanceId: battery.instanceId, port: 'DC' }, { instanceId: inv.instanceId, port: 'BAT' });
+  else next = addBatteryBranch(next, c.battery, offers(c.battery));
+  next = addAcLoad(next, c.home, offers(c.home));
+  const home = next.instances[next.instances.length - 1];
+  let pumpId: string;
+  if (kind === 'shared8') { next = addAcLoad(next, c.pump, offers(c.pump)); pumpId = next.instances[next.instances.length - 1].instanceId; }
+  else { next = addPumpBranch(next, c.controller, c.pump, panels.slice(-2), [...offers(c.controller), ...offers(c.pump)]); pumpId = next.instances[next.instances.length - 1].instanceId; }
+  const at18 = flat(0); at18[18] = 1;
+  next.loadPlans = [
+    { instanceId: home.instanceId, fractions: flat(1), priority: 1 },
+    { instanceId: pumpId, fractions: at18, priority: 2, pump: { staticHeadM: null, frictionK: null, curve: null } },
+  ];
   return next;
 }

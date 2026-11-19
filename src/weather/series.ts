@@ -42,7 +42,10 @@ export function localDate(epochSeconds: number, timeZone: string): string {
   if (!f) { f = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }); fmtCache.set(timeZone, f); }
   return f.format(new Date(epochSeconds * 1000));
 }
+const hourCache = new Map<string, Intl.DateTimeFormat>();
+/** Local clock hour 0–23 in an IANA zone. The formatter is cached: dispatch calls this twice per step. */
 export function localHour(epochSeconds: number, timeZone: string): number {
-  const p = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', hourCycle: 'h23' }).format(new Date(epochSeconds * 1000));
-  return Number(p);
+  let f = hourCache.get(timeZone);
+  if (!f) { f = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', hourCycle: 'h23' }); hourCache.set(timeZone, f); }
+  return Number(f.format(new Date(epochSeconds * 1000)));
 }

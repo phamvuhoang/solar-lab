@@ -360,6 +360,12 @@
     "u": "ratio",
     "p": "manufacturer",
     "src": "manual WPV: peak 93%; datasheet SNA 3-6K ghi 95,0%, dùng giá trị thấp hơn"
+   },
+   "surgeW": {
+    "v": 12000,
+    "u": "W",
+    "p": "manufacturer",
+    "src": "2 × công suất định mức trong 5 s (manual WPV §6)"
    }
   },
   "attrs": {
@@ -452,6 +458,12 @@
     "v": 54,
     "u": "kg",
     "p": "manufacturer"
+   },
+   "peakDischargeA": {
+    "v": 110,
+    "u": "A",
+    "p": "manufacturer",
+    "src": "đỉnh 110 A trong 15 s"
    }
   },
   "attrs": {
@@ -739,5 +751,41 @@
   "editedAt": "2026-11-19T00:00:00Z",
   "derivedFrom": null,
   "notes": "Chưa có đường cong Q–H nên chỉ tính tải điện."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "sample-home-load",
+  "revision": 1,
+  "sku": "sample-home-load",
+  "brand": "Mẫu minh họa",
+  "name": "Tải sinh hoạt 300 W (tải mẫu)",
+  "kind": "load",
+  "condition": "new",
+  "specs": {
+   "powerW": {
+    "v": 300,
+    "u": "W",
+    "p": "assumption"
+   },
+   "powerFactor": {
+    "v": 0.9,
+    "u": "ratio",
+    "p": "assumption"
+   },
+   "startupW": {
+    "v": null,
+    "u": "W",
+    "p": "assumption"
+   }
+  },
+  "attrs": {
+   "source": "giả định thiết kế: thay bằng công suất sinh hoạt thật của hộ"
+  },
+  "datasheet": null,
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Công suất trung bình giả định, chưa đo. Lịch dùng đặt ở bước Hệ thống."
  }
 ]

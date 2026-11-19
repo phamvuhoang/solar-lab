@@ -11,6 +11,7 @@ import { exportProject, stageImport } from '../persistence/exchange';
 import { renderQuote } from './quote';
 import { renderDesign } from './design';
 import { renderPv } from './pv';
+import { renderSim, type SimState } from './sim';
 import { BUNDLED_WEATHER, loadBundledWeather } from '../weather/bundled';
 import type { PvResult } from '../engine/pv';
 import { History } from '../app/history';
@@ -32,6 +33,7 @@ export async function startApp(root: HTMLElement) {
   let selected: string | null = null;
   let pendingFocus: string[] = [];
   let lastPvResult: PvResult | null = null;
+  let simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
   let filter: { kind: Kind | 'all'; text: string } = { kind: 'all', text: '' };
 
   const say = (m: string) => { message = m; };
@@ -52,7 +54,7 @@ export async function startApp(root: HTMLElement) {
 
   // ---- home ---------------------------------------------------------------------------------
   async function home() {
-    history.clear(); selected = null; lastPvResult = null;
+    history.clear(); selected = null; lastPvResult = null; simState = { runs: [], side: 0, step: 0, progress: {} };
     const heads = await repo.listProjects();
     const name = h('input', { name: 'name', value: 'Dự án mới', required: true });
     const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file' });
@@ -97,6 +99,7 @@ export async function startApp(root: HTMLElement) {
         h('p', { id: 'bom-total' }, p.instances.length ? `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}${q.complete ? '' : ' · tổng hoàn chỉnh: chưa đủ'}` : 'Chưa có linh kiện.')),
       h('button', { id: 'design-btn', onClick: () => designScreen() }, 'Thiết kế'),
       h('button', { id: 'pv-btn', onClick: () => pvScreen() }, 'Mô phỏng PV'),
+      h('button', { id: 'sim-btn', onClick: () => simScreen() }, 'Hệ thống (pin, tải, bơm)'),
       h('button', { onClick: () => quoteScreen() }, 'Dự toán'),
       h('button', { onClick: () => catalogScreen() }, 'Thiết bị'),
       h('button', { onClick: async () => download(`${p.name}.json`, await exportProject(p)) }, 'Xuất JSON'),
@@ -149,6 +152,21 @@ export async function startApp(root: HTMLElement) {
       loadWeather, saveWeather: (s) => repo.saveWeather(s),
       apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await pvScreen(); },
       lastResult: lastPvResult, setResult: (r) => { lastPvResult = r; }, rerender: () => { void pvScreen(); }, back: () => projectScreen(),
+    })));
+  }
+
+  async function simScreen() {
+    await reload();
+    const p = project!;
+    const loadWeather = async (id: string) => {
+      if (BUNDLED_WEATHER.some((b) => b.id === id)) { const r = await loadBundledWeather(id); return r?.ok ? r.series : undefined; }
+      return repo.getWeather(id);
+    };
+    show(...(await renderSim({
+      project: p, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], revisions: await repo.listRevisions(p.projectId),
+      loadRevision: (n) => repo.loadRevision(p.projectId, n), loadWeather,
+      apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await simScreen(); },
+      state: simState, rerender: () => { void simScreen(); }, back: () => projectScreen(), goPv: () => pvScreen(),
     })));
   }
 
