@@ -1,0 +1,320 @@
+{
+  "schemaVersion": 1,
+  "projectId": "prj-cd5853c3-138e-4183-a6c4-c2668484d856",
+  "revision": 1,
+  "name": "Lâm Hà",
+  "createdAt": "2026-11-19T09:08:50.913Z",
+  "updatedAt": "2026-11-19T10:00:00Z",
+  "location": {
+    "latitude": 11.87,
+    "longitude": 108.2,
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "instances": [
+    {
+      "instanceId": "ins-3d3813a7-1641-47e2-aa88-f7d7f86de479",
+      "kind": "panel",
+      "label": "VSUN 620 W N-type TOPCon bifacial #1",
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      }
+    },
+    {
+      "instanceId": "ins-a906586b-3866-4a70-add5-622984f7ad2d",
+      "kind": "panel",
+      "label": "VSUN 620 W N-type TOPCon bifacial #2",
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      }
+    },
+    {
+      "instanceId": "ins-63eaefa8-0807-4f31-ad25-7bd247bf6dd2",
+      "kind": "panel",
+      "label": "VSUN 620 W N-type TOPCon bifacial #3",
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      }
+    },
+    {
+      "instanceId": "ins-bba6a522-8a95-4613-944b-6528893afd0a",
+      "kind": "panel",
+      "label": "VSUN 620 W N-type TOPCon bifacial #4",
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      }
+    },
+    {
+      "instanceId": "ins-df23da8a-fcbc-4fc1-b7c4-524a8be2eb4a",
+      "kind": "panel",
+      "label": "VSUN 620 W N-type TOPCon bifacial #5",
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      }
+    },
+    {
+      "instanceId": "ins-eafb7c33-2760-45d3-9abc-6adfd59d147b",
+      "kind": "panel",
+      "label": "VSUN 620 W N-type TOPCon bifacial #6",
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      }
+    },
+    {
+      "instanceId": "ins-9564ada1-f78c-48bd-8fbd-02400b16c0e9",
+      "kind": "panel",
+      "label": "VSUN 620 W N-type TOPCon bifacial #7",
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      }
+    },
+    {
+      "instanceId": "ins-e4a19e08-1efe-44dc-a3e9-13e1a6c2a634",
+      "kind": "panel",
+      "label": "VSUN 620 W N-type TOPCon bifacial #8",
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      }
+    },
+    {
+      "instanceId": "ins-db6b1717-2ed2-4cba-b585-09d5b45ebdc7",
+      "kind": "battery",
+      "label": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai) #1",
+      "componentRef": {
+        "modelId": "used-battery",
+        "revision": 1
+      }
+    }
+  ],
+  "edges": [],
+  "roofFaces": [],
+  "priceSelections": [
+    {
+      "componentRef": {
+        "modelId": "vsun-620",
+        "revision": 1
+      },
+      "offerId": "off-lamha-vsun620"
+    },
+    {
+      "componentRef": {
+        "modelId": "used-battery",
+        "revision": 1
+      },
+      "offerId": "off-lamha-used-battery"
+    }
+  ],
+  "snapshots": {
+    "components": [
+      {
+        "schemaVersion": 1,
+        "modelId": "vsun-620",
+        "revision": 1,
+        "sku": "VSUN620N-132BMHR-DG",
+        "brand": "VSUN",
+        "name": "VSUN 620 W N-type TOPCon bifacial",
+        "kind": "panel",
+        "condition": "new",
+        "specs": {
+          "pstcW": {
+            "v": 620,
+            "u": "W",
+            "p": "manufacturer"
+          },
+          "vocV": {
+            "v": 48.7,
+            "u": "V",
+            "p": "manufacturer"
+          },
+          "iscA": {
+            "v": 15.95,
+            "u": "A",
+            "p": "manufacturer"
+          },
+          "vmpV": {
+            "v": 41.23,
+            "u": "V",
+            "p": "manufacturer"
+          },
+          "impA": {
+            "v": 15.04,
+            "u": "A",
+            "p": "manufacturer"
+          },
+          "betaVoc": {
+            "v": -0.0024,
+            "u": "1/°C",
+            "p": "manufacturer"
+          },
+          "betaIsc": {
+            "v": 0.0004,
+            "u": "1/°C",
+            "p": "manufacturer"
+          },
+          "betaPmax": {
+            "v": -0.0029,
+            "u": "1/°C",
+            "p": "manufacturer"
+          },
+          "efficiency": {
+            "v": 0.2295,
+            "u": "ratio",
+            "p": "manufacturer"
+          },
+          "bifaciality": {
+            "v": 0.8,
+            "u": "ratio",
+            "p": "manufacturer",
+            "src": "80% ±10%"
+          },
+          "maxSystemV": {
+            "v": 1500,
+            "u": "V",
+            "p": "manufacturer"
+          },
+          "maxSeriesFuseA": {
+            "v": 30,
+            "u": "A",
+            "p": "manufacturer"
+          },
+          "lengthM": {
+            "v": 2.382,
+            "u": "m",
+            "p": "manufacturer"
+          },
+          "widthM": {
+            "v": 1.134,
+            "u": "m",
+            "p": "manufacturer"
+          },
+          "thicknessM": {
+            "v": 0.03,
+            "u": "m",
+            "p": "manufacturer"
+          },
+          "weightKg": {
+            "v": 33.3,
+            "u": "kg",
+            "p": "manufacturer"
+          }
+        },
+        "attrs": {
+          "cells": "132 cell (12×11) mono TOPCon, kính đôi 2,0 mm",
+          "source": "VSUN datasheet v1.0, 2025-01-14 (bản Stellavolta)"
+        },
+        "datasheet": {
+          "url": "https://www.stellavolta.com/content/VSUN%20VSUN635N-132BMHR-DG%20635W%20Datasheet%20por%20Stellavolta.pdf",
+          "page": null,
+          "checkedAt": "2026-11-19"
+        },
+        "review": "unreviewed",
+        "author": "catalog-seed",
+        "editedAt": "2026-11-19T00:00:00Z",
+        "derivedFrom": null,
+        "notes": "Đọc từ bảng STC cột VSUN620N. Chờ kỹ sư đối chiếu datasheet gốc của hãng."
+      },
+      {
+        "schemaVersion": 1,
+        "modelId": "used-battery",
+        "revision": 1,
+        "sku": "used-battery",
+        "brand": "Tự nhập",
+        "name": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai)",
+        "kind": "battery",
+        "condition": "used",
+        "specs": {
+          "nominalV": {
+            "v": 51.2,
+            "u": "V",
+            "p": "user"
+          },
+          "capacityAh": {
+            "v": 165,
+            "u": "Ah",
+            "p": "user"
+          },
+          "nominalWh": {
+            "v": 8448,
+            "u": "Wh",
+            "p": "user"
+          },
+          "maxDischargeA": {
+            "v": 100,
+            "u": "A",
+            "p": "assumption",
+            "src": "giả định: cần xác nhận 100 A là dòng liên tục"
+          },
+          "sohRatio": {
+            "v": null,
+            "u": "ratio",
+            "p": "assumption",
+            "src": "chưa đo"
+          }
+        },
+        "attrs": {
+          "chemistry": "chưa rõ",
+          "condition": "pin cũ, chưa có số đo SoH"
+        },
+        "datasheet": null,
+        "review": "unreviewed",
+        "author": "catalog-seed",
+        "editedAt": "2026-11-19T00:00:00Z",
+        "derivedFrom": null,
+        "notes": "Báo giá dự án 16.000.000 đ. Dòng xả 100 A và SoH là giả định cho tới khi đo."
+      }
+    ],
+    "offers": [
+      {
+        "schemaVersion": 1,
+        "offerId": "off-lamha-vsun620",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        },
+        "seller": "Kho (báo giá dự án)",
+        "recordedAt": null,
+        "region": null,
+        "priceMinor": "1984000",
+        "currency": "VND",
+        "unit": "piece",
+        "tiers": [],
+        "vat": "unknown",
+        "condition": "new",
+        "shippingMinor": null,
+        "warrantyMonths": null,
+        "validUntil": null,
+        "label": "báo giá dự án",
+        "notes": "3.200 đ/W × 620 W; mua lẻ tại kho"
+      },
+      {
+        "schemaVersion": 1,
+        "offerId": "off-lamha-used-battery",
+        "componentRef": {
+          "modelId": "used-battery",
+          "revision": 1
+        },
+        "seller": "Người bán pin cũ (báo giá dự án)",
+        "recordedAt": null,
+        "region": null,
+        "priceMinor": "16000000",
+        "currency": "VND",
+        "unit": "piece",
+        "tiers": [],
+        "vat": "unknown",
+        "condition": "used",
+        "shippingMinor": null,
+        "warrantyMonths": null,
+        "validUntil": null,
+        "label": "báo giá dự án",
+        "notes": "Bộ pin cũ 51,2 V × 165 Ah"
+      }
+    ]
+  }
+}

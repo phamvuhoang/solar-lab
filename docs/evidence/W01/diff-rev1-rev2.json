@@ -1,0 +1,82 @@
+[
+  {
+    "path": "/instances/8/componentRef/modelId",
+    "before": "used-battery",
+    "after": "mdl-lamha-battery-180"
+  },
+  {
+    "path": "/instances/8/instanceId",
+    "before": "ins-db6b1717-2ed2-4cba-b585-09d5b45ebdc7",
+    "after": "ins-d2744e89-02a7-41cf-b9a4-542447cdcea9"
+  },
+  {
+    "path": "/instances/8/label",
+    "before": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai) #1",
+    "after": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai) (bản sao) #1"
+  },
+  {
+    "path": "/revision",
+    "before": 1,
+    "after": 2
+  },
+  {
+    "path": "/snapshots/components/2",
+    "after": {
+      "schemaVersion": 1,
+      "modelId": "mdl-lamha-battery-180",
+      "sku": "used-battery",
+      "brand": "Tự nhập",
+      "name": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai) (bản sao)",
+      "kind": "battery",
+      "condition": "used",
+      "specs": {
+        "nominalV": {
+          "v": 51.2,
+          "u": "V",
+          "p": "user"
+        },
+        "capacityAh": {
+          "v": 180,
+          "u": "Ah",
+          "p": "user"
+        },
+        "nominalWh": {
+          "v": 9216,
+          "u": "Wh",
+          "p": "user"
+        },
+        "maxDischargeA": {
+          "v": 100,
+          "u": "A",
+          "p": "assumption",
+          "src": "giả định: cần xác nhận 100 A là dòng liên tục"
+        },
+        "sohRatio": {
+          "v": null,
+          "u": "ratio",
+          "p": "assumption",
+          "src": "chưa đo"
+        }
+      },
+      "attrs": {
+        "chemistry": "chưa rõ",
+        "condition": "pin cũ, chưa có số đo SoH"
+      },
+      "datasheet": null,
+      "review": "unreviewed",
+      "author": "kỹ sư",
+      "editedAt": "2026-11-19T10:00:00Z",
+      "derivedFrom": {
+        "modelId": "used-battery",
+        "revision": 1
+      },
+      "notes": "Báo giá dự án 16.000.000 đ. Dòng xả 100 A và SoH là giả định cho tới khi đo.",
+      "revision": 1
+    }
+  },
+  {
+    "path": "/updatedAt",
+    "before": "2026-11-19T10:00:00Z",
+    "after": "2026-11-19T10:00:01Z"
+  }
+]

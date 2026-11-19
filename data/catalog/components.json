@@ -1,0 +1,581 @@
+[
+ {
+  "schemaVersion": 1,
+  "modelId": "vsun-620",
+  "revision": 1,
+  "sku": "VSUN620N-132BMHR-DG",
+  "brand": "VSUN",
+  "name": "VSUN 620 W N-type TOPCon bifacial",
+  "kind": "panel",
+  "condition": "new",
+  "specs": {
+   "pstcW": {
+    "v": 620,
+    "u": "W",
+    "p": "manufacturer"
+   },
+   "vocV": {
+    "v": 48.7,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "iscA": {
+    "v": 15.95,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "vmpV": {
+    "v": 41.23,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "impA": {
+    "v": 15.04,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "betaVoc": {
+    "v": -0.0024,
+    "u": "1/°C",
+    "p": "manufacturer"
+   },
+   "betaIsc": {
+    "v": 0.0004,
+    "u": "1/°C",
+    "p": "manufacturer"
+   },
+   "betaPmax": {
+    "v": -0.0029,
+    "u": "1/°C",
+    "p": "manufacturer"
+   },
+   "efficiency": {
+    "v": 0.2295,
+    "u": "ratio",
+    "p": "manufacturer"
+   },
+   "bifaciality": {
+    "v": 0.8,
+    "u": "ratio",
+    "p": "manufacturer",
+    "src": "80% ±10%"
+   },
+   "maxSystemV": {
+    "v": 1500,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "maxSeriesFuseA": {
+    "v": 30,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "lengthM": {
+    "v": 2.382,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "widthM": {
+    "v": 1.134,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "thicknessM": {
+    "v": 0.03,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "weightKg": {
+    "v": 33.3,
+    "u": "kg",
+    "p": "manufacturer"
+   }
+  },
+  "attrs": {
+   "cells": "132 cell (12×11) mono TOPCon, kính đôi 2,0 mm",
+   "source": "VSUN datasheet v1.0, 2025-01-14 (bản Stellavolta)"
+  },
+  "datasheet": {
+   "url": "https://www.stellavolta.com/content/VSUN%20VSUN635N-132BMHR-DG%20635W%20Datasheet%20por%20Stellavolta.pdf",
+   "page": null,
+   "checkedAt": "2026-11-19"
+  },
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Đọc từ bảng STC cột VSUN620N. Chờ kỹ sư đối chiếu datasheet gốc của hãng."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "hestia-650",
+  "revision": 1,
+  "sku": "HTS-132210RH650LDG",
+  "brand": "Hestia Solar",
+  "name": "Hestia 650 W N-type TOPCon",
+  "kind": "panel",
+  "condition": "new",
+  "specs": {
+   "pstcW": {
+    "v": 650,
+    "u": "W",
+    "p": "seller"
+   },
+   "vocV": {
+    "v": 49.6,
+    "u": "V",
+    "p": "seller"
+   },
+   "iscA": {
+    "v": 16.44,
+    "u": "A",
+    "p": "seller"
+   },
+   "vmpV": {
+    "v": 42.4,
+    "u": "V",
+    "p": "seller"
+   },
+   "impA": {
+    "v": 15.34,
+    "u": "A",
+    "p": "seller"
+   },
+   "betaVoc": {
+    "v": -0.0025,
+    "u": "1/°C",
+    "p": "seller"
+   },
+   "betaIsc": {
+    "v": 0.0005,
+    "u": "1/°C",
+    "p": "seller"
+   },
+   "betaPmax": {
+    "v": -0.0029,
+    "u": "1/°C",
+    "p": "seller"
+   },
+   "efficiency": {
+    "v": 0.241,
+    "u": "ratio",
+    "p": "seller"
+   },
+   "maxSystemV": {
+    "v": 1500,
+    "u": "V",
+    "p": "seller"
+   },
+   "maxSeriesFuseA": {
+    "v": 35,
+    "u": "A",
+    "p": "seller"
+   },
+   "lengthM": {
+    "v": 2.382,
+    "u": "m",
+    "p": "seller"
+   },
+   "widthM": {
+    "v": 1.134,
+    "u": "m",
+    "p": "seller"
+   },
+   "thicknessM": {
+    "v": 0.03,
+    "u": "m",
+    "p": "seller"
+   },
+   "weightKg": {
+    "v": 32.5,
+    "u": "kg",
+    "p": "seller"
+   }
+  },
+  "attrs": {
+   "cells": "132 cell MBB N-type TOPCon, kính đôi 2,0 mm",
+   "source": "Trang sản phẩm Venergy, chưa có datasheet PDF"
+  },
+  "datasheet": {
+   "url": "https://venergy.vn/san-pham/tam-pin-nang-luong-mat-troi-hestia-solar-630w-650w/",
+   "page": null,
+   "checkedAt": "2026-11-19"
+  },
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Trang bán hàng chỉ in Voc/Isc/Vmp/Imp cho bản 650 W. Cần datasheet PDF để nâng lên manufacturer."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "hestia-630",
+  "revision": 1,
+  "sku": "HTS-132210RH630LDG",
+  "brand": "Hestia Solar",
+  "name": "Hestia 630 W (biến thể chưa đủ thông số điện)",
+  "kind": "panel",
+  "condition": "new",
+  "specs": {
+   "pstcW": {
+    "v": 630,
+    "u": "W",
+    "p": "seller"
+   },
+   "betaVoc": {
+    "v": -0.0025,
+    "u": "1/°C",
+    "p": "seller"
+   },
+   "betaIsc": {
+    "v": 0.0005,
+    "u": "1/°C",
+    "p": "seller"
+   },
+   "betaPmax": {
+    "v": -0.0029,
+    "u": "1/°C",
+    "p": "seller"
+   },
+   "efficiency": {
+    "v": 0.2332,
+    "u": "ratio",
+    "p": "seller"
+   },
+   "lengthM": {
+    "v": 2.382,
+    "u": "m",
+    "p": "seller"
+   },
+   "widthM": {
+    "v": 1.134,
+    "u": "m",
+    "p": "seller"
+   },
+   "thicknessM": {
+    "v": 0.03,
+    "u": "m",
+    "p": "seller"
+   },
+   "weightKg": {
+    "v": 32.5,
+    "u": "kg",
+    "p": "seller"
+   }
+  },
+  "attrs": {
+   "source": "Trang sản phẩm Venergy: chỉ in Pmax và hiệu suất cho 630–645 W"
+  },
+  "datasheet": {
+   "url": "https://venergy.vn/san-pham/tam-pin-nang-luong-mat-troi-hestia-solar-630w-650w/",
+   "page": null,
+   "checkedAt": "2026-11-19"
+  },
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Dùng được để tính kWp và so giá. Voc/Isc/Vmp/Imp chưa có nên chưa kiểm được chuỗi/MPPT."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "luxpower-sna6000wpv",
+  "revision": 1,
+  "sku": "SNA6000WPV",
+  "brand": "Luxpower",
+  "name": "Luxpower SNA6000WPV hybrid/off-grid 6 kW",
+  "kind": "inverter",
+  "condition": "new",
+  "specs": {
+   "acRatedW": {
+    "v": 6000,
+    "u": "W",
+    "p": "seller"
+   },
+   "pvMaxPowerW": {
+    "v": null,
+    "u": "W",
+    "p": "assumption",
+    "src": "nguồn bán hàng ghi 8 / 9 / 9,6 kW, chưa thống nhất"
+   },
+   "pvVocMaxV": {
+    "v": 480,
+    "u": "V",
+    "p": "seller"
+   },
+   "pvStartV": {
+    "v": null,
+    "u": "V",
+    "p": "user"
+   },
+   "mpptVminV": {
+    "v": 120,
+    "u": "V",
+    "p": "seller"
+   },
+   "mpptVmaxV": {
+    "v": 385,
+    "u": "V",
+    "p": "seller"
+   },
+   "mpptCount": {
+    "v": 2,
+    "u": "count",
+    "p": "seller"
+   },
+   "pvImaxPerMpptA": {
+    "v": 17,
+    "u": "A",
+    "p": "seller"
+   },
+   "pvIscMaxPerMpptA": {
+    "v": null,
+    "u": "A",
+    "p": "user"
+   },
+   "batteryVminV": {
+    "v": null,
+    "u": "V",
+    "p": "user"
+   },
+   "batteryVmaxV": {
+    "v": null,
+    "u": "V",
+    "p": "user"
+   },
+   "batteryMaxChargeA": {
+    "v": 140,
+    "u": "A",
+    "p": "seller"
+   },
+   "batteryMaxDischargeA": {
+    "v": null,
+    "u": "A",
+    "p": "user"
+   },
+   "efficiencyMax": {
+    "v": null,
+    "u": "ratio",
+    "p": "user"
+   }
+  },
+  "attrs": {
+   "source": "Trang bán hàng + hướng dẫn tiếng Ukraina; datasheet Luxpower chưa tìm thấy cho đúng biến thể WPV"
+  },
+  "datasheet": null,
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Thiếu Isc cho phép, điện áp khởi động và dải pin nên chưa mở kiểm tra Isc/khởi động/dải pin."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "dyness-dl5-0c",
+  "revision": 1,
+  "sku": "DL5.0C",
+  "brand": "Dyness",
+  "name": "Dyness DL5.0C LiFePO4 51,2 V 100 Ah",
+  "kind": "battery",
+  "condition": "new",
+  "specs": {
+   "nominalV": {
+    "v": 51.2,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "vMinV": {
+    "v": 44.8,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "vMaxV": {
+    "v": 57.6,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "capacityAh": {
+    "v": 100,
+    "u": "Ah",
+    "p": "manufacturer"
+   },
+   "nominalWh": {
+    "v": 5120,
+    "u": "Wh",
+    "p": "manufacturer"
+   },
+   "maxChargeA": {
+    "v": 75,
+    "u": "A",
+    "p": "manufacturer",
+    "src": "khuyến nghị 50 A (0,5C); tối đa 75 A"
+   },
+   "maxDischargeA": {
+    "v": 100,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "lengthM": {
+    "v": 0.558,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "widthM": {
+    "v": 0.545,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "thicknessM": {
+    "v": 0.15,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "weightKg": {
+    "v": 54,
+    "u": "kg",
+    "p": "manufacturer"
+   }
+  },
+  "attrs": {
+   "chemistry": "LiFePO4",
+   "protocol": "chưa ghi: cần theo đúng firmware"
+  },
+  "datasheet": {
+   "url": "https://dyness.com/Public/Uploads/uploadfile/files/20241128/DynessDL5.0CdatasheetDE.pdf",
+   "page": null,
+   "checkedAt": "2026-11-19"
+  },
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Số liệu tổng hợp từ nhiều bản datasheet Dyness; không nhầm với DL5.0C Pro hoặc DL5.0. Cần đối chiếu từng SKU."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "used-battery",
+  "revision": 1,
+  "sku": "used-battery",
+  "brand": "Tự nhập",
+  "name": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai)",
+  "kind": "battery",
+  "condition": "used",
+  "specs": {
+   "nominalV": {
+    "v": 51.2,
+    "u": "V",
+    "p": "user"
+   },
+   "capacityAh": {
+    "v": 165,
+    "u": "Ah",
+    "p": "user"
+   },
+   "nominalWh": {
+    "v": 8448,
+    "u": "Wh",
+    "p": "user"
+   },
+   "maxDischargeA": {
+    "v": 100,
+    "u": "A",
+    "p": "assumption",
+    "src": "giả định: cần xác nhận 100 A là dòng liên tục"
+   },
+   "sohRatio": {
+    "v": null,
+    "u": "ratio",
+    "p": "assumption",
+    "src": "chưa đo"
+   }
+  },
+  "attrs": {
+   "chemistry": "chưa rõ",
+   "condition": "pin cũ, chưa có số đo SoH"
+  },
+  "datasheet": null,
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Báo giá dự án 16.000.000 đ. Dòng xả 100 A và SoH là giả định cho tới khi đo."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "sample-pump-controller",
+  "revision": 1,
+  "sku": "sample-pump-controller",
+  "brand": "Mẫu minh họa",
+  "name": "Controller bơm PV mẫu 750 W",
+  "kind": "controller",
+  "condition": "new",
+  "specs": {
+   "ratedW": {
+    "v": 750,
+    "u": "W",
+    "p": "assumption"
+   },
+   "vMinV": {
+    "v": 60,
+    "u": "V",
+    "p": "assumption"
+   },
+   "vMaxV": {
+    "v": 200,
+    "u": "V",
+    "p": "assumption"
+   },
+   "iMaxA": {
+    "v": 10,
+    "u": "A",
+    "p": "assumption"
+   }
+  },
+  "attrs": {
+   "source": "giả định thiết kế, không phải sản phẩm thật"
+  },
+  "datasheet": null,
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Mẫu cho bài học, thay bằng thiết bị thật khi có."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "sample-pump-load",
+  "revision": 1,
+  "sku": "sample-pump-load",
+  "brand": "Mẫu minh họa",
+  "name": "Bơm nước 750 W (tải mẫu)",
+  "kind": "load",
+  "condition": "new",
+  "specs": {
+   "powerW": {
+    "v": 750,
+    "u": "W",
+    "p": "assumption"
+   },
+   "powerFactor": {
+    "v": 0.8,
+    "u": "ratio",
+    "p": "assumption"
+   },
+   "startupW": {
+    "v": 2250,
+    "u": "W",
+    "p": "assumption",
+    "src": "giả định 3× công suất chạy"
+   }
+  },
+  "attrs": {
+   "source": "giả định thiết kế"
+  },
+  "datasheet": null,
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Chưa có đường cong Q–H nên chỉ tính tải điện."
+ }
+]

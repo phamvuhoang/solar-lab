@@ -1,0 +1,46 @@
+[
+ {
+  "schemaVersion": 1,
+  "offerId": "off-lamha-vsun620",
+  "componentRef": {
+   "modelId": "vsun-620",
+   "revision": 1
+  },
+  "seller": "Kho (báo giá dự án)",
+  "recordedAt": null,
+  "region": null,
+  "priceMinor": "1984000",
+  "currency": "VND",
+  "unit": "piece",
+  "tiers": [],
+  "vat": "unknown",
+  "condition": "new",
+  "shippingMinor": null,
+  "warrantyMonths": null,
+  "validUntil": null,
+  "label": "báo giá dự án",
+  "notes": "3.200 đ/W × 620 W; mua lẻ tại kho"
+ },
+ {
+  "schemaVersion": 1,
+  "offerId": "off-lamha-used-battery",
+  "componentRef": {
+   "modelId": "used-battery",
+   "revision": 1
+  },
+  "seller": "Người bán pin cũ (báo giá dự án)",
+  "recordedAt": null,
+  "region": null,
+  "priceMinor": "16000000",
+  "currency": "VND",
+  "unit": "piece",
+  "tiers": [],
+  "vat": "unknown",
+  "condition": "used",
+  "shippingMinor": null,
+  "warrantyMonths": null,
+  "validUntil": null,
+  "label": "báo giá dự án",
+  "notes": "Bộ pin cũ 51,2 V × 165 Ah"
+ }
+]

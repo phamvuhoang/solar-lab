@@ -1,9 +1,13 @@
 {
   "id": "lam-ha",
   "name": "Lâm Hà",
-  "currency": "VND",
-  "lines": [
-    { "id": "vsun-620", "label": "VSUN 620 W (mua lẻ tại kho)", "quantity": 8, "priceMinor": "1984000", "currency": "VND", "source": "báo giá dự án" },
-    { "id": "used-battery", "label": "Bộ pin cũ 51,2 V × 165 Ah", "quantity": 1, "priceMinor": "16000000", "currency": "VND", "source": "báo giá dự án" }
+  "location": { "latitude": 11.87, "longitude": 108.2, "timezone": "Asia/Ho_Chi_Minh" },
+  "instances": [
+    { "modelId": "vsun-620", "kind": "panel", "count": 8, "label": "Tấm" },
+    { "modelId": "used-battery", "kind": "battery", "count": 1, "label": "Bộ pin cũ" }
+  ],
+  "priceSelections": [
+    { "modelId": "vsun-620", "offerId": "off-lamha-vsun620" },
+    { "modelId": "used-battery", "offerId": "off-lamha-used-battery" }
   ]
 }

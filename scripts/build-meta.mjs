@@ -8,7 +8,10 @@ const meta = {
   buildId: process.env.BUILD_ID ?? 'dev',
   builtAt: new Date().toISOString(),
   node: process.version,
-  fixtures: { 'data/presets/lam-ha.json': sha256('data/presets/lam-ha.json') },
+  fixtures: Object.fromEntries([
+    'data/presets/lam-ha.json', 'data/catalog/components.json', 'data/catalog/offers.json',
+    'schemas/project-v1.json', 'schemas/component-v1.json', 'schemas/offer-v1.json',
+  ].map((f) => [f, sha256(f)])),
 };
 writeFileSync(new URL('dist/build-meta.json', root), JSON.stringify(meta, null, 2) + '\n');
 console.log('dist/build-meta.json', meta.buildId);

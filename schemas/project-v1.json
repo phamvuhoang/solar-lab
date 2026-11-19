@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mekoniq.local/schemas/project-v1.json",
+  "title": "ProjectRevision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "projectId", "revision", "name", "createdAt", "updatedAt", "location", "instances", "edges", "roofFaces", "priceSelections", "snapshots"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "projectId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "location": {
+      "type": ["object", "null"], "additionalProperties": false,
+      "required": ["latitude", "longitude", "timezone"],
+      "properties": {
+        "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+        "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+        "timezone": { "type": "string", "minLength": 1 }
+      }
+    },
+    "instances": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["instanceId", "kind", "label", "componentRef"],
+        "properties": {
+          "instanceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$" },
+          "kind": { "enum": ["panel", "inverter", "battery", "controller", "load"] },
+          "label": { "type": "string", "minLength": 1 },
+          "componentRef": {
+            "type": ["object", "null"], "additionalProperties": false, "required": ["modelId", "revision"],
+            "properties": { "modelId": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["edgeId", "from", "to"],
+        "properties": {
+          "edgeId": { "type": "string", "minLength": 1 },
+          "from": { "$ref": "#/definitions/endpoint" },
+          "to": { "$ref": "#/definitions/endpoint" }
+        }
+      }
+    },
+    "roofFaces": { "type": "array", "items": { "type": "object" } },
+    "priceSelections": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["componentRef", "offerId"],
+        "properties": {
+          "componentRef": {
+            "type": "object", "additionalProperties": false, "required": ["modelId", "revision"],
+            "properties": { "modelId": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } }
+          },
+          "offerId": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "snapshots": {
+      "type": "object", "additionalProperties": false, "required": ["components", "offers"],
+      "properties": {
+        "components": { "type": "array", "items": { "$ref": "component-v1.json" } },
+        "offers": { "type": "array", "items": { "$ref": "offer-v1.json" } }
+      }
+    }
+  },
+  "definitions": {
+    "endpoint": {
+      "type": "object", "additionalProperties": false, "required": ["instanceId", "port"],
+      "properties": { "instanceId": { "type": "string", "minLength": 1 }, "port": { "type": "string", "minLength": 1 } }
+    }
+  }
+}

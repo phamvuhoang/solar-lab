@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mekoniq.local/schemas/component-v1.json",
+  "title": "ComponentRevision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "modelId", "revision", "sku", "brand", "name", "kind", "condition", "specs", "attrs", "datasheet", "review", "author", "editedAt", "derivedFrom"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "modelId": { "$ref": "#/definitions/id" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "sku": { "type": ["string", "null"], "minLength": 1 },
+    "brand": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["panel", "inverter", "battery", "controller", "load"] },
+    "condition": { "enum": ["new", "used"] },
+    "specs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["v", "u", "p"],
+        "properties": {
+          "v": { "type": ["number", "null"] },
+          "u": { "type": "string", "minLength": 1 },
+          "p": { "enum": ["manufacturer", "seller", "measured", "user", "assumption"] },
+          "src": { "type": "string" }
+        }
+      }
+    },
+    "attrs": { "type": "object", "additionalProperties": { "type": "string" } },
+    "datasheet": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["url", "page", "checkedAt"],
+      "properties": {
+        "url": { "type": "string", "minLength": 1 },
+        "page": { "type": ["integer", "null"], "minimum": 1 },
+        "checkedAt": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+    "review": { "enum": ["unreviewed", "reviewed"] },
+    "author": { "type": "string", "minLength": 1 },
+    "editedAt": { "type": "string", "format": "date-time" },
+    "derivedFrom": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/ref" }]
+    },
+    "notes": { "type": "string" }
+  },
+  "definitions": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$" },
+    "ref": {
+      "type": "object", "additionalProperties": false, "required": ["modelId", "revision"],
+      "properties": { "modelId": { "$ref": "#/definitions/id" }, "revision": { "type": "integer", "minimum": 1 } }
+    }
+  }
+}

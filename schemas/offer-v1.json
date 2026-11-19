@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mekoniq.local/schemas/offer-v1.json",
+  "title": "Offer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "offerId", "componentRef", "seller", "recordedAt", "region", "priceMinor", "currency", "unit", "tiers", "vat", "condition", "shippingMinor", "warrantyMonths", "validUntil", "label"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "offerId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$" },
+    "componentRef": {
+      "type": "object", "additionalProperties": false, "required": ["modelId", "revision"],
+      "properties": { "modelId": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } }
+    },
+    "seller": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": ["string", "null"], "format": "date" },
+    "region": { "type": ["string", "null"] },
+    "priceMinor": { "type": ["string", "null"], "pattern": "^\\d+$" },
+    "currency": { "const": "VND" },
+    "unit": { "enum": ["piece", "W", "m", "set"] },
+    "tiers": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["minQty", "priceMinor"],
+        "properties": { "minQty": { "type": "integer", "minimum": 1 }, "priceMinor": { "type": "string", "pattern": "^\\d+$" } }
+      }
+    },
+    "vat": { "enum": ["included", "excluded", "unknown"] },
+    "condition": { "enum": ["new", "used"] },
+    "shippingMinor": { "type": ["string", "null"], "pattern": "^\\d+$" },
+    "warrantyMonths": { "type": ["integer", "null"], "minimum": 0 },
+    "validUntil": { "type": ["string", "null"], "format": "date" },
+    "label": { "type": "string", "minLength": 1 },
+    "notes": { "type": "string" }
+  }
+}
