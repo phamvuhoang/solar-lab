@@ -116,3 +116,8 @@ export async function compileSim(p: Project, weather: WeatherSeries, opts: { sha
   input.pv.weatherHash = '';
   return { input, hash: await simHash(input), issues, notes };
 }
+
+/** The project as run for one side of an A/B: its own design, but the current project's weather and dispatch policy, so both sides share conditions. */
+export function asRunFor(base: Project, current: Project): Project {
+  return { ...structuredClone(base), sim: structuredClone(current.sim), pv: { ...base.pv, weatherId: current.pv?.weatherId ?? null } };
+}

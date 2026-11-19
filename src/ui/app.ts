@@ -8,6 +8,11 @@ import { refKey, type Component, type Offer, type Project } from '../domain/type
 import { formatNumber } from '../domain/units';
 import { buildQuote } from '../cost/quote';
 import { exportProject, stageImport } from '../persistence/exchange';
+import { commitPackage, storageEstimate } from '../persistence/import';
+import { isPackage, stagePackage } from '../reports/package';
+import { freshLessons, renderLessons } from './lessons';
+import { freshReport, renderReport } from './report';
+import { freshImported, renderImported } from './imported';
 import { renderQuote } from './quote';
 import { renderDesign } from './design';
 import { renderPv } from './pv';
@@ -41,6 +46,10 @@ export async function startApp(root: HTMLElement) {
   let shadeActive = false;
   let shadeState: ShadeState = { date: null, step: 0, scenes: [], dayEnergy: null, stepLabel: '' };
   let lastPvResult: PvResult | null = null;
+  let lessonState = freshLessons();
+  let reportState = freshReport();
+  let importedState = freshImported();
+  let importIssues: { code: string; severity: string; field: string; message: string }[] = [];
   let simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
   let filter: { kind: Kind | 'all'; text: string } = { kind: 'all', text: '' };
 
@@ -65,14 +74,16 @@ export async function startApp(root: HTMLElement) {
 
   // ---- home ---------------------------------------------------------------------------------
   async function home() {
-    history.clear(); selected = null; selection = []; shadeState = { date: null, step: 0, scenes: [], dayEnergy: null, stepLabel: '' }; lastPvResult = null; simState = { runs: [], side: 0, step: 0, progress: {} };
+    history.clear(); selected = null; selection = []; shadeState = { date: null, step: 0, scenes: [], dayEnergy: null, stepLabel: '' }; reportState = freshReport(); importedState = freshImported(); lastPvResult = null; simState = { runs: [], side: 0, step: 0, progress: {} };
     const heads = await repo.listProjects();
     const name = h('input', { name: 'name', value: 'Dự án mới', required: true });
     const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file' });
     file.addEventListener('change', async () => {
       const f = file.files?.[0];
       if (!f) return;
-      const staged = await stageImport(await f.text(), new Set((await repo.listProjects()).map((x) => x.projectId)));
+      const text = await f.text(), ids = new Set((await repo.listProjects()).map((x) => x.projectId));
+      if (isPackage(text)) return void (await importPackage(text, ids));
+      const staged = await stageImport(text, ids);
       if (!staged.ok) {
         say('Không nhập được file; dự án hiện có không bị thay đổi.');
         show(...issueList(staged.issues), h('button', { onClick: () => home() }, 'Quay lại'));
@@ -86,11 +97,23 @@ export async function startApp(root: HTMLElement) {
       h('form', { onSubmit: async (e: Event) => { e.preventDefault(); project = await repo.createProject(createProject(name.value)); say(''); projectScreen(); } },
         h('label', {}, 'Tên dự án ', name), h('button', { type: 'submit' }, 'Tạo dự án')),
       h('button', { type: 'button', onClick: async () => { project = await repo.createProject(openLamHa()); say(''); projectScreen(); } }, 'Mở mẫu Lâm Hà'),
-      h('label', {}, 'Nhập dự án (JSON) ', file),
+      h('label', {}, 'Nhập dự án hoặc gói (JSON) ', file), h('p', { id: 'storage-note' }),
+      h('button', { id: 'lessons-home-btn', type: 'button', onClick: () => lessonsScreen(() => home(), 'Về danh sách') }, 'Bài học'),
       h('h2', {}, 'Dự án đã lưu'),
       heads.length ? h('ul', { id: 'saved' }, ...heads.map((p) => h('li', {},
         h('button', { onClick: async () => { project = (await repo.loadRevision(p.projectId))!; say(''); projectScreen(); } }, `Mở: ${p.name}`),
         ` · bản nháp, revision ${p.headRevision}`))) : h('p', {}, 'Chưa có dự án.'));
+    void storageEstimate().then((e) => { const n = document.getElementById('storage-note'); if (n && e) n.textContent = `Bộ nhớ trình duyệt: đã dùng ${(e.usage / 1e6).toFixed(1)} MB trên ${(e.quota / 1e6).toFixed(0)} MB.`; });
+  }
+
+  async function importPackage(text: string, ids: ReadonlySet<string>) {
+    const staged = await stagePackage(text, ids);
+    if (!staged.ok) { say('Không nhập được gói; dự án hiện có không bị thay đổi.'); show(...issueList(staged.issues), h('button', { onClick: () => home() }, 'Quay lại')); return; }
+    const done = await commitPackage(repo, staged);
+    if (!done.ok) { say('Không nhập được gói; dự án hiện có không bị thay đổi.'); show(...issueList(done.issues), h('button', { onClick: () => home() }, 'Quay lại')); return; }
+    project = done.project; importIssues = done.issues; importedState = freshImported();
+    say(staged.renamed ? 'ID trùng: đã nhập thành bản sao mới.' : 'Đã nhập gói.');
+    await importedScreen();
   }
 
   const issueList = (issues: { code: string; severity: string; field: string; message: string }[]) =>
@@ -101,6 +124,7 @@ export async function startApp(root: HTMLElement) {
     const p = project!;
     const q = buildQuote(p);
     const revs = await repo.listRevisions(p.projectId);
+    const recorded = await repo.getRecorded(p.projectId);
     const labelOf = (key: string) => p.snapshots.components.find((c) => `${c.modelId}@${c.revision}` === key)?.name ?? key;
     const diffOut = h('div', { id: 'diff' });
     show(
@@ -113,6 +137,9 @@ export async function startApp(root: HTMLElement) {
       h('button', { id: 'shade-btn', onClick: () => shadeScreen() }, 'Bóng che'),
       h('button', { id: 'pv-btn', onClick: () => pvScreen() }, 'Mô phỏng PV'),
       h('button', { id: 'sim-btn', onClick: () => simScreen() }, 'Hệ thống (pin, tải, bơm)'),
+      h('button', { id: 'report-btn', onClick: () => reportScreen() }, 'Báo cáo và chia sẻ'),
+      h('button', { id: 'lessons-btn', onClick: () => lessonsScreen(() => projectScreen(), 'Quay lại dự án') }, 'Bài học'),
+      !!recorded && h('button', { id: 'recorded-btn', onClick: () => { importIssues = []; void importedScreen(); } }, 'Kết quả đã ghi từ gói'),
       h('button', { onClick: () => quoteScreen() }, 'Dự toán'),
       h('button', { onClick: () => catalogScreen() }, 'Thiết bị'),
       h('button', { onClick: async () => download(`${p.name}.json`, await exportProject(p)) }, 'Xuất JSON'),
@@ -164,6 +191,28 @@ export async function startApp(root: HTMLElement) {
     });
     shadeActive = true;
     show(...nodes);
+  }
+
+  const weatherLoader = async (id: string) => {
+    if (BUNDLED_WEATHER.some((b) => b.id === id)) { const r = await loadBundledWeather(id); return r?.ok ? r.series : undefined; }
+    return repo.getWeather(id);
+  };
+  async function importedScreen() {
+    const p = project!, recorded = await repo.getRecorded(p.projectId);
+    if (!recorded) { say('Dự án này không có kết quả đã ghi từ gói.'); return projectScreen(); }
+    show(...(importIssues.length ? issueList(importIssues) : []), ...(await renderImported({
+      project: p, recorded, loadWeather: weatherLoader, state: importedState, rerender: () => { void importedScreen(); }, open: () => projectScreen(), back: () => { say(''); void home(); },
+    })));
+  }
+  async function reportScreen() {
+    const p = project!;
+    show(...(await renderReport({
+      project: p, revisions: await repo.listRevisions(p.projectId), state: reportState, buildId: __BUILD_ID__, loadRevision: (n) => repo.loadRevision(p.projectId, n), loadWeather: weatherLoader,
+      apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await reportScreen(); }, rerender: () => { void reportScreen(); }, back: () => projectScreen(), goPv: () => pvScreen(),
+    })));
+  }
+  async function lessonsScreen(back: () => void, backLabel: string) {
+    show(...renderLessons({ state: lessonState, rerender: () => { void lessonsScreen(back, backLabel); }, back, backLabel }));
   }
 
   async function roofScreen() {

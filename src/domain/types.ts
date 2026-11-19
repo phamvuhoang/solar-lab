@@ -92,6 +92,8 @@ export interface Project {
   sim?: Partial<SimPolicy>; loadPlans?: LoadPlan[];
   placements?: Placement[]; obstacles?: Obstacle[]; layout?: Partial<LayoutSettings>;
   shade?: { enabled?: boolean; mode?: 'preview' | 'standard'; grid?: number };
+  /** Who the design is for. Contact details only; no calculation reads it, so removing it never changes a result. */
+  owner?: { name?: string; phone?: string; email?: string; address?: string };
 }
 export type Technical = Omit<Component, 'revision' | 'author' | 'editedAt' | 'review' | 'derivedFrom' | 'notes'>;
 export const refKey = (r: Ref) => `${r.modelId}@${r.revision}`;

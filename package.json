@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build && node scripts/build-meta.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/make-sw.mjs && node scripts/build-meta.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "test:unit": "vitest run",

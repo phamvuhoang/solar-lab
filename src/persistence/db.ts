@@ -1,5 +1,5 @@
 export const DB_NAME = 'mekoniq-solar-lab';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 /** One entry per version: migrations[n] upgrades the DB from n-1 to n. Never edit a shipped one. */
 const migrations: Record<number, (db: IDBDatabase, tx: IDBTransaction) => void> = {
@@ -14,6 +14,8 @@ const migrations: Record<number, (db: IDBDatabase, tx: IDBTransaction) => void> 
   },
   // v2: imported weather series (large arrays, recreatable from the source file, so first to go when storage is short)
   2: (db) => { db.createObjectStore('weather', { keyPath: 'seriesId' }); },
+  // v3: results recorded inside an imported package (read-only history; the engine re-run is a separate, new result)
+  3: (db) => { db.createObjectStore('recorded', { keyPath: 'projectId' }); },
 };
 
 export function openDb(factory: IDBFactory = indexedDB, name = DB_NAME, version = DB_VERSION): Promise<IDBDatabase> {

@@ -2,11 +2,15 @@ import { technicalHash } from '../domain/component';
 import { hashOf } from '../domain/hash';
 import { newId, nowIso } from '../domain/ids';
 import type { Component, Offer, Project, Ref } from '../domain/types';
+import type { PackageDoc } from '../reports/package';
 import type { WeatherSeries } from '../weather/series';
 import { done, openDb, wrap } from './db';
 
 export interface ProjectHead { projectId: string; name: string; headRevision: number; updatedAt: string }
 export interface RevisionRow { projectId: string; revision: number; hash: string; savedAt: string; project: Project }
+
+/** What a package said about its runs when it was imported. Kept apart from the project so a re-run never overwrites it. */
+export interface RecordedSet { projectId: string; importedAt: string; exportedAt: string; kind: PackageDoc['kind']; app: PackageDoc['app']; runs: PackageDoc['runs']; variants?: PackageDoc['variants']; weatherRef: PackageDoc['weather']['ref'] }
 
 export class ConflictError extends Error {
   constructor(public readonly head: ProjectHead) { super('REVISION_CONFLICT'); }
@@ -121,6 +125,14 @@ export class ProjectRepository {
     const tx = this.db.transaction('weather', 'readwrite');
     tx.objectStore('weather').delete(seriesId);
     await done(tx);
+  }
+  async saveRecorded(r: RecordedSet): Promise<void> {
+    const tx = this.db.transaction('recorded', 'readwrite');
+    tx.objectStore('recorded').put(r);
+    await done(tx);
+  }
+  async getRecorded(projectId: string): Promise<RecordedSet | undefined> {
+    return wrap(this.db.transaction('recorded').objectStore('recorded').get(projectId));
   }
   async listOffers(): Promise<Offer[]> {
     return wrap(this.db.transaction('offers').objectStore('offers').getAll());

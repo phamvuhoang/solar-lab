@@ -2,7 +2,7 @@ import { lineChart } from '../diagrams/charts';
 import { buildQuote, compareQuotes, type Comparison } from '../cost/quote';
 import { PV_DEFAULTS } from '../engine/compile';
 import { REASONS, reasonsOf, type Reason } from '../engine/dispatch';
-import { compileSim, formatHours, parseHours, simPolicyOf } from '../engine/sim-compile';
+import { asRunFor, compileSim, formatHours, parseHours, simPolicyOf } from '../engine/sim-compile';
 import type { SimResult } from '../engine/system';
 import { buildLamHaConfig, LAMHA_CONFIG_LABEL, type LamHaConfig } from '../domain/presets';
 import { refKey, type Component, type LoadPlan, type Offer, type Project } from '../domain/types';
@@ -34,10 +34,7 @@ const pct = (x: number | null) => (x === null ? '—' : (x * 100).toLocaleString
 const kwh = (wh: number) => (Math.abs(wh) < 5 ? 0 : wh / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 const dec = (x: number | null | undefined) => (x === null || x === undefined ? '' : String(x).replace('.', ','));
 
-/** The project as run for one side: its own design, but the current project's weather and dispatch policy, so A and B share conditions. */
-export function asRunFor(base: Project, current: Project): Project {
-  return { ...structuredClone(base), sim: structuredClone(current.sim), pv: { ...base.pv, weatherId: current.pv?.weatherId ?? null } };
-}
+export { asRunFor };
 
 export async function renderSim(ctx: SimCtx): Promise<Node[]> {
   const p = ctx.project, tz = p.location?.timezone ?? 'Asia/Ho_Chi_Minh';
