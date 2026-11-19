@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "projectId": "prj-cd5853c3-138e-4183-a6c4-c2668484d856",
+  "projectId": "prj-e176bc25-cb8a-4b9c-8a00-48ca462c351d",
   "revision": 2,
   "name": "Lâm Hà",
-  "createdAt": "2026-11-19T09:08:50.913Z",
+  "createdAt": "2026-11-19T09:21:13.386Z",
   "updatedAt": "2026-11-19T10:00:01Z",
   "location": {
     "latitude": 11.87,
@@ -12,7 +12,7 @@
   },
   "instances": [
     {
-      "instanceId": "ins-3d3813a7-1641-47e2-aa88-f7d7f86de479",
+      "instanceId": "ins-6279c6d8-5f42-4ce2-b044-01da2ce782bc",
       "kind": "panel",
       "label": "VSUN 620 W N-type TOPCon bifacial #1",
       "componentRef": {
@@ -21,7 +21,7 @@
       }
     },
     {
-      "instanceId": "ins-a906586b-3866-4a70-add5-622984f7ad2d",
+      "instanceId": "ins-d3bd0e32-9eda-4646-92aa-c56bd959195b",
       "kind": "panel",
       "label": "VSUN 620 W N-type TOPCon bifacial #2",
       "componentRef": {
@@ -30,7 +30,7 @@
       }
     },
     {
-      "instanceId": "ins-63eaefa8-0807-4f31-ad25-7bd247bf6dd2",
+      "instanceId": "ins-24b07c1c-cc6d-4413-92f3-0ac1a93d6eaf",
       "kind": "panel",
       "label": "VSUN 620 W N-type TOPCon bifacial #3",
       "componentRef": {
@@ -39,7 +39,7 @@
       }
     },
     {
-      "instanceId": "ins-bba6a522-8a95-4613-944b-6528893afd0a",
+      "instanceId": "ins-f84fd7c4-3ed8-4eb4-9ae7-85b7136c7679",
       "kind": "panel",
       "label": "VSUN 620 W N-type TOPCon bifacial #4",
       "componentRef": {
@@ -48,7 +48,7 @@
       }
     },
     {
-      "instanceId": "ins-df23da8a-fcbc-4fc1-b7c4-524a8be2eb4a",
+      "instanceId": "ins-b9cc33c3-e8d4-4753-8f8d-b07e1194999a",
       "kind": "panel",
       "label": "VSUN 620 W N-type TOPCon bifacial #5",
       "componentRef": {
@@ -57,7 +57,7 @@
       }
     },
     {
-      "instanceId": "ins-eafb7c33-2760-45d3-9abc-6adfd59d147b",
+      "instanceId": "ins-be0ced28-9387-4ebe-b31c-a3e2346a8065",
       "kind": "panel",
       "label": "VSUN 620 W N-type TOPCon bifacial #6",
       "componentRef": {
@@ -66,7 +66,7 @@
       }
     },
     {
-      "instanceId": "ins-9564ada1-f78c-48bd-8fbd-02400b16c0e9",
+      "instanceId": "ins-2d99a4ed-06a6-4e0e-9c43-b97920e043a7",
       "kind": "panel",
       "label": "VSUN 620 W N-type TOPCon bifacial #7",
       "componentRef": {
@@ -75,7 +75,7 @@
       }
     },
     {
-      "instanceId": "ins-e4a19e08-1efe-44dc-a3e9-13e1a6c2a634",
+      "instanceId": "ins-f737013c-49bf-4966-a703-a1d9694c9d4e",
       "kind": "panel",
       "label": "VSUN 620 W N-type TOPCon bifacial #8",
       "componentRef": {
@@ -84,7 +84,7 @@
       }
     },
     {
-      "instanceId": "ins-d2744e89-02a7-41cf-b9a4-542447cdcea9",
+      "instanceId": "ins-15e3d956-9f87-451d-bad4-8825e70774f7",
       "kind": "battery",
       "label": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai) (bản sao) #1",
       "componentRef": {
@@ -149,17 +149,17 @@
             "p": "manufacturer"
           },
           "betaVoc": {
-            "v": -0.0024,
+            "v": -0.0025,
             "u": "1/°C",
             "p": "manufacturer"
           },
           "betaIsc": {
-            "v": 0.0004,
+            "v": 0.00046,
             "u": "1/°C",
             "p": "manufacturer"
           },
           "betaPmax": {
-            "v": -0.0029,
+            "v": -0.003,
             "u": "1/°C",
             "p": "manufacturer"
           },
@@ -195,30 +195,30 @@
             "p": "manufacturer"
           },
           "thicknessM": {
-            "v": 0.03,
+            "v": 0.035,
             "u": "m",
             "p": "manufacturer"
           },
           "weightKg": {
-            "v": 33.3,
+            "v": 33.6,
             "u": "kg",
             "p": "manufacturer"
           }
         },
         "attrs": {
           "cells": "132 cell (12×11) mono TOPCon, kính đôi 2,0 mm",
-          "source": "VSUN datasheet v1.0, 2025-01-14 (bản Stellavolta)"
+          "source": "Datasheet VSUN 600–625 W, Update Time 2024.04.06"
         },
         "datasheet": {
-          "url": "https://www.stellavolta.com/content/VSUN%20VSUN635N-132BMHR-DG%20635W%20Datasheet%20por%20Stellavolta.pdf",
-          "page": null,
+          "url": "663b24645bbf8.pdf (VSUN 600–625 W, Update Time 2024.04.06)",
+          "page": 2,
           "checkedAt": "2026-11-19"
         },
         "review": "unreviewed",
         "author": "catalog-seed",
         "editedAt": "2026-11-19T00:00:00Z",
         "derivedFrom": null,
-        "notes": "Đọc từ bảng STC cột VSUN620N. Chờ kỹ sư đối chiếu datasheet gốc của hãng."
+        "notes": "Theo bản datasheet 2024.04.06 do người dùng cung cấp. Bản 2025.01.14 (v1.0) ghi khác: dày 30 mm, nặng 33,3 kg, β Voc −0,24 %/°C, β Isc +0,04 %/°C, β Pmax −0,29 %/°C; STC điện giống nhau. Cần xác nhận bản đúng với lô hàng thật."
       },
       {
         "schemaVersion": 1,

@@ -46,6 +46,8 @@ export const SPEC_DEFS: Record<Kind, Record<string, SpecDef>> = {
   controller: {
     ratedW: { dim: 'W', label: 'Công suất định mức' }, vMinV: { dim: 'V', label: 'Điện áp vào từ' },
     vMaxV: { dim: 'V', label: 'Điện áp vào đến' }, iMaxA: { dim: 'A', label: 'Dòng ra tối đa' },
+    pvVocMaxV: { dim: 'V', label: 'Voc tuyệt đối tối đa' }, pvIscMaxA: { dim: 'A', label: 'Isc PV tối đa' },
+    efficiencyMax: { dim: 'ratio', label: 'Hiệu suất tối đa' }, weightKg: { dim: 'kg', label: 'Khối lượng' },
   },
   load: {
     powerW: { dim: 'W', label: 'Công suất' }, powerFactor: { dim: 'ratio', label: 'Hệ số công suất' },
@@ -79,6 +81,9 @@ export const CHECKS: Record<Kind, { id: string; label: string; needs: string[] }
     { id: 'dc-window', label: 'Dải điện áp vận hành', needs: ['vMinV', 'vMaxV'] },
     { id: 'current-limits', label: 'Giới hạn dòng sạc/xả', needs: ['maxChargeA', 'maxDischargeA'] },
   ],
-  controller: [{ id: 'power-window', label: 'Dải điện áp và công suất', needs: ['ratedW', 'vMinV', 'vMaxV'] }],
+  controller: [
+    { id: 'power-window', label: 'Dải điện áp và công suất', needs: ['ratedW', 'vMinV', 'vMaxV'] },
+    { id: 'pv-limits', label: 'Voc tuyệt đối và Isc PV', needs: ['pvVocMaxV', 'pvIscMaxA'] },
+  ],
   load: [{ id: 'load-power', label: 'Tải theo W và lịch', needs: ['powerW'] }],
 };

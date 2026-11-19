@@ -35,17 +35,17 @@
     "p": "manufacturer"
    },
    "betaVoc": {
-    "v": -0.0024,
+    "v": -0.0025,
     "u": "1/°C",
     "p": "manufacturer"
    },
    "betaIsc": {
-    "v": 0.0004,
+    "v": 0.00046,
     "u": "1/°C",
     "p": "manufacturer"
    },
    "betaPmax": {
-    "v": -0.0029,
+    "v": -0.003,
     "u": "1/°C",
     "p": "manufacturer"
    },
@@ -81,30 +81,137 @@
     "p": "manufacturer"
    },
    "thicknessM": {
-    "v": 0.03,
+    "v": 0.035,
     "u": "m",
     "p": "manufacturer"
    },
    "weightKg": {
-    "v": 33.3,
+    "v": 33.6,
     "u": "kg",
     "p": "manufacturer"
    }
   },
   "attrs": {
    "cells": "132 cell (12×11) mono TOPCon, kính đôi 2,0 mm",
-   "source": "VSUN datasheet v1.0, 2025-01-14 (bản Stellavolta)"
+   "source": "Datasheet VSUN 600–625 W, Update Time 2024.04.06"
   },
   "datasheet": {
-   "url": "https://www.stellavolta.com/content/VSUN%20VSUN635N-132BMHR-DG%20635W%20Datasheet%20por%20Stellavolta.pdf",
-   "page": null,
+   "url": "663b24645bbf8.pdf (VSUN 600–625 W, Update Time 2024.04.06)",
+   "page": 2,
    "checkedAt": "2026-11-19"
   },
   "review": "unreviewed",
   "author": "catalog-seed",
   "editedAt": "2026-11-19T00:00:00Z",
   "derivedFrom": null,
-  "notes": "Đọc từ bảng STC cột VSUN620N. Chờ kỹ sư đối chiếu datasheet gốc của hãng."
+  "notes": "Theo bản datasheet 2024.04.06 do người dùng cung cấp. Bản 2025.01.14 (v1.0) ghi khác: dày 30 mm, nặng 33,3 kg, β Voc −0,24 %/°C, β Isc +0,04 %/°C, β Pmax −0,29 %/°C; STC điện giống nhau. Cần xác nhận bản đúng với lô hàng thật."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "vsun-600",
+  "revision": 1,
+  "sku": "VSUN600N-132BMHR-DG",
+  "brand": "VSUN",
+  "name": "VSUN 600 W N-type TOPCon bifacial",
+  "kind": "panel",
+  "condition": "new",
+  "specs": {
+   "pstcW": {
+    "v": 600,
+    "u": "W",
+    "p": "manufacturer"
+   },
+   "vocV": {
+    "v": 47.9,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "iscA": {
+    "v": 15.75,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "vmpV": {
+    "v": 40.45,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "impA": {
+    "v": 14.84,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "betaVoc": {
+    "v": -0.0025,
+    "u": "1/°C",
+    "p": "manufacturer"
+   },
+   "betaIsc": {
+    "v": 0.00046,
+    "u": "1/°C",
+    "p": "manufacturer"
+   },
+   "betaPmax": {
+    "v": -0.003,
+    "u": "1/°C",
+    "p": "manufacturer"
+   },
+   "efficiency": {
+    "v": 0.2221,
+    "u": "ratio",
+    "p": "manufacturer"
+   },
+   "bifaciality": {
+    "v": 0.8,
+    "u": "ratio",
+    "p": "manufacturer",
+    "src": "80% ±10%"
+   },
+   "maxSystemV": {
+    "v": 1500,
+    "u": "V",
+    "p": "manufacturer"
+   },
+   "maxSeriesFuseA": {
+    "v": 30,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "lengthM": {
+    "v": 2.382,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "widthM": {
+    "v": 1.134,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "thicknessM": {
+    "v": 0.035,
+    "u": "m",
+    "p": "manufacturer"
+   },
+   "weightKg": {
+    "v": 33.6,
+    "u": "kg",
+    "p": "manufacturer"
+   }
+  },
+  "attrs": {
+   "cells": "132 cell (12×11) mono TOPCon, kính đôi 2,0 mm",
+   "source": "Datasheet VSUN 600–625 W, Update Time 2024.04.06"
+  },
+  "datasheet": {
+   "url": "663b24645bbf8.pdf (VSUN 600–625 W, Update Time 2024.04.06)",
+   "page": 2,
+   "checkedAt": "2026-11-19"
+  },
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Theo bản datasheet 2024.04.06 do người dùng cung cấp. Bản 2025.01.14 (v1.0) ghi khác: dày 30 mm, nặng 33,3 kg, β Voc −0,24 %/°C, β Isc +0,04 %/°C, β Pmax −0,29 %/°C; STC điện giống nhau. Cần xác nhận bản đúng với lô hàng thật."
  },
  {
   "schemaVersion": 1,
@@ -283,91 +390,99 @@
   "revision": 1,
   "sku": "SNA6000WPV",
   "brand": "Luxpower",
-  "name": "Luxpower SNA6000WPV hybrid/off-grid 6 kW",
+  "name": "Luxpower SNA6000WPV off-grid 6 kW",
   "kind": "inverter",
   "condition": "new",
   "specs": {
    "acRatedW": {
     "v": 6000,
     "u": "W",
-    "p": "seller"
+    "p": "manufacturer"
    },
    "pvMaxPowerW": {
-    "v": null,
+    "v": 9600,
     "u": "W",
-    "p": "assumption",
-    "src": "nguồn bán hàng ghi 8 / 9 / 9,6 kW, chưa thống nhất"
+    "p": "manufacturer",
+    "src": "4800/4800 mỗi MPPT"
    },
    "pvVocMaxV": {
     "v": 480,
     "u": "V",
-    "p": "seller"
+    "p": "manufacturer",
+    "src": "manual WPV: dải 100~480 V; datasheet SNA 3-6K chung ghi 500 V, dùng giá trị thấp hơn"
    },
    "pvStartV": {
-    "v": null,
+    "v": 100,
     "u": "V",
-    "p": "user"
+    "p": "manufacturer"
    },
    "mpptVminV": {
     "v": 120,
     "u": "V",
-    "p": "seller"
+    "p": "manufacturer"
    },
    "mpptVmaxV": {
     "v": 385,
     "u": "V",
-    "p": "seller"
+    "p": "manufacturer"
    },
    "mpptCount": {
     "v": 2,
     "u": "count",
-    "p": "seller"
+    "p": "manufacturer"
    },
    "pvImaxPerMpptA": {
     "v": 17,
     "u": "A",
-    "p": "seller"
+    "p": "manufacturer"
    },
    "pvIscMaxPerMpptA": {
-    "v": null,
+    "v": 25,
     "u": "A",
-    "p": "user"
+    "p": "manufacturer"
    },
    "batteryVminV": {
-    "v": null,
+    "v": 46.4,
     "u": "V",
-    "p": "user"
+    "p": "manufacturer",
+    "src": "pin Li-ion; chì-axit 38,4 V"
    },
    "batteryVmaxV": {
-    "v": null,
+    "v": 60,
     "u": "V",
-    "p": "user"
+    "p": "manufacturer"
    },
    "batteryMaxChargeA": {
     "v": 140,
     "u": "A",
-    "p": "seller"
+    "p": "manufacturer"
    },
    "batteryMaxDischargeA": {
-    "v": null,
+    "v": 140,
     "u": "A",
-    "p": "user"
+    "p": "manufacturer"
    },
    "efficiencyMax": {
-    "v": null,
+    "v": 0.93,
     "u": "ratio",
-    "p": "user"
+    "p": "manufacturer",
+    "src": "manual WPV: peak 93%; datasheet SNA 3-6K ghi 95,0%, dùng giá trị thấp hơn"
    }
   },
   "attrs": {
-   "source": "Trang bán hàng + hướng dẫn tiếng Ukraina; datasheet Luxpower chưa tìm thấy cho đúng biến thể WPV"
+   "source": "SNA 3000-6000 WPV User Manual §6 Specifications; so chéo SNA 3-6K Datasheet 20260729",
+   "surge": "2 × công suất định mức trong 5 s"
   },
-  "datasheet": null,
+  "datasheet": {
+   "url": "SNA-3-6K-User-manual-English-OffGrid-Single-Phase-LuxpowerTek.pdf (SNA 3000-6000 WPV, 25.12.3)",
+   "page": 52,
+   "checkedAt": "2026-11-19"
+  },
   "review": "unreviewed",
   "author": "catalog-seed",
   "editedAt": "2026-11-19T00:00:00Z",
   "derivedFrom": null,
-  "notes": "Thiếu Isc cho phép, điện áp khởi động và dải pin nên chưa mở kiểm tra Isc/khởi động/dải pin."
+  "notes": "Hai tài liệu của hãng lệch nhau ở Voc tối đa (480 vs 500 V) và hiệu suất (93 vs 95 %); lấy giá trị bảo thủ của manual đúng biến thể WPV. Dải pin 46,4–60 V áp dụng cho pin lithium."
  },
  {
   "schemaVersion": 1,
@@ -404,6 +519,12 @@
     "u": "Wh",
     "p": "manufacturer"
    },
+   "usableWh": {
+    "v": 4608,
+    "u": "Wh",
+    "p": "manufacturer",
+    "src": "DoD 90% × 5,12 kWh"
+   },
    "maxChargeA": {
     "v": 75,
     "u": "A",
@@ -413,22 +534,26 @@
    "maxDischargeA": {
     "v": 100,
     "u": "A",
-    "p": "manufacturer"
+    "p": "manufacturer",
+    "src": "1C; đỉnh 110 A trong 15 s"
    },
    "lengthM": {
     "v": 0.558,
     "u": "m",
-    "p": "manufacturer"
+    "p": "manufacturer",
+    "src": "W 558"
    },
    "widthM": {
     "v": 0.545,
     "u": "m",
-    "p": "manufacturer"
+    "p": "manufacturer",
+    "src": "D 545"
    },
    "thicknessM": {
     "v": 0.15,
     "u": "m",
-    "p": "manufacturer"
+    "p": "manufacturer",
+    "src": "H 150"
    },
    "weightKg": {
     "v": 54,
@@ -438,18 +563,20 @@
   },
   "attrs": {
    "chemistry": "LiFePO4",
-   "protocol": "chưa ghi: cần theo đúng firmware"
+   "communication": "CAN/RS485/RS232",
+   "cycleLife": "≥6000 chu kỳ @0,2C, 25°C, 90% DoD",
+   "source": "Dyness DL5.0C datasheet, file version 20241218-EN"
   },
   "datasheet": {
-   "url": "https://dyness.com/Public/Uploads/uploadfile/files/20241128/DynessDL5.0CdatasheetDE.pdf",
-   "page": null,
+   "url": "DL5.0CDatasheet.pdf (file version 20241218-EN)",
+   "page": 2,
    "checkedAt": "2026-11-19"
   },
   "review": "unreviewed",
   "author": "catalog-seed",
   "editedAt": "2026-11-19T00:00:00Z",
   "derivedFrom": null,
-  "notes": "Số liệu tổng hợp từ nhiều bản datasheet Dyness; không nhầm với DL5.0C Pro hoặc DL5.0. Cần đối chiếu từng SKU."
+  "notes": "Giao thức BMS với từng inverter/firmware cần xác nhận riêng, datasheet chỉ liệt kê hãng tương thích chung."
  },
  {
   "schemaVersion": 1,
@@ -499,6 +626,148 @@
   "editedAt": "2026-11-19T00:00:00Z",
   "derivedFrom": null,
   "notes": "Báo giá dự án 16.000.000 đ. Dòng xả 100 A và SoH là giả định cho tới khi đo."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "victron-mppt-150-35",
+  "revision": 1,
+  "sku": "SmartSolar MPPT 150/35",
+  "brand": "Victron Energy",
+  "name": "Victron SmartSolar MPPT 150/35",
+  "kind": "controller",
+  "condition": "new",
+  "specs": {
+   "ratedW": {
+    "v": 2000,
+    "u": "W",
+    "p": "manufacturer",
+    "src": "công suất PV danh nghĩa ở pin 48 V; 12 V / 24 V thấp hơn"
+   },
+   "vMinV": {
+    "v": null,
+    "u": "V",
+    "p": "user",
+    "src": "phụ thuộc điện áp pin: cần Vbat + 5 V để khởi động, sau đó Vbat + 1 V"
+   },
+   "vMaxV": {
+    "v": 145,
+    "u": "V",
+    "p": "manufacturer",
+    "src": "khởi động và vận hành tối đa"
+   },
+   "iMaxA": {
+    "v": 35,
+    "u": "A",
+    "p": "manufacturer",
+    "src": "dòng sạc định mức"
+   },
+   "pvVocMaxV": {
+    "v": 150,
+    "u": "V",
+    "p": "manufacturer",
+    "src": "tuyệt đối, điều kiện lạnh nhất"
+   },
+   "pvIscMaxA": {
+    "v": 40,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "efficiencyMax": {
+    "v": 0.98,
+    "u": "ratio",
+    "p": "manufacturer"
+   },
+   "weightKg": {
+    "v": 1.25,
+    "u": "kg",
+    "p": "manufacturer"
+   }
+  },
+  "attrs": {
+   "batteryVoltage": "12/24/48 V tự chọn",
+   "source": "Victron SmartSolar MPPT 150/35 & 150/45 datasheet"
+  },
+  "datasheet": {
+   "url": "Datasheet-SmartSolar-charge-controller-MPPT-150-35-&-150-45-EN.pdf",
+   "page": 1,
+   "checkedAt": "2026-11-19"
+  },
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Bộ sạc MPPT cho pin, không phải controller bơm. Chưa có dải điện áp vào tối thiểu cố định nên chưa mở kiểm tra \"dải điện áp và công suất\"."
+ },
+ {
+  "schemaVersion": 1,
+  "modelId": "victron-mppt-150-45",
+  "revision": 1,
+  "sku": "SmartSolar MPPT 150/45",
+  "brand": "Victron Energy",
+  "name": "Victron SmartSolar MPPT 150/45",
+  "kind": "controller",
+  "condition": "new",
+  "specs": {
+   "ratedW": {
+    "v": 2600,
+    "u": "W",
+    "p": "manufacturer",
+    "src": "công suất PV danh nghĩa ở pin 48 V; 12 V / 24 V thấp hơn"
+   },
+   "vMinV": {
+    "v": null,
+    "u": "V",
+    "p": "user",
+    "src": "phụ thuộc điện áp pin: cần Vbat + 5 V để khởi động, sau đó Vbat + 1 V"
+   },
+   "vMaxV": {
+    "v": 145,
+    "u": "V",
+    "p": "manufacturer",
+    "src": "khởi động và vận hành tối đa"
+   },
+   "iMaxA": {
+    "v": 45,
+    "u": "A",
+    "p": "manufacturer",
+    "src": "dòng sạc định mức"
+   },
+   "pvVocMaxV": {
+    "v": 150,
+    "u": "V",
+    "p": "manufacturer",
+    "src": "tuyệt đối, điều kiện lạnh nhất"
+   },
+   "pvIscMaxA": {
+    "v": 50,
+    "u": "A",
+    "p": "manufacturer"
+   },
+   "efficiencyMax": {
+    "v": 0.98,
+    "u": "ratio",
+    "p": "manufacturer"
+   },
+   "weightKg": {
+    "v": 1.25,
+    "u": "kg",
+    "p": "manufacturer"
+   }
+  },
+  "attrs": {
+   "batteryVoltage": "12/24/48 V tự chọn",
+   "source": "Victron SmartSolar MPPT 150/35 & 150/45 datasheet"
+  },
+  "datasheet": {
+   "url": "Datasheet-SmartSolar-charge-controller-MPPT-150-35-&-150-45-EN.pdf",
+   "page": 1,
+   "checkedAt": "2026-11-19"
+  },
+  "review": "unreviewed",
+  "author": "catalog-seed",
+  "editedAt": "2026-11-19T00:00:00Z",
+  "derivedFrom": null,
+  "notes": "Bộ sạc MPPT cho pin, không phải controller bơm. Chưa có dải điện áp vào tối thiểu cố định nên chưa mở kiểm tra \"dải điện áp và công suất\"."
  },
  {
   "schemaVersion": 1,
