@@ -1,8 +1,9 @@
 import { sunPosition, pressureAt } from './solar';
 import type { Issue } from '../domain/validate';
+import type { ShadeField } from '../shade/sampler';
 import type { WeatherSeries } from '../weather/series';
 
-export const ENGINE_VERSION = 'pv-1.2.0';
+export const ENGINE_VERSION = 'pv-1.3.0';
 const D2R = Math.PI / 180;
 
 export interface PvModel {
@@ -13,8 +14,14 @@ export interface PvModel {
   lossRatio: number;
   /** false = ignore tracker/inverter limits (reference and STC fixtures). */
   applyLimits: boolean;
+  /**
+   * With per-panel shading: 'sum' adds panel powers (bypass diodes assumed ideal, an upper bound);
+   * 'weakest' makes every panel of a string produce what its weakest panel does (no bypass at all, a lower bound).
+   */
+  stringMode?: 'sum' | 'weakest';
 }
-export interface PvPanel { pstcW: number; gamma: number; vmpV: number | null }
+/** id and shadeIdx tie a panel to its row in the shade field; panels without them are never shaded. */
+export interface PvPanel { pstcW: number; gamma: number; vmpV: number | null; id?: string; shadeIdx?: number }
 /** tiltDeg/azimuthDeg override the model's: a string on a roof face takes that face's orientation. */
 export interface PvString { id: string; label: string; panels: PvPanel[]; trackerId: string; tiltDeg?: number; azimuthDeg?: number }
 export interface PvTracker {
@@ -26,6 +33,8 @@ export interface PvInverter { id: string; label: string; maxPvPowerW: number | n
 export interface PvInput {
   weather: WeatherSeries; weatherHash: string; model: PvModel;
   strings: PvString[]; trackers: PvTracker[]; inverters: PvInverter[];
+  /** Direct-beam access per panel and step. Optional: no field means no shading. */
+  shade?: ShadeField | null;
 }
 export interface PvSeries {
   t: number[]; poaWm2: number[]; tcellC: number[]; zenithDeg: number[]; azimuthDeg: number[];
@@ -34,6 +43,12 @@ export interface PvSeries {
 export interface PvTotals {
   kWp: number; eIdealWh: number; lossWh: number; eLossedWh: number; clippedTrackerWh: number; eTrackerWh: number; clippedInverterWh: number; eInverterWh: number;
   peakW: number; specificYieldKWhPerKWp: number | null;
+}
+export interface PvShadeReport {
+  key: string; modelVersion: string; mode: 'preview' | 'standard'; samplesPerPanel: number; stringMode: 'sum' | 'weakest';
+  /** Per panel, at the ideal stage (before DC loss and limits): energy with and without the shadow, and direct-weighted access. */
+  panels: { id: string; eIdealWh: number; eIdealNoShadeWh: number; directAccess: number | null }[];
+  notes: string[];
 }
 export interface PvResult {
   engineVersion: string; inputHash: string;
@@ -47,6 +62,8 @@ export interface PvResult {
   inverters: { id: string; label: string; pW: number[]; pLossedW: number[] }[];
   /** Trackers with no inverter (pump controllers): power after the tracker limit, and before it (after DC loss). */
   branches: { trackerId: string; label: string; pW: number[]; pLossedW: number[] }[];
+  /** Present when shading was applied. */
+  shade: PvShadeReport | null;
   totals: PvTotals; assumptions: string[]; limitsApplied: string[]; limitsSkipped: string[]; issues: Issue[];
 }
 
@@ -97,6 +114,12 @@ export function checkPvInput(input: PvInput): Issue[] {
     if (st.tiltDeg !== undefined && !(st.tiltDeg >= 0 && st.tiltDeg <= 90)) out.push(issue('TILT_RANGE', `/strings/${st.id}/tiltDeg`, `${st.label}: độ nghiêng phải trong [0°, 90°]`));
     if (st.azimuthDeg !== undefined && !(st.azimuthDeg >= 0 && st.azimuthDeg < 360)) out.push(issue('AZIMUTH_RANGE', `/strings/${st.id}/azimuthDeg`, `${st.label}: azimuth phải trong [0°, 360°)`));
   }
+  if (input.shade) {
+    const f = input.shade;
+    if (m.irradianceInput === 'poa' || (m.irradianceInput === 'auto' && !comps)) out.push(issue('SHADE_NEEDS_COMPONENTS', '/shade', 'Bóng che chỉ áp được lên thành phần trực xạ: cần GHI/DNI/DHI, không dùng được POA có sẵn'));
+    if (f.t0 !== w.t0 || f.stepSeconds !== w.stepSeconds || f.n !== w.n) out.push(issue('SHADE_GRID_MISMATCH', '/shade', 'Lưới thời gian của dữ liệu bóng không khớp chuỗi thời tiết'));
+    else { const miss = f.done.reduce((a, d) => a + (d ? 0 : 1), 0); if (miss) out.push(issue('SHADE_INCOMPLETE', '/shade', `Dữ liệu bóng còn thiếu ${miss} bước: tính đủ khoảng thời gian trước khi chạy`)); }
+  }
   if (!input.strings.length) out.push(issue('NO_STRINGS', '/strings', 'Chưa có chuỗi nào nối vào MPPT hoặc controller'));
   return out;
 }
@@ -117,6 +140,7 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
   const lat = w.location.latitude, lon = w.location.longitude, pressure = pressureAt(w.location.elevationM ?? 0);
   const assumptions = [`Vị trí mặt trời tính tại điểm giữa mỗi bước; khúc xạ ở 12 °C và ${(pressure / 100).toFixed(0)} hPa (cao độ ${w.location.elevationM ?? 0} m)`];
   // one entry per distinct plane; the first string's plane is orientations[0]
+  const shade = input.shade ?? null, stringMode = m.stringMode ?? 'sum';
   const orients: { tiltDeg: number; azimuthDeg: number; poaWm2: number[] }[] = [];
   const orientOf = input.strings.map((st) => {
     const tilt = st.tiltDeg ?? m.tiltDeg, az = st.azimuthDeg ?? m.azimuthDeg;
@@ -136,6 +160,8 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
   const perInverter = input.inverters.map(() => ({ pW: new Array<number>(n).fill(0), lossed: new Array<number>(n).fill(0) }));
   const freeTrackers = input.trackers.filter((t) => t.inverterId === null);
   const perBranch = freeTrackers.map(() => ({ pW: new Array<number>(n).fill(0), lossed: new Array<number>(n).fill(0) }));
+  const stat = new Map<string, { shaded: number; free: number; dir: number; dirAcc: number }>();
+  if (shade) for (const st of input.strings) for (const pn of st.panels) if (pn.id && pn.shadeIdx !== undefined) stat.set(pn.id, { shaded: 0, free: 0, dir: 0, dirAcc: 0 });
   const perString = input.strings.map((st) => ({ ideal: new Array<number>(n).fill(0), lossed: new Array<number>(n).fill(0), tracker: new Array<number>(n).fill(0) }));
   const trackerIdx = new Map(input.trackers.map((t, i) => [t.id, i]));
   const inverterIdx = new Map(input.inverters.map((v, i) => [v.id, i]));
@@ -171,15 +197,16 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
     const t0 = w.t0 + i * w.stepSeconds, mid = t0 + w.stepSeconds / 2;
     const sun = sunPosition(mid, lat, lon, { pressurePa: pressure });
     // POA and cell temperature per plane orientation; a POA taken from the file is the same for all strings
-    const tcellO: number[] = new Array(orients.length);
+    const tcellO: number[] = new Array(orients.length), dirO: number[] = new Array(orients.length).fill(0), ndO: number[] = new Array(orients.length).fill(0);
     const comps = mode === 'poa' ? null : completeIrradiance(w.ghi?.[i] ?? null, w.dni?.[i] ?? null, w.dhi?.[i] ?? null, Math.cos(sun.apparentZenithDeg * D2R))!;
     orients.forEach((o, oi) => {
       let poa: number;
-      if (comps === null) poa = Math.max(0, w.poa![i]);
+      if (comps === null) { poa = Math.max(0, w.poa![i]); ndO[oi] = poa; }
       else {
         const cz = Math.cos(sun.apparentZenithDeg * D2R);
         const cosAoi = cz * Math.cos(o.tiltDeg * D2R) + Math.sin(sun.apparentZenithDeg * D2R) * Math.sin(o.tiltDeg * D2R) * Math.cos((sun.azimuthDeg - o.azimuthDeg) * D2R);
-        poa = sun.apparentZenithDeg >= 90 ? isotropicPoa(0, comps.dhi, comps.ghi, 0, o.tiltDeg, m.albedo).poa : isotropicPoa(comps.dni, comps.dhi, comps.ghi, cosAoi, o.tiltDeg, m.albedo).poa;
+        const r = sun.apparentZenithDeg >= 90 ? isotropicPoa(0, comps.dhi, comps.ghi, 0, o.tiltDeg, m.albedo) : isotropicPoa(comps.dni, comps.dhi, comps.ghi, cosAoi, o.tiltDeg, m.albedo);
+        poa = r.poa; dirO[oi] = r.direct; ndO[oi] = r.sky + r.ground; // sky and ground diffuse are never reduced by obstacles in this model
       }
       o.poaWm2[i] = poa;
       tcellO[oi] = m.cellModel === 'fixed' ? m.fixedCellTempC! : faimanTcell(w.tempAirC![i], poa, w.windMs ? w.windMs[i] : m.windFallbackMs!, m.faimanU0, m.faimanU1);
@@ -188,7 +215,26 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
 
     const trackerSum = input.trackers.map(() => 0);
     input.strings.forEach((st, k) => {
-      const ideal = st.panels.reduce((a, p) => a + panelDcW(p, orients[orientOf[k]].poaWm2[i], tcellO[orientOf[k]]), 0);
+      const oi = orientOf[k];
+      let ideal: number;
+      if (!shade && stringMode === 'sum') ideal = st.panels.reduce((a, p) => a + panelDcW(p, orients[oi].poaWm2[i], tcellO[oi]), 0);
+      else {
+        // per-panel POA: direct × access + sky + ground. One shared cell temperature is wrong for a shaded panel, so each panel gets its own.
+        let sum = 0, weakest = Infinity;
+        for (const pn of st.panels) {
+          const f = shade && pn.shadeIdx !== undefined ? shade.access[pn.shadeIdx][i] : 1;
+          const poaP = f === 1 ? orients[oi].poaWm2[i] : dirO[oi] * f + ndO[oi];
+          const tc = f === 1 ? tcellO[oi] : m.cellModel === 'fixed' ? m.fixedCellTempC! : faimanTcell(w.tempAirC![i], poaP, w.windMs ? w.windMs[i] : m.windFallbackMs!, m.faimanU0, m.faimanU1);
+          const pw = panelDcW(pn, poaP, tc);
+          sum += pw; weakest = Math.min(weakest, pw);
+          if (shade && pn.id && pn.shadeIdx !== undefined) {
+            const st2 = stat.get(pn.id)!;
+            st2.shaded += pw * dtH; st2.free += panelDcW(pn, orients[oi].poaWm2[i], tcellO[oi]) * dtH;
+            if (dirO[oi] > 0) { st2.dir += dirO[oi]; st2.dirAcc += dirO[oi] * f; }
+          }
+        }
+        ideal = stringMode === 'weakest' ? st.panels.length * weakest : sum;
+      }
       const lossed = ideal * (1 - m.lossRatio);
       perString[k].ideal[i] = ideal; perString[k].lossed[i] = lossed;
       s.pIdealW[i] += ideal; s.pLossedW[i] += lossed;
@@ -212,6 +258,9 @@ export async function simulatePv(input: PvInput, inputHash: string, hooks: RunHo
   const eIdeal = sum(s.pIdealW), eLossed = sum(s.pLossedW), eTracker = sum(s.pTrackerW), eInv = sum(s.pInverterW);
   return {
     engineVersion: ENGINE_VERSION, inputHash, models: modelNames(mode, m), period: periodOf(w), series: s, orientations: orients,
+    shade: shade ? { key: shade.key, modelVersion: shade.modelVersion, mode: shade.mode, samplesPerPanel: shade.samplesPerPanel, stringMode,
+      panels: [...stat].map(([id, v]) => ({ id, eIdealWh: v.shaded, eIdealNoShadeWh: v.free, directAccess: v.dir > 0 ? v.dirAcc / v.dir : null })),
+      notes: ['Chỉ trực xạ bị bóng che; khuếch tán trời và phản xạ đất giữ nguyên (vật cản không làm giảm góc nhìn bầu trời)', 'Không giải bypass diode, IV từng cell hay hotspot: cận trên = cộng công suất từng tấm, cận dưới = tấm yếu nhất quyết định cả chuỗi', 'Chỉ vật cản và mặt mái khác che; tấm không che nhau'] } : null,
     strings: input.strings.map((st, k) => ({ id: st.id, label: st.label, panelCount: st.panels.length, pstcW: st.panels.reduce((a, p) => a + p.pstcW, 0), orientation: orientOf[k], trackerId: st.trackerId, inverterId: input.trackers.find((t) => t.id === st.trackerId)!.inverterId, pIdealW: perString[k].ideal, pLossedW: perString[k].lossed, pTrackerW: perString[k].tracker })),
     inverters: input.inverters.map((v, vi) => ({ id: v.id, label: v.label, pW: perInverter[vi].pW, pLossedW: perInverter[vi].lossed })),
     branches: freeTrackers.map((t, bi) => ({ trackerId: t.id, label: t.label, pW: perBranch[bi].pW, pLossedW: perBranch[bi].lossed })),
@@ -232,7 +281,7 @@ const modelNames = (mode: 'components' | 'poa', m: PvModel): PvResult['models'] 
 const periodOf = (w: WeatherSeries) => ({ startUtc: new Date(w.t0 * 1000).toISOString(), endUtc: new Date((w.t0 + w.n * w.stepSeconds) * 1000).toISOString(), stepSeconds: w.stepSeconds, n: w.n });
 function emptyResult(input: PvInput, inputHash: string, mode: 'components' | 'poa'): PvResult {
   const z = { t: [], poaWm2: [], tcellC: [], zenithDeg: [], azimuthDeg: [], pIdealW: [], pLossedW: [], pTrackerW: [], pInverterW: [] };
-  return { engineVersion: ENGINE_VERSION, inputHash, models: modelNames(mode, input.model), period: periodOf(input.weather), series: z, orientations: [], strings: [], inverters: [], branches: [],
+  return { engineVersion: ENGINE_VERSION, inputHash, models: modelNames(mode, input.model), period: periodOf(input.weather), series: z, orientations: [], shade: null, strings: [], inverters: [], branches: [],
     totals: { kWp: 0, eIdealWh: 0, lossWh: 0, eLossedWh: 0, clippedTrackerWh: 0, eTrackerWh: 0, clippedInverterWh: 0, eInverterWh: 0, peakW: 0, specificYieldKWhPerKWp: null },
     assumptions: [], limitsApplied: [], limitsSkipped: [], issues: [] };
 }

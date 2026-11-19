@@ -22,7 +22,7 @@ export const SPEC_DEFS: Record<Kind, Record<string, SpecDef>> = {
     efficiency: { dim: 'ratio', label: 'Hiệu suất module' }, bifaciality: { dim: 'ratio', label: 'Bifaciality' },
     maxSystemV: { dim: 'V', label: 'Điện áp hệ thống tối đa' }, maxSeriesFuseA: { dim: 'A', label: 'Cầu chì chuỗi tối đa' },
     lengthM: { dim: 'm', label: 'Dài' }, widthM: { dim: 'm', label: 'Rộng' }, thicknessM: { dim: 'm', label: 'Dày' },
-    weightKg: { dim: 'kg', label: 'Khối lượng' },
+    weightKg: { dim: 'kg', label: 'Khối lượng' }, bypassDiodes: { dim: 'count', label: 'Số diode bypass' },
   },
   inverter: {
     acRatedW: { dim: 'W', label: 'Công suất AC liên tục' }, pvMaxPowerW: { dim: 'W', label: 'PV tối đa' },

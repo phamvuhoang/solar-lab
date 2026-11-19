@@ -10,6 +10,7 @@ import { parseNumber } from '../domain/units';
 import { simResultToCsv } from '../reports/sim-csv';
 import { localDate, localHour, type WeatherSeries } from '../weather/series';
 import { runSimInWorker } from '../worker/client';
+import { shadeFor } from '../shade/usage';
 import { download, h } from './dom';
 
 export const REASON_VI: Record<Reason, string> = {
@@ -49,8 +50,9 @@ export async function renderSim(ctx: SimCtx): Promise<Node[]> {
     if (!weather) return null;
     const base = r.source.kind === 'current' ? p : await ctx.loadRevision(r.source.n);
     if (!base) return null;
-    const c = await compileSim(asRunFor(base, p), weather);
-    return c.hash === r.hash ? r : null;
+    const run = asRunFor(base, p), sf = await shadeFor(run, weather);
+    const c = sf.issues.length ? null : await compileSim(run, weather, { shade: sf.field });
+    return c && c.hash === r.hash ? r : null;
   }));
   const runs = valid.filter(Boolean) as Run[];
   const stale = ctx.state.runs.length > runs.length;
@@ -172,7 +174,9 @@ function runControls(ctx: SimCtx, weather: WeatherSeries | undefined, say: (l: s
     if (!weather) return say(['Chọn dữ liệu thời tiết trước (Thời tiết và PV)']);
     const prepared = [];
     for (const s of sides) {
-      const c = await compileSim(asRunFor(s.base, p), weather);
+      const run = asRunFor(s.base, p), sf = await shadeFor(run, weather);
+      if (sf.issues.length) return say([`${s.title}: không chạy được`, ...sf.issues.map((i) => `${i.code}: ${i.message}`)]);
+      const c = await compileSim(run, weather, { shade: sf.field });
       if (!c.input || !c.hash) return say([`${s.title}: không chạy được`, ...c.issues.map((i) => `${i.code} tại ${i.field}: ${i.message}`)]);
       prepared.push({ ...s, input: c.input, hash: c.hash });
     }

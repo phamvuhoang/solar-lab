@@ -1,6 +1,6 @@
 import { newId } from './ids';
 import { fitsFace, layoutOf, panelDims, panelRing } from './placement';
-import { bbox, type Pt } from './roof';
+import { bbox, toWorld, type Pt } from './roof';
 import type { Obstacle, Placement, Project, RoofFace } from './types';
 
 // Pure layout edits. Each returns a new project; saving it is what makes the "layout revision".
@@ -46,6 +46,32 @@ export function addObstacle(p: Project, o: Omit<Obstacle, 'obstacleId'>): Projec
 export function removeObstacle(p: Project, id: string): Project {
   const next = clone(p);
   next.obstacles = (next.obstacles ?? []).filter((o) => o.obstacleId !== id);
+  return next;
+}
+
+export function moveObstacle(p: Project, id: string, dE: number, dN: number): Project {
+  const next = clone(p);
+  const o = (next.obstacles ?? []).find((x) => x.obstacleId === id);
+  if (!o) throw new Error('UNKNOWN_OBSTACLE');
+  const q = (x: number) => Math.round(x * 1e6) / 1e6; // micrometres: nudging out and back must give back exactly the same geometry
+  o.center = { e: q(o.center.e + dE), n: q(o.center.n + dN) };
+  return next;
+}
+
+/**
+ * The demo water tank: a Ø1,2 × 1,8 m cylinder at roof level, 0,9 m beyond the eave of the first face (down-slope side), mid-width.
+ * Moves the obstacle called "Bồn nước" if there is one, otherwise adds it. Illustrative position, not a measurement.
+ */
+export function placeTankNearRoof(p: Project): Project {
+  const f = p.roofFaces[0];
+  if (!f) throw new Error('NO_FACE');
+  const g = (f.azimuthDeg * Math.PI) / 180, a = (Math.min(...f.outline.map((q) => q[0])) + Math.max(...f.outline.map((q) => q[0]))) / 2;
+  const eave = toWorld(f, [a, Math.min(...f.outline.map((q) => q[1]))]);
+  const center = { e: eave.e + Math.sin(g) * 0.9, n: eave.n + Math.cos(g) * 0.9 };
+  const next = clone(p);
+  const ex = (next.obstacles ?? []).find((o) => o.label === 'Bồn nước');
+  if (ex) { ex.center = center; ex.baseUp = f.origin.up; return next; }
+  next.obstacles = [...(next.obstacles ?? []), { obstacleId: newId('obs'), label: 'Bồn nước', kind: 'cylinder', roofFaceId: null, center, baseUp: f.origin.up, angleDeg: 0, size: { x: 1.2, y: 1.2, z: 1.8 } }];
   return next;
 }
 

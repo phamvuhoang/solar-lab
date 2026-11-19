@@ -3,6 +3,7 @@ import { hashOf } from '../domain/hash';
 import type { Component, Project, PvSettings } from '../domain/types';
 import type { Issue } from '../domain/validate';
 import type { WeatherSeries } from '../weather/series';
+import type { ShadeField } from '../shade/sampler';
 import { ENGINE_VERSION, type PvInput, type PvInverter, type PvModel, type PvPanel, type PvString, type PvTracker } from './pv';
 
 export const PV_DEFAULTS = { albedo: 0.2, lossRatio: 0, cellModel: 'faiman', faimanU0: 25, faimanU1: 6.84, fixedCellTempC: null, windFallbackMs: null, irradianceInput: 'auto', weatherId: null } as const;
@@ -12,7 +13,7 @@ export const pvSettingsOf = (p: Project): Partial<PvSettings> => ({ ...PV_DEFAUL
 export const weatherHash = (w: WeatherSeries) => hashOf(w);
 
 /** Project strings + weather → pure engine input. Missing data is refused here by field, not guessed. */
-export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimits?: boolean } = {}): { input: PvInput | null; issues: Issue[] } {
+export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimits?: boolean; shade?: ShadeField | null; stringMode?: 'sum' | 'weakest' } = {}): { input: PvInput | null; issues: Issue[] } {
   const issues: Issue[] = [];
   const st = pvSettingsOf(p);
   const ix = indexProject(p);
@@ -40,7 +41,8 @@ export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimit
         issues.push(err('PANEL_SPEC_MISSING', `/strings/${s.stringId}`, `${s.label}: ${c?.name ?? id} thiếu ${[pstc === null && 'Pmax (pstcW)', gamma === null && 'hệ số nhiệt Pmax (betaPmax)'].filter(Boolean).join(' và ')}`));
         continue;
       }
-      panels.push({ pstcW: pstc, gamma, vmpV: c.specs.vmpV?.v ?? null });
+      const idx = opts.shade ? opts.shade.panelIds.indexOf(id) : -1;
+      panels.push({ pstcW: pstc, gamma, vmpV: c.specs.vmpV?.v ?? null, id, ...(idx >= 0 ? { shadeIdx: idx } : {}) });
     }
     if (panels.length !== s.panelIds.length) continue;
     const on = s.panelIds.map((id) => placement.get(id));
@@ -72,12 +74,13 @@ export function compilePv(p: Project, weather: WeatherSeries, opts: { applyLimit
   const model: PvModel = {
     irradianceInput: st.irradianceInput!, tiltDeg: st.tiltDeg ?? strings.find((x) => x.tiltDeg !== undefined)?.tiltDeg ?? 0, azimuthDeg: st.azimuthDeg ?? strings.find((x) => x.azimuthDeg !== undefined)?.azimuthDeg ?? 180, albedo: st.albedo!, cellModel: st.cellModel!, faimanU0: st.faimanU0!, faimanU1: st.faimanU1!,
     fixedCellTempC: st.fixedCellTempC ?? null, windFallbackMs: st.windFallbackMs ?? null, lossRatio: st.lossRatio!, applyLimits: opts.applyLimits ?? true,
+    ...(opts.stringMode ? { stringMode: opts.stringMode } : {}),
   };
-  return { input: { weather, weatherHash: '', model, strings, trackers: [...trackers.values()], inverters: [...inverters.values()] }, issues };
+  return { input: { weather, weatherHash: '', model, strings, trackers: [...trackers.values()], inverters: [...inverters.values()], shade: opts.shade ?? null }, issues };
 }
 
 /** Identity of one run: engine version + everything that changes the numbers. Camera, prices and run time are not in it. */
 export async function hashPvInput(input: PvInput): Promise<string> {
   const wh = input.weatherHash || (await weatherHash(input.weather));
-  return hashOf({ engine: ENGINE_VERSION, weather: wh, model: input.model, strings: input.strings, trackers: input.trackers, inverters: input.inverters });
+  return hashOf({ engine: ENGINE_VERSION, weather: wh, model: input.model, strings: input.strings, trackers: input.trackers, inverters: input.inverters, shade: input.shade?.key ?? null });
 }

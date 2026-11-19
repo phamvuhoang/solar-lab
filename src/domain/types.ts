@@ -91,6 +91,7 @@ export interface Project {
   strings?: StringDef[]; design?: Partial<DesignSettings>; pv?: Partial<PvSettings>;
   sim?: Partial<SimPolicy>; loadPlans?: LoadPlan[];
   placements?: Placement[]; obstacles?: Obstacle[]; layout?: Partial<LayoutSettings>;
+  shade?: { enabled?: boolean; mode?: 'preview' | 'standard'; grid?: number };
 }
 export type Technical = Omit<Component, 'revision' | 'author' | 'editedAt' | 'review' | 'derivedFrom' | 'notes'>;
 export const refKey = (r: Ref) => `${r.modelId}@${r.revision}`;

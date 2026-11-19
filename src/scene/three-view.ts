@@ -14,8 +14,19 @@ export interface ViewHandlers {
   onClear(): void;
   onContextLost(): void;
 }
+/** Direct-beam access 0..1 → colour. Dark = shaded, bright = full sun. Numbers are always printed next to it (colour is not the only cue). */
+export function heatColor(f: number): string {
+  const stops = ['#440154', '#3b528b', '#21908d', '#5dc863', '#fde725'];
+  const x = Math.max(0, Math.min(1, f)) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), t = x - i;
+  const h = (c: string) => [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16));
+  const a = h(stops[i]), b = h(stops[i + 1]);
+  return '#' + a.map((v, k) => Math.round(v + (b[k] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+/** sun: unit vector to the sun in ENU (null = no sun, no shadows); heat: panel id → direct access. */
+export interface Overlay { sun: V3 | null; heat: ReadonlyMap<string, number> | null }
 export interface ViewApi {
   canvas: HTMLCanvasElement;
+  setOverlay(o: Overlay): void;
   update(model: SceneModel, selection: ReadonlySet<string>, layers: Layers): void;
   setCamera(kind: 'overview' | 'top'): void;
   /** Frames per second while the camera orbits, measured over `ms`. */
@@ -46,12 +57,15 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   catch (e) { canvas.remove(); throw new WebGLUnavailable((e as Error).message || 'WebGL không khả dụng'); }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0xf1f5f9);
+  renderer.shadowMap.enabled = true; // shadows are drawn on the GPU for the eye; the energy numbers come from the CPU rays
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.1);
-  sun.position.set(-8, 14, 10);
-  scene.add(sun);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.1);
+  sunLight.position.set(-8, 14, 10);
+  sunLight.shadow.mapSize.set(2048, 2048); sunLight.shadow.bias = -0.0005; sunLight.shadow.normalBias = 0.02;
+  scene.add(sunLight, sunLight.target);
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = false; // render only on change: no idle GPU use, and no motion for reduced-motion users
@@ -59,7 +73,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   const content: Group = new THREE.Group();
   scene.add(content);
 
-  let model: SceneModel | null = null, selection: ReadonlySet<string> = new Set(), layers: Layers = ALL_LAYERS;
+  let model: SceneModel | null = null, selection: ReadonlySet<string> = new Set(), layers: Layers = ALL_LAYERS, overlay: Overlay = { sun: null, heat: null };
   let frame = 0, disposed = false, fitted = false;
   const need = () => { if (!frame && !disposed) frame = requestAnimationFrame(() => { frame = 0; renderer.render(scene, camera); }); };
   controls.addEventListener('change', need);
@@ -90,6 +104,16 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
     const grid = new THREE.GridHelper(Math.ceil(r * 5), Math.ceil(r * 5), 0x94a3b8, 0xcbd5e1);
     grid.position.set(m.bounds.center.e, ground - 0.01, -m.bounds.center.n);
     content.add(grid);
+    // sun: a directional light with a shadow map when an instant is set, else the fixed key light
+    const noSun = !overlay.sun || overlay.sun.up <= 0;
+    sunLight.intensity = overlay.sun ? (noSun ? 0 : 1.2) : 1.1;
+    sunLight.castShadow = !noSun;
+    if (overlay.sun && !noSun) {
+      const c = to3(m.bounds.center), d = to3(overlay.sun).normalize();
+      sunLight.position.copy(c).addScaledVector(d, r * 6);
+      sunLight.target.position.copy(c); sunLight.target.updateMatrixWorld();
+      const cam = sunLight.shadow.camera; cam.left = -r * 1.8; cam.right = r * 1.8; cam.top = r * 1.8; cam.bottom = -r * 1.8; cam.near = 0.5; cam.far = r * 14; cam.updateProjectionMatrix();
+    } else sunLight.position.set(-8, 14, 10);
     // north arrow and E marker at the corner of the ground grid
     const base = new THREE.Vector3(m.bounds.min.e - 1, ground, -(m.bounds.max.n + 1));
     content.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), base, Math.max(2, r * 0.5), 0xdc2626, 0.4, 0.25));
@@ -107,6 +131,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
         geo.setIndex(tris.flat());
         geo.computeVertexNormals();
         const mesh = new THREE.Mesh(geo, track(new THREE.MeshStandardMaterial({ color: 0xb08968, side: THREE.DoubleSide, roughness: 0.9 })));
+        mesh.castShadow = true; mesh.receiveShadow = true;
         content.add(mesh);
         for (const ring of [f.outline, ...f.holes]) content.add(new THREE.LineLoop(track(new THREE.BufferGeometry().setFromPoints(ring.map(to3))), track(new THREE.LineBasicMaterial({ color: 0x5b4636 }))));
       }
@@ -114,6 +139,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
         const c = to3(o.center);
         const geo = o.kind === 'box' ? new THREE.BoxGeometry(Math.hypot(o.footprint[0].e - o.footprint[1].e, o.footprint[0].n - o.footprint[1].n), o.height, Math.hypot(o.footprint[1].e - o.footprint[2].e, o.footprint[1].n - o.footprint[2].n)) : new THREE.CylinderGeometry(o.diameter / 2, o.diameter / 2, o.height, 24);
         const mesh = new THREE.Mesh(track(geo), track(new THREE.MeshStandardMaterial({ color: o.kind === 'box' ? 0x78716c : 0x64748b, roughness: 0.6 })));
+        mesh.castShadow = true; mesh.receiveShadow = true;
         mesh.position.set(c.x, o.baseUp + o.height / 2, c.z);
         if (o.kind === 'box') { const dx = o.footprint[1].e - o.footprint[0].e, dn = o.footprint[1].n - o.footprint[0].n; mesh.rotation.y = Math.atan2(dn, dx); } // x side bearing → Three rotation about Y
         content.add(mesh);
@@ -128,8 +154,10 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
         geo.setAttribute('position', new THREE.Float32BufferAttribute(c.flatMap((v) => [v.x, v.y, v.z]), 3));
         geo.setIndex([0, 1, 2, 0, 2, 3]); geo.computeVertexNormals();
         const sel = selection.has(pn.instanceId);
-        const mat = track(new THREE.MeshStandardMaterial({ color: new THREE.Color(stringColor(pn.stringIndex)), side: THREE.DoubleSide, roughness: 0.4, metalness: 0.2, emissive: new THREE.Color(pn.invalid ? 0xef4444 : sel ? 0xfacc15 : 0x000000), emissiveIntensity: pn.invalid || sel ? 0.6 : 0 }));
+        const heat = overlay.heat?.get(pn.instanceId);
+        const mat = track(new THREE.MeshStandardMaterial({ color: new THREE.Color(heat !== undefined ? heatColor(heat) : stringColor(pn.stringIndex)), side: THREE.DoubleSide, roughness: 0.4, metalness: 0.2, emissive: new THREE.Color(pn.invalid ? 0xef4444 : sel ? 0xfacc15 : 0x000000), emissiveIntensity: pn.invalid || sel ? 0.6 : 0 }));
         const mesh = new THREE.Mesh(geo, mat);
+        mesh.castShadow = true; mesh.receiveShadow = true;
         mesh.userData = { instanceId: pn.instanceId, faceId: pn.faceId };
         const edges = new THREE.LineLoop(track(new THREE.BufferGeometry().setFromPoints(c)), track(new THREE.LineBasicMaterial({ color: pn.invalid ? 0xdc2626 : sel ? 0xeab308 : 0x0f172a })));
         content.add(mesh, edges);
@@ -144,7 +172,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
     if (layers.labels) {
       const size = Math.max(0.7, Math.min(2.2, r * 0.12));
       for (const rt of m.routes) { const first = to3(rt.points[0]); const sp = textSprite(`S${rt.stringIndex}`, stringColor(rt.stringIndex), size * 1.5); sp.position.set(first.x, first.y + 0.7, first.z); content.add(sp); }
-      for (const pn of m.panels) if (pn.seriesIndex > 0) { const sp = textSprite(String(pn.seriesIndex), stringColor(pn.stringIndex), size * 0.8); const c = to3(pn.center); sp.position.set(c.x, c.y + 0.25, c.z); content.add(sp); }
+      for (const pn of m.panels) if (pn.seriesIndex > 0 || overlay.heat?.has(pn.instanceId)) { const h = overlay.heat?.get(pn.instanceId); const sp = textSprite(h !== undefined ? `${Math.round(h * 100)}%` : String(pn.seriesIndex), h !== undefined ? heatColor(h) : stringColor(pn.stringIndex), size * 0.8); const c = to3(pn.center); sp.position.set(c.x, c.y + 0.25, c.z); content.add(sp); }
     }
     need();
   }
@@ -230,6 +258,8 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
     canvas.dataset.panelIds = model.panels.map((x) => x.instanceId).join(',');
     canvas.dataset.selected = [...selection].join(',');
     canvas.dataset.panelPos = JSON.stringify(pos);
+    canvas.dataset.sun = overlay.sun ? JSON.stringify([overlay.sun.e, overlay.sun.n, overlay.sun.up].map((x) => +x.toFixed(3))) : '';
+    canvas.dataset.heat = overlay.heat ? JSON.stringify(Object.fromEntries([...overlay.heat].map(([k, v]) => [k, +v.toFixed(3)]))) : '';
     canvas.dataset.damping = String(controls.enableDamping);
     canvas.dataset.camera = JSON.stringify({ pos: camera.position.toArray().map((x) => +x.toFixed(2)), target: controls.target.toArray().map((x) => +x.toFixed(2)), aspect: +camera.aspect.toFixed(2), fov: camera.fov });
   };
@@ -247,6 +277,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
       if (!fitted && m.faces.length) { fitted = true; fit('overview'); } // frame the roof once it exists, not the empty scene
       publish();
     },
+    setOverlay(o) { overlay = o; rebuild(); publish(); },
     setCamera: fit,
     fps(ms) {
       return new Promise((resolve) => {

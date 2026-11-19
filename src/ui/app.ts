@@ -13,6 +13,7 @@ import { renderDesign } from './design';
 import { renderPv } from './pv';
 import { renderSim, type SimState } from './sim';
 import { renderRoof, releaseRoofView, type RoofState } from './roof';
+import { renderShade, releaseShadeView, type ShadeState } from './shade';
 import { ALL_LAYERS } from '../scene/three-view';
 import { BUNDLED_WEATHER, loadBundledWeather } from '../weather/bundled';
 import type { PvResult } from '../engine/pv';
@@ -37,6 +38,8 @@ export async function startApp(root: HTMLElement) {
   let selection: string[] = []; // selected panel instance ids, shared by the diagram, the roof views and the BOM
   let roofState: RoofState = { layers: ALL_LAYERS, faceId: null, angle: 0, stepCm: 5, fps: null };
   let roofActive = false;
+  let shadeActive = false;
+  let shadeState: ShadeState = { date: null, step: 0, scenes: [], dayEnergy: null, stepLabel: '' };
   let lastPvResult: PvResult | null = null;
   let simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
   let filter: { kind: Kind | 'all'; text: string } = { kind: 'all', text: '' };
@@ -55,13 +58,14 @@ export async function startApp(root: HTMLElement) {
   const mutate = async (next: Project) => { const prev = project!; if (await save(next)) history.record(prev); };
   const show = (...kids: (Node | false)[]) => {
     if (!roofActive) releaseRoofView();
-    roofActive = false;
+    if (!shadeActive) releaseShadeView();
+    roofActive = false; shadeActive = false;
     root.replaceChildren(h('h1', {}, 'Mekoniq Solar Lab'), message && h('p', { role: 'status', id: 'status' }, message), ...kids.filter(Boolean) as Node[]);
   };
 
   // ---- home ---------------------------------------------------------------------------------
   async function home() {
-    history.clear(); selected = null; selection = []; lastPvResult = null; simState = { runs: [], side: 0, step: 0, progress: {} };
+    history.clear(); selected = null; selection = []; shadeState = { date: null, step: 0, scenes: [], dayEnergy: null, stepLabel: '' }; lastPvResult = null; simState = { runs: [], side: 0, step: 0, progress: {} };
     const heads = await repo.listProjects();
     const name = h('input', { name: 'name', value: 'Dự án mới', required: true });
     const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file' });
@@ -106,6 +110,7 @@ export async function startApp(root: HTMLElement) {
         h('p', { id: 'bom-total' }, p.instances.length ? `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}${q.complete ? '' : ' · tổng hoàn chỉnh: chưa đủ'}` : 'Chưa có linh kiện.')),
       h('button', { id: 'design-btn', onClick: () => designScreen() }, 'Thiết kế'),
       h('button', { id: 'roof-btn', onClick: () => roofScreen() }, 'Mái nhà 3D'),
+      h('button', { id: 'shade-btn', onClick: () => shadeScreen() }, 'Bóng che'),
       h('button', { id: 'pv-btn', onClick: () => pvScreen() }, 'Mô phỏng PV'),
       h('button', { id: 'sim-btn', onClick: () => simScreen() }, 'Hệ thống (pin, tải, bơm)'),
       h('button', { onClick: () => quoteScreen() }, 'Dự toán'),
@@ -145,6 +150,22 @@ export async function startApp(root: HTMLElement) {
     const id = (a as HTMLElement).dataset?.id;
     return id ? `[data-id="${CSS.escape(id)}"]` : null;
   };
+  async function shadeScreen() {
+    const p = project!;
+    const loadWeather = async (id: string) => {
+      if (BUNDLED_WEATHER.some((b) => b.id === id)) { const r = await loadBundledWeather(id); return r?.ok ? r.series : undefined; }
+      return repo.getWeather(id);
+    };
+    const nodes = await renderShade({
+      project: p, revisions: await repo.listRevisions(p.projectId), selection, state: shadeState, loadRevision: (n) => repo.loadRevision(p.projectId, n), loadWeather,
+      apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await shadeScreen(); },
+      setSelection: (ids) => { setSelection(ids); void shadeScreen(); }, rerender: () => { void shadeScreen(); },
+      back: () => projectScreen(), goRoof: () => roofScreen(), goPv: () => pvScreen(),
+    });
+    shadeActive = true;
+    show(...nodes);
+  }
+
   async function roofScreen() {
     roofActive = true;
     const p = project!;
@@ -153,7 +174,7 @@ export async function startApp(root: HTMLElement) {
       project: p, selection, state: roofState,
       apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await roofScreen(); },
       setSelection: (ids) => { setSelection(ids); void roofScreen(); }, rerender: () => { void roofScreen(); },
-      history: historyFor(roofScreen), back: () => projectScreen(), goDesign: () => designScreen(),
+      history: historyFor(roofScreen), back: () => projectScreen(), goDesign: () => designScreen(), goShade: () => shadeScreen(),
     }));
     if (keep) root.querySelector<HTMLElement | SVGElement>(keep)?.focus({ preventScroll: true }); // synchronous: no key can arrive in between
   }

@@ -970,6 +970,26 @@
           "maximum": 1
         }
       }
+    },
+    "shade": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "enum": [
+            "preview",
+            "standard"
+          ]
+        },
+        "grid": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        }
+      }
     }
   },
   "definitions": {

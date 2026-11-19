@@ -8,6 +8,7 @@ import { pvResultToCsv } from '../reports/pv-csv';
 import { parseWeatherCsv } from '../weather/csv';
 import { formatUtc, localDate, localHour, type WeatherSeries } from '../weather/series';
 import { runPvInWorker } from '../worker/client';
+import { shadeFor } from '../shade/usage';
 import { download, h } from './dom';
 
 export interface PvCtx {
@@ -37,9 +38,11 @@ export async function renderPv(ctx: PvCtx): Promise<Node[]> {
   // identity of what the current inputs would produce; a stored result is shown only if it matches
   let hash: string | null = null, compileIssues: { code: string; field: string; message: string }[] = [];
   let compiled: ReturnType<typeof compilePv>['input'] = null;
+  let unplaced = 0;
   if (weather) {
-    const c = compilePv(p, weather);
-    compiled = c.input; compileIssues = c.issues;
+    const sf = await shadeFor(p, weather);
+    const c = compilePv(p, weather, { shade: sf.field });
+    compileIssues = [...c.issues, ...sf.issues]; compiled = sf.issues.length ? null : c.input; unplaced = sf.unplaced;
     if (compiled) { compiled.weatherHash = await cachedWeatherHash(weather); hash = await hashPvInput(compiled); }
   }
   const result = ctx.lastResult && hash && ctx.lastResult.inputHash === hash ? ctx.lastResult : null;
@@ -49,7 +52,7 @@ export async function renderPv(ctx: PvCtx): Promise<Node[]> {
     h('h3', {}, '1. Dữ liệu thời tiết'), weatherSection(ctx, weather, say),
     h('h3', {}, '2. Thiết lập mảng và mô hình'), settingsForm(ctx, st, say),
     h('h3', {}, '3. Chạy'), runSection(ctx, compiled, hash, compileIssues, weather, say),
-    result && weather ? resultSection(result, weather, tz) : ctx.lastResult && hash ? h('p', { id: 'stale-result' }, 'Kết quả đã chạy trước đó không còn khớp thiết kế hoặc thiết lập hiện tại (mã đầu vào khác). Chạy lại để cập nhật.') : null,
+    result && weather ? resultSection(result, weather, tz, unplaced) : ctx.lastResult && hash ? h('p', { id: 'stale-result' }, 'Kết quả đã chạy trước đó không còn khớp thiết kế hoặc thiết lập hiện tại (mã đầu vào khác). Chạy lại để cập nhật.') : null,
   ].filter(Boolean) as Node[];
 }
 
@@ -132,7 +135,7 @@ function runSection(ctx: PvCtx, input: ReturnType<typeof compilePv>['input'], ha
     !input && w && issues.length ? h('ul', { id: 'compile-issues' }, ...issues.map((i) => h('li', {}, `${i.code} tại ${i.field}: ${i.message}`))) : null);
 }
 
-function resultSection(r: PvResult, w: WeatherSeries, tz: string): HTMLElement {
+function resultSection(r: PvResult, w: WeatherSeries, tz: string, unplaced = 0): HTMLElement {
   const t = r.totals;
   const row = (label: string, v: string) => h('tr', {}, h('th', { scope: 'row' }, label), h('td', { className: 'num' }, v));
   const step = r.period.stepSeconds;
@@ -167,6 +170,7 @@ function resultSection(r: PvResult, w: WeatherSeries, tz: string): HTMLElement {
       row('Tổn hao DC', `${t.lossWh < 50 ? '' : '−'}${kwh(t.lossWh)} kWh`), row('Bị cắt bởi tracker', `${t.clippedTrackerWh < 50 ? '' : '−'}${kwh(t.clippedTrackerWh)} kWh`), row('Bị cắt bởi inverter (PV vào tối đa)', `${t.clippedInverterWh < 50 ? '' : '−'}${kwh(t.clippedInverterWh)} kWh`),
       row('Điện năng DC sau giới hạn', `${kwh(t.eInverterWh)} kWh`), row('Công suất đỉnh sau giới hạn', `${Math.round(t.peakW).toLocaleString('vi-VN')} W`),
       row('Suất phát', t.specificYieldKWhPerKWp === null ? 'không tính được' : `${t.specificYieldKWhPerKWp.toLocaleString('vi-VN', { maximumFractionDigits: 0 })} kWh/kWp trong khoảng dữ liệu`)),
+    r.shade ? h('p', { id: 'pv-shade-note' }, `Có bóng che: ${r.shade.modelVersion}, ${r.shade.mode === 'preview' ? '1 điểm' : `lưới ${Math.sqrt(r.shade.samplesPerPanel)}×${Math.sqrt(r.shade.samplesPerPanel)}`} mỗi tấm, chuỗi tính theo ${r.shade.stringMode === 'sum' ? 'cộng công suất tấm (cận trên)' : 'tấm yếu nhất (cận dưới)'}. ${r.shade.notes.join('. ')}.${unplaced ? ` ${unplaced} tấm chưa đặt lên mái nên không có bóng.` : ''}`) : null,
     h('p', {}, 'Đây là công suất DC theo mô hình ở đầu vào inverter, chưa qua hiệu suất inverter, pin và tải (W05); không phải cam kết sản lượng thực.'),
     h('h4', {}, 'Giả định và giới hạn đã áp dụng'),
     h('ul', {}, ...r.assumptions.map((a) => h('li', {}, a)), ...r.limitsApplied.map((a) => h('li', {}, 'Đã áp: ' + a)), ...r.limitsSkipped.map((a) => h('li', {}, 'Không áp: ' + a))),

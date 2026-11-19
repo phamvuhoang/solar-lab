@@ -3,6 +3,7 @@ import type { Component, LoadPlan, Project, SimPolicy } from '../domain/types';
 import type { Issue } from '../domain/validate';
 import type { WeatherSeries } from '../weather/series';
 import { compilePv } from './compile';
+import type { ShadeField } from '../shade/sampler';
 import type { Bank, DispatchLoad } from './dispatch';
 import { simHash, type DispatchSpec, type SimInput } from './system';
 
@@ -68,8 +69,8 @@ function bankOf(ix: Indexed, invId: string, policy: SimPolicy, issues: Issue[], 
 }
 
 /** Project + weather → PV input and dispatch spec. Anything missing is refused with its field. */
-export async function compileSim(p: Project, weather: WeatherSeries): Promise<{ input: SimInput | null; hash: string | null; issues: Issue[]; notes: string[] }> {
-  const pvc = compilePv(p, weather);
+export async function compileSim(p: Project, weather: WeatherSeries, opts: { shade?: ShadeField | null } = {}): Promise<{ input: SimInput | null; hash: string | null; issues: Issue[]; notes: string[] }> {
+  const pvc = compilePv(p, weather, { shade: opts.shade ?? null });
   const issues: Issue[] = [...pvc.issues], notes: string[] = [];
   const policy = simPolicyOf(p);
   if (!(policy.minSoc >= 0 && policy.minSoc < 1)) issues.push(err('POLICY_RANGE', '/sim/minSoc', 'Dự phòng SoC phải trong [0, 1)'));

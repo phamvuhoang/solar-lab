@@ -192,7 +192,8 @@ describe('compile từ project', () => {
     expect(i!.strings.map((s) => s.panels.length)).toEqual([4, 4]);
     expect(i!.trackers.map((t) => [t.maxPowerW, t.maxCurrentA])).toEqual([[4800, 17], [4800, 17]]);
     expect(i!.inverters[0].maxPvPowerW).toBe(9600);
-    expect(i!.strings[0].panels[0]).toEqual({ pstcW: 620, gamma: -0.0029, vmpV: 41.23 });
+    expect(i!.strings[0].panels[0]).toMatchObject({ pstcW: 620, gamma: -0.0029, vmpV: 41.23, id: expect.stringMatching(/^ins-/) });
+    expect(i!.strings[0].panels[0].shadeIdx).toBeUndefined(); // chưa có dữ liệu bóng
   });
   test('thiếu hướng, chưa có chuỗi, thiếu thông số tấm, tấm trùng → từ chối kèm trường', () => {
     expect(compilePv({ ...base(), pv: {} }, w).issues.map((x) => x.code)).toEqual(['ORIENTATION_MISSING', 'ORIENTATION_MISSING']);

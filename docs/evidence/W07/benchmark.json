@@ -1,0 +1,18 @@
+{
+  "shade": {
+    "panels": 40,
+    "obstacles": 10,
+    "samplesPerPanel": 16,
+    "steps": 8760,
+    "dayMsMedian": 3,
+    "yearMs": 1117,
+    "yearRaysPerS": 5017270,
+    "fieldMb": 1.4,
+    "cancelMs": 2,
+    "cacheSecondRun": {
+      "computed": 0,
+      "reused": 8760
+    },
+    "node": "v26.3.0"
+  }
+}

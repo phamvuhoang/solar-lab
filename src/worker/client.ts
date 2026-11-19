@@ -2,10 +2,13 @@ import { newRunId } from '../domain/ids';
 import type { Issue } from '../domain/validate';
 import type { PvInput, PvResult } from '../engine/pv';
 import type { SimInput, SimResult } from '../engine/system';
+import type { ShadeField, ShadeSpec } from '../shade/sampler';
 import type { RunEvent, WorkerIn } from './protocol';
 
 export type RunOutcome = { status: 'result'; result: PvResult } | { status: 'failure'; issues: Issue[] } | { status: 'cancelled' };
 export type SimOutcome = { status: 'result'; result: SimResult } | { status: 'failure'; issues: Issue[] } | { status: 'cancelled' };
+export type ShadeOutcome = { status: 'result'; field: ShadeField; computed: number; reused: number } | { status: 'failure'; issues: Issue[] } | { status: 'cancelled' };
+export type BatchOutcome = { status: 'result'; results: PvResult[] } | { status: 'failure'; issues: Issue[] } | { status: 'cancelled' };
 export interface Job<O> { runId: string; promise: Promise<O>; cancel(): void }
 
 /** One worker per run so a stuck run can simply be terminated. A result is accepted only if runId and inputHash match this run. */
@@ -20,7 +23,7 @@ function runJob<O extends { status: string }>(request: (runId: string) => Worker
     const m = ev.data;
     if (m.runId !== runId) return; // stale message from another run
     if (m.type === 'progress') return onProgress(m.completedSteps, m.totalSteps);
-    if ((m.type === 'result' || m.type === 'sim-result') && m.inputHash !== inputHash) return end(fail('STALE_RESULT', 'Kết quả không khớp đầu vào hiện tại'));
+    if ((m.type === 'result' || m.type === 'sim-result' || m.type === 'shade-result' || m.type === 'batch-result') && m.inputHash !== inputHash) return end(fail('STALE_RESULT', 'Kết quả không khớp đầu vào hiện tại'));
     if (m.type === 'failure') return end({ status: 'failure', issues: m.issues } as unknown as O);
     if (m.type === 'cancelled') return end({ status: 'cancelled' } as O);
     const o = take(m);
@@ -42,3 +45,9 @@ export const runPvInWorker = (input: PvInput, inputHash: string, onProgress: (d:
 
 export const runSimInWorker = (input: SimInput, inputHash: string, onProgress: (d: number, t: number) => void = () => {}): Job<SimOutcome> =>
   runJob<SimOutcome>((runId) => ({ type: 'simulate', runId, inputHash, input }), inputHash, onProgress, (m) => (m.type === 'sim-result' ? { status: 'result', result: m.result } : null));
+
+export const runShadeInWorker = (spec: ShadeSpec, existing: ShadeField | null, range: [number, number], onProgress: (d: number, t: number) => void = () => {}): Job<ShadeOutcome> =>
+  runJob<ShadeOutcome>((runId) => ({ type: 'shade', runId, inputHash: spec.key, spec, existing, range }), spec.key, onProgress, (m) => (m.type === 'shade-result' ? { status: 'result', field: m.field, computed: m.computed, reused: m.reused } : null));
+
+export const runPvBatchInWorker = (inputs: PvInput[], inputHash: string, onProgress: (d: number, t: number) => void = () => {}): Job<BatchOutcome> =>
+  runJob<BatchOutcome>((runId) => ({ type: 'pv-batch', runId, inputHash, inputs }), inputHash, onProgress, (m) => (m.type === 'batch-result' ? { status: 'result', results: m.results } : null));

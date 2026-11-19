@@ -89,6 +89,12 @@
     "v": 33.3,
     "u": "kg",
     "p": "manufacturer"
+   },
+   "bypassDiodes": {
+    "v": 3,
+    "u": "count",
+    "p": "manufacturer",
+    "src": "datasheet: Junction Box IP68, 3 diodes; chưa có sơ đồ cell/chuỗi cell cho từng diode"
    }
   },
   "attrs": {
