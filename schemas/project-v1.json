@@ -443,6 +443,95 @@
           }
         }
       }
+    },
+    "strings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stringId",
+          "label",
+          "panelIds",
+          "target"
+        ],
+        "properties": {
+          "stringId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "panelIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "target": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "instanceId",
+              "port"
+            ],
+            "properties": {
+              "instanceId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "port": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "coldCellTempC": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -90,
+          "maximum": 60
+        },
+        "hotCellTempC": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -20,
+          "maximum": 150
+        },
+        "iscFactor": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "betaVmpAssumption": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -0.05,
+          "maximum": 0.05
+        },
+        "source": {
+          "type": "string"
+        }
+      }
     }
   },
   "definitions": {

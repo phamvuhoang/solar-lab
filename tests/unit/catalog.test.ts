@@ -11,7 +11,10 @@ describe('catalog bundle', () => {
   });
   test('đủ các loại: ≥2 tấm đủ thông số, inverter, pin datasheet, pin cũ, controller/bơm', () => {
     for (const k of KINDS) expect(filterComponents(BUILTIN_COMPONENTS, { kind: k }).length, k).toBeGreaterThan(0);
-    const full = filterComponents(BUILTIN_COMPONENTS, { kind: 'panel' }).filter((c) => capabilities(c).every((s) => s.ok));
+    // datasheets do not print βVmp, so the vmp-window check stays blocked for every panel
+    const panels = filterComponents(BUILTIN_COMPONENTS, { kind: 'panel' });
+    const full = panels.filter((c) => capabilities(c).every((s) => s.ok || s.id === 'vmp-window'));
+    for (const c of full) expect(capabilities(c).find((s) => s.id === 'vmp-window')?.missing).toEqual(['betaVmp']);
     expect(full.map((c) => c.modelId)).toEqual(['vsun-620', 'hestia-650']);
     expect(findComponent(BUILTIN_COMPONENTS, { modelId: 'used-battery', revision: 1 })?.condition).toBe('used');
   });

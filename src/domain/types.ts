@@ -29,6 +29,14 @@ export interface Kit {
   kitId: string; label: string; count: number; parts: { componentRef: Ref; qty: number }[];
   priceMinor: string | null; vat: VatMode; seller: string | null; recordedAt: string | null; covers: Category[]; note?: string;
 }
+/** A series string of panels. `target` is an MPPT input (inverter) or PV input (controller). Order of panelIds is the series order. */
+export interface StringDef { stringId: string; label: string; panelIds: string[]; target: { instanceId: string; port: string } | null }
+/** Design assumptions behind the electrical checks. null = not decided, so dependent checks stay unknown. */
+export interface DesignSettings {
+  coldCellTempC: number | null; hotCellTempC: number | null; iscFactor: number;
+  /** Used only when a panel has no βVmp. Never derived from βPmax. */
+  betaVmpAssumption: number | null; source: string;
+}
 export interface QuoteSettings { vatRateBp: number; requiredCategories: Category[]; waived: Category[] }
 
 export interface Project {
@@ -38,6 +46,7 @@ export interface Project {
   roofFaces: object[]; priceSelections: { componentRef: Ref; offerId: string }[];
   snapshots: { components: Component[]; offers: Offer[] };
   costLines?: CostLine[]; kits?: Kit[]; quote?: Partial<QuoteSettings>;
+  strings?: StringDef[]; design?: Partial<DesignSettings>;
 }
 export type Technical = Omit<Component, 'revision' | 'author' | 'editedAt' | 'review' | 'derivedFrom' | 'notes'>;
 export const refKey = (r: Ref) => `${r.modelId}@${r.revision}`;

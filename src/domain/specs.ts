@@ -18,6 +18,7 @@ export const SPEC_DEFS: Record<Kind, Record<string, SpecDef>> = {
     betaVoc: { dim: 'coef', label: 'Hệ số nhiệt Voc', allowNegative: true },
     betaIsc: { dim: 'coef', label: 'Hệ số nhiệt Isc', allowNegative: true },
     betaPmax: { dim: 'coef', label: 'Hệ số nhiệt Pmax', allowNegative: true },
+    betaVmp: { dim: 'coef', label: 'Hệ số nhiệt Vmp', allowNegative: true },
     efficiency: { dim: 'ratio', label: 'Hiệu suất module' }, bifaciality: { dim: 'ratio', label: 'Bifaciality' },
     maxSystemV: { dim: 'V', label: 'Điện áp hệ thống tối đa' }, maxSeriesFuseA: { dim: 'A', label: 'Cầu chì chuỗi tối đa' },
     lengthM: { dim: 'm', label: 'Dài' }, widthM: { dim: 'm', label: 'Rộng' }, thicknessM: { dim: 'm', label: 'Dày' },
@@ -67,6 +68,7 @@ export const CHECKS: Record<Kind, { id: string; label: string; needs: string[] }
     { id: 'nominal-power', label: 'Công suất danh nghĩa và so giá', needs: ['pstcW'] },
     { id: 'string-voltage', label: 'Điện áp chuỗi (Voc lạnh, Vmp)', needs: ['vocV', 'vmpV', 'betaVoc'] },
     { id: 'string-current', label: 'Dòng chuỗi và Isc', needs: ['iscA', 'impA'] },
+    { id: 'vmp-window', label: 'Vmp nóng/lạnh so với dải MPPT (datasheet thường không in βVmp)', needs: ['vmpV', 'betaVmp'] },
   ],
   inverter: [
     { id: 'mppt-window', label: 'Dải MPPT', needs: ['mpptVminV', 'mpptVmaxV'] },

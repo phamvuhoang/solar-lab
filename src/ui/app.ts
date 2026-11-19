@@ -9,6 +9,8 @@ import { formatNumber } from '../domain/units';
 import { buildQuote } from '../cost/quote';
 import { exportProject, stageImport } from '../persistence/exchange';
 import { renderQuote } from './quote';
+import { renderDesign } from './design';
+import { History } from '../app/history';
 import { ConflictError, ProjectRepository } from '../persistence/repository';
 import { componentForm } from './component-form';
 import { download, h } from './dom';
@@ -23,23 +25,30 @@ export async function startApp(root: HTMLElement) {
   let userComponents: Component[] = [];
   let userOffers: Offer[] = [];
   let message = '';
+  const history = new History<Project>();
+  let selected: string | null = null;
+  let pendingFocus: string[] = [];
   let filter: { kind: Kind | 'all'; text: string } = { kind: 'all', text: '' };
 
   const say = (m: string) => { message = m; };
   const reload = async () => { [userComponents, userOffers] = [await repo.listComponents(), await repo.listOffers()]; };
-  const mutate = async (next: Project) => {
-    try { project = await repo.saveRevision(project!.revision, next); say(''); }
+  const save = async (next: Project): Promise<boolean> => {
+    try { project = await repo.saveRevision(project!.revision, next); say(''); return true; }
     catch (e) {
       if (!(e instanceof ConflictError)) throw e;
       say(`Dự án đã được sửa ở tab khác (revision ${e.head.headRevision}). Bấm "Mở bản mới nhất" để xem; thay đổi của bạn chưa được lưu.`);
+      return false;
     }
   };
+  /** Every edit is a new stored revision; undo restores the previous content as another new revision. */
+  const mutate = async (next: Project) => { const prev = project!; if (await save(next)) history.record(prev); };
   const show = (...kids: (Node | false)[]) => {
     root.replaceChildren(h('h1', {}, 'Mekoniq Solar Lab'), message && h('p', { role: 'status', id: 'status' }, message), ...kids.filter(Boolean) as Node[]);
   };
 
   // ---- home ---------------------------------------------------------------------------------
   async function home() {
+    history.clear(); selected = null;
     const heads = await repo.listProjects();
     const name = h('input', { name: 'name', value: 'Dự án mới', required: true });
     const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file' });
@@ -82,6 +91,7 @@ export async function startApp(root: HTMLElement) {
         h('h2', {}, p.name), h('p', {}, `Bản nháp · revision ${p.revision}`),
         h('ul', { id: 'devices' }, ...Object.entries(q.deviceCounts).map(([k, n]) => h('li', {}, `${n} × ${labelOf(k)}`))),
         h('p', { id: 'bom-total' }, p.instances.length ? `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}${q.complete ? '' : ' · tổng hoàn chỉnh: chưa đủ'}` : 'Chưa có linh kiện.')),
+      h('button', { id: 'design-btn', onClick: () => designScreen() }, 'Thiết kế'),
       h('button', { onClick: () => quoteScreen() }, 'Dự toán'),
       h('button', { onClick: () => catalogScreen() }, 'Thiết bị'),
       h('button', { onClick: async () => download(`${p.name}.json`, await exportProject(p)) }, 'Xuất JSON'),
@@ -96,6 +106,29 @@ export async function startApp(root: HTMLElement) {
           diffOut.replaceChildren(h('ul', {}, ...changes.slice(0, 50).map((c) => h('li', {}, `${c.path}: ${JSON.stringify(c.before)} → ${JSON.stringify(c.after)}`))));
         } }, `So với revision ${revs[i - 1].revision}`)))),
       diffOut);
+  }
+
+  async function designScreen() {
+    await reload();
+    const p = project!;
+    const step = async (to: Project | undefined, revert: () => void) => {
+      if (to) { if (await save(to)) say(`Đã lưu: revision ${project!.revision}`); else revert(); }
+      await designScreen();
+    };
+    show(...renderDesign({
+      project: p, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], selected,
+      select: (id, focusIds = []) => { selected = id; pendingFocus = focusIds; designScreen(); },
+      apply: async (next) => { await mutate(next); if (!message) say(`Đã lưu: revision ${project!.revision}`); await designScreen(); },
+      history: {
+        canUndo: history.canUndo, canRedo: history.canRedo,
+        undo: () => { const cur = project!; const prev = history.undo(cur); step(prev, () => history.redo(prev!)); },
+        redo: () => { const cur = project!; const nxt = history.redo(cur); step(nxt, () => history.undo(nxt!)); },
+      },
+      back: () => projectScreen(),
+    }));
+    const target = pendingFocus.map((id) => document.getElementById(id)).find(Boolean);
+    pendingFocus = [];
+    target?.focus();
   }
 
   async function quoteScreen() {

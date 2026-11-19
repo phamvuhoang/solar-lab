@@ -94,6 +94,12 @@ export function validateProject(p: unknown): Issue[] {
   proj.edges.forEach((e, i) => (['from', 'to'] as const).forEach((end) => {
     if (!ids.has(e[end].instanceId)) bad('BROKEN_REF', `/edges/${i}/${end}/instanceId`, `Không có instance ${e[end].instanceId}`);
   }));
+  dup('DUPLICATE_ID', 'strings', (proj.strings ?? []).map((x) => x.stringId));
+  const kindOf = new Map(proj.instances.map((x) => [x.instanceId, x.kind]));
+  (proj.strings ?? []).forEach((st, i) => {
+    st.panelIds.forEach((id, j) => { if (!ids.has(id)) bad('BROKEN_REF', `/strings/${i}/panelIds/${j}`, `Không có instance ${id}`); else if (kindOf.get(id) !== 'panel') bad('NOT_A_PANEL', `/strings/${i}/panelIds/${j}`, `${id} không phải tấm pin`); });
+    if (st.target && !ids.has(st.target.instanceId)) bad('BROKEN_REF', `/strings/${i}/target/instanceId`, `Không có instance ${st.target.instanceId}`);
+  });
   proj.snapshots.offers.forEach((o, i) => {
     if (!comps.has(refKey(o.componentRef))) bad('BROKEN_REF', `/snapshots/offers/${i}/componentRef`, `Báo giá ${o.offerId} trỏ tới linh kiện thiếu`);
   });

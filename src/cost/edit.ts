@@ -1,3 +1,4 @@
+import { dropInstances } from '../domain/graph';
 import { newId, nowIso } from '../domain/ids';
 import { refKey, type Category, type CostLine, type Offer, type Project, type Ref } from '../domain/types';
 
@@ -13,8 +14,7 @@ export function setQuantity(p: Project, ref: Ref, n: number): Project {
     for (let k = 0; k < n - have.length; k++)
       next.instances.push({ instanceId: newId('ins'), kind: c.kind, label: `${c.name} #${sameKind + k + 1}`, componentRef: { modelId: ref.modelId, revision: ref.revision } });
   } else {
-    const drop = new Set(have.slice(n).map((i) => i.instanceId));
-    next.instances = next.instances.filter((i) => !drop.has(i.instanceId));
+    return dropInstances(next, new Set(have.slice(n).map((i) => i.instanceId)));
   }
   return next;
 }
