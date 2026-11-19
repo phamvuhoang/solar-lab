@@ -1,0 +1,9 @@
+{
+  "id": "lam-ha",
+  "name": "Lâm Hà",
+  "currency": "VND",
+  "lines": [
+    { "id": "vsun-620", "label": "VSUN 620 W (mua lẻ tại kho)", "quantity": 8, "priceMinor": "1984000", "currency": "VND", "source": "báo giá dự án" },
+    { "id": "used-battery", "label": "Bộ pin cũ 51,2 V × 165 Ah", "quantity": 1, "priceMinor": "16000000", "currency": "VND", "source": "báo giá dự án" }
+  ]
+}
