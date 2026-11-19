@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
-import { addInstances, bomLines, bomOf, createProject, openLamHa } from '../../src/domain/project';
+import { addInstances, createProject, openLamHa } from '../../src/domain/project';
+import { buildQuote } from '../../src/cost/quote';
 import { BUILTIN_COMPONENTS, BUILTIN_OFFERS, findComponent, offersFor } from '../../src/catalog/catalog';
 import { hasErrors, validateProject } from '../../src/domain/validate';
 import { diff } from '../../src/domain/diff';
@@ -14,14 +15,14 @@ test('mẫu Lâm Hà: 9 instance, hợp lệ, đúng golden 31.872.000 đ', () =
   expect(p.instances).toHaveLength(9);
   expect(new Set(p.instances.map((i) => i.instanceId)).size).toBe(9);
   expect(validateProject(p).filter((i) => i.severity === 'error')).toEqual([]);
-  expect(bomLines(p).map((l) => [l.id, l.quantity])).toEqual([['vsun-620', 8], ['used-battery', 1]]);
-  expect(bomOf(p)).toEqual({ totalMinor: '31872000', missingIds: [] });
+  expect(buildQuote(p).deviceCounts).toEqual({ 'vsun-620@1': 8, 'used-battery@1': 1 });
+  expect(buildQuote(p).knownSubtotalMinor).toBe('31872000');
 });
 
 test('thiết bị chưa chọn báo giá thì BOM báo thiếu thay vì 0', () => {
   const hestia = findComponent(BUILTIN_COMPONENTS, { modelId: 'hestia-650', revision: 1 })!;
   const p = addInstances(createProject('x'), hestia, 2, offersFor(BUILTIN_OFFERS, hestia));
-  expect(bomOf(p)).toEqual({ totalMinor: null, missingIds: ['hestia-650'] });
+  expect(buildQuote(p).missing.lineKeys).toEqual(['design:hestia-650@1']);
 });
 
 test('tham chiếu hỏng bị bắt đúng trường', () => {

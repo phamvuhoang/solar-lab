@@ -82,6 +82,8 @@ export function validateProject(p: unknown): Issue[] {
     ids.forEach((id, i) => { if (seen.has(id)) out.push({ code, severity: 'error', field: `/${field}/${i}`, message: `ID trùng: ${id}` }); seen.add(id); });
   };
   dup('DUPLICATE_ID', 'instances', proj.instances.map((x) => x.instanceId));
+  dup('DUPLICATE_ID', 'costLines', (proj.costLines ?? []).map((l) => l.lineId));
+  dup('DUPLICATE_ID', 'kits', (proj.kits ?? []).map((k) => k.kitId));
   dup('DUPLICATE_ID', 'snapshots/offers', proj.snapshots.offers.map((o) => o.offerId));
   dup('DUPLICATE_ID', 'snapshots/components', proj.snapshots.components.map(refKey));
   const bad = (code: string, field: string, message: string) => out.push({ code, severity: 'error', field, message });

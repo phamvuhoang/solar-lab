@@ -12,7 +12,7 @@ describe('catalog bundle', () => {
   test('đủ các loại: ≥2 tấm đủ thông số, inverter, pin datasheet, pin cũ, controller/bơm', () => {
     for (const k of KINDS) expect(filterComponents(BUILTIN_COMPONENTS, { kind: k }).length, k).toBeGreaterThan(0);
     const full = filterComponents(BUILTIN_COMPONENTS, { kind: 'panel' }).filter((c) => capabilities(c).every((s) => s.ok));
-    expect(full.map((c) => c.modelId)).toEqual(['vsun-620', 'vsun-600', 'hestia-650']);
+    expect(full.map((c) => c.modelId)).toEqual(['vsun-620', 'hestia-650']);
     expect(findComponent(BUILTIN_COMPONENTS, { modelId: 'used-battery', revision: 1 })?.condition).toBe('used');
   });
   test('họ chưa rõ biến thể vẫn hiện, ghi đúng trường còn thiếu', () => {
@@ -27,8 +27,7 @@ describe('catalog bundle', () => {
   });
   test('số liệu chính khớp datasheet hãng đã đọc', () => {
     const v = (id: string, k: string) => findComponent(BUILTIN_COMPONENTS, { modelId: id, revision: 1 })!.specs[k].v;
-    expect([v('vsun-620', 'vocV'), v('vsun-620', 'vmpV'), v('vsun-620', 'betaVoc')]).toEqual([48.7, 41.23, -0.0025]);
-    expect([v('vsun-600', 'pstcW'), v('vsun-600', 'iscA')]).toEqual([600, 15.75]);
+    expect([v('vsun-620', 'vocV'), v('vsun-620', 'vmpV'), v('vsun-620', 'betaVoc'), v('vsun-620', 'weightKg')]).toEqual([48.7, 41.23, -0.0024, 33.3]);
     expect([v('luxpower-sna6000wpv', 'pvVocMaxV'), v('luxpower-sna6000wpv', 'pvIscMaxPerMpptA'), v('luxpower-sna6000wpv', 'efficiencyMax')]).toEqual([480, 25, 0.93]);
     expect([v('dyness-dl5-0c', 'maxChargeA'), v('dyness-dl5-0c', 'maxDischargeA'), v('dyness-dl5-0c', 'usableWh')]).toEqual([75, 100, 4608]);
     expect([v('victron-mppt-150-45', 'iMaxA'), v('victron-mppt-150-45', 'pvIscMaxA'), v('victron-mppt-150-45', 'ratedW')]).toEqual([45, 50, 2600]);

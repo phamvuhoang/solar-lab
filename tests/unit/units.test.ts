@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { formatNumber, parseQuantity } from '../../src/domain/units';
+import { formatNumber, parseMoney, parseQuantity } from '../../src/domain/units';
 
 const ok = (text: string, dim: Parameters<typeof parseQuantity>[1], value: number, unit?: string) => {
   const r = parseQuantity(text, dim, { allowNegative: dim === 'coef' });
@@ -33,5 +33,15 @@ describe('parseQuantity', () => {
       const r = parseQuantity(formatNumber(v), 'W');
       expect(r.ok && r.value).toBe(v);
     }
+  });
+});
+
+describe('parseMoney', () => {
+  test('đồng nguyên, có dấu chấm/khoảng trắng nghìn và hậu tố đ', () => {
+    for (const [t, m] of [['1.984.000', '1984000'], ['3200', '3200'], ['16 000 000 đ', '16000000'], ['15.500.000 VND', '15500000'], ['0', '0']])
+      expect(parseMoney(t)).toEqual({ ok: true, minor: m });
+  });
+  test('từ chối rỗng, số lẻ, âm, chữ', () => {
+    for (const t of ['', '  ', '1,5', '-100', 'abc', '1.2.3', '1e6']) expect(parseMoney(t).ok, t).toBe(false);
   });
 });

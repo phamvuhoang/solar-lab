@@ -1,4 +1,3 @@
-import { calculateBom, type PriceLine } from '../cost/bom';
 import lamHa from '../../data/presets/lam-ha.json';
 import { BUILTIN_COMPONENTS, BUILTIN_OFFERS, findComponent, offersFor } from '../catalog/catalog';
 import { newId, nowIso } from './ids';
@@ -42,19 +41,3 @@ export function openLamHa(now = nowIso()): Project {
   p.priceSelections = lamHa.priceSelections.map((s) => ({ componentRef: { modelId: s.modelId, revision: 1 }, offerId: s.offerId }));
   return p;
 }
-
-/** One BOM line per distinct component (quantity = instances). Offers not per piece stay unpriced until W02. */
-export function bomLines(p: Project): PriceLine[] {
-  const counts = new Map<string, { ref: Ref; n: number }>();
-  for (const i of p.instances) if (i.componentRef) {
-    const k = refKey(i.componentRef);
-    counts.set(k, { ref: i.componentRef, n: (counts.get(k)?.n ?? 0) + 1 });
-  }
-  return [...counts.entries()].map(([k, { ref, n }]) => {
-    const sel = p.priceSelections.find((s) => refKey(s.componentRef) === k);
-    const offer = sel && p.snapshots.offers.find((o) => o.offerId === sel.offerId);
-    return { id: ref.modelId, quantity: n, priceMinor: offer?.unit === 'piece' ? offer.priceMinor : null, currency: offer?.currency };
-  });
-}
-
-export const bomOf = (p: Project) => calculateBom(bomLines(p), 'VND');

@@ -4,34 +4,121 @@
   "title": "ProjectRevision",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "projectId", "revision", "name", "createdAt", "updatedAt", "location", "instances", "edges", "roofFaces", "priceSelections", "snapshots"],
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "revision",
+    "name",
+    "createdAt",
+    "updatedAt",
+    "location",
+    "instances",
+    "edges",
+    "roofFaces",
+    "priceSelections",
+    "snapshots"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "projectId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$" },
-    "revision": { "type": "integer", "minimum": 1 },
-    "name": { "type": "string", "minLength": 1 },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
     "location": {
-      "type": ["object", "null"], "additionalProperties": false,
-      "required": ["latitude", "longitude", "timezone"],
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "latitude",
+        "longitude",
+        "timezone"
+      ],
       "properties": {
-        "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
-        "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
-        "timezone": { "type": "string", "minLength": 1 }
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "instances": {
       "type": "array",
       "items": {
-        "type": "object", "additionalProperties": false, "required": ["instanceId", "kind", "label", "componentRef"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "instanceId",
+          "kind",
+          "label",
+          "componentRef"
+        ],
         "properties": {
-          "instanceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$" },
-          "kind": { "enum": ["panel", "inverter", "battery", "controller", "load"] },
-          "label": { "type": "string", "minLength": 1 },
+          "instanceId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+          },
+          "kind": {
+            "enum": [
+              "panel",
+              "inverter",
+              "battery",
+              "controller",
+              "load"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
           "componentRef": {
-            "type": ["object", "null"], "additionalProperties": false, "required": ["modelId", "revision"],
-            "properties": { "modelId": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } }
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "modelId",
+              "revision"
+            ],
+            "properties": {
+              "modelId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
           }
         }
       }
@@ -39,40 +126,343 @@
     "edges": {
       "type": "array",
       "items": {
-        "type": "object", "additionalProperties": false, "required": ["edgeId", "from", "to"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "edgeId",
+          "from",
+          "to"
+        ],
         "properties": {
-          "edgeId": { "type": "string", "minLength": 1 },
-          "from": { "$ref": "#/definitions/endpoint" },
-          "to": { "$ref": "#/definitions/endpoint" }
+          "edgeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "from": {
+            "$ref": "#/definitions/endpoint"
+          },
+          "to": {
+            "$ref": "#/definitions/endpoint"
+          }
         }
       }
     },
-    "roofFaces": { "type": "array", "items": { "type": "object" } },
+    "roofFaces": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
     "priceSelections": {
       "type": "array",
       "items": {
-        "type": "object", "additionalProperties": false, "required": ["componentRef", "offerId"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "componentRef",
+          "offerId"
+        ],
         "properties": {
           "componentRef": {
-            "type": "object", "additionalProperties": false, "required": ["modelId", "revision"],
-            "properties": { "modelId": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } }
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "modelId",
+              "revision"
+            ],
+            "properties": {
+              "modelId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
           },
-          "offerId": { "type": "string", "minLength": 1 }
+          "offerId": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
     "snapshots": {
-      "type": "object", "additionalProperties": false, "required": ["components", "offers"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "components",
+        "offers"
+      ],
       "properties": {
-        "components": { "type": "array", "items": { "$ref": "component-v1.json" } },
-        "offers": { "type": "array", "items": { "$ref": "offer-v1.json" } }
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "component-v1.json"
+          }
+        },
+        "offers": {
+          "type": "array",
+          "items": {
+            "$ref": "offer-v1.json"
+          }
+        }
+      }
+    },
+    "costLines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "lineId",
+          "category",
+          "label",
+          "qty",
+          "qtyUnit",
+          "unitPriceMinor",
+          "vat",
+          "seller",
+          "recordedAt"
+        ],
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "enum": [
+              "equipment",
+              "frame",
+              "cable",
+              "protection",
+              "labor",
+              "shipping",
+              "discount",
+              "other"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "qtyUnit": {
+            "enum": [
+              "piece",
+              "mm"
+            ]
+          },
+          "unitPriceMinor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d+$"
+          },
+          "vat": {
+            "enum": [
+              "included",
+              "excluded",
+              "unknown"
+            ]
+          },
+          "seller": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recordedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "kits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kitId",
+          "label",
+          "count",
+          "parts",
+          "priceMinor",
+          "vat",
+          "seller",
+          "recordedAt",
+          "covers"
+        ],
+        "properties": {
+          "kitId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "parts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "componentRef",
+                "qty"
+              ],
+              "properties": {
+                "componentRef": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "modelId",
+                    "revision"
+                  ],
+                  "properties": {
+                    "modelId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "priceMinor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d+$"
+          },
+          "vat": {
+            "enum": [
+              "included",
+              "excluded",
+              "unknown"
+            ]
+          },
+          "seller": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recordedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "covers": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "equipment",
+                "frame",
+                "cable",
+                "protection",
+                "labor",
+                "shipping",
+                "discount",
+                "other"
+              ]
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "quote": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vatRateBp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "requiredCategories": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "equipment",
+              "frame",
+              "cable",
+              "protection",
+              "labor",
+              "shipping",
+              "discount",
+              "other"
+            ]
+          }
+        },
+        "waived": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "equipment",
+              "frame",
+              "cable",
+              "protection",
+              "labor",
+              "shipping",
+              "discount",
+              "other"
+            ]
+          }
+        }
       }
     }
   },
   "definitions": {
     "endpoint": {
-      "type": "object", "additionalProperties": false, "required": ["instanceId", "port"],
-      "properties": { "instanceId": { "type": "string", "minLength": 1 }, "port": { "type": "string", "minLength": 1 } }
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instanceId",
+        "port"
+      ],
+      "properties": {
+        "instanceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "port": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }

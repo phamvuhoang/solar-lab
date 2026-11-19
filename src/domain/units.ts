@@ -59,3 +59,12 @@ export function formatQuantity(v: number, dim: Dim): string {
   const d = DIMS[dim];
   return formatNumber(Number((v / d.units[d.defaultUnit]).toPrecision(12)));
 }
+
+/** VND amount as whole đồng: "1.984.000", "3200 đ", "16 000 000" → "1984000" etc. Fractions are rejected. */
+export function parseMoney(text: string): { ok: true; minor: string } | { ok: false; message: string } {
+  const t = (text ?? '').replace(/\s*(đ|₫|vnd)\s*$/i, '').replace(/(?<=\d) (?=\d{3}\b)/g, '').trim();
+  if (!t) return { ok: false, message: 'Chưa nhập giá' };
+  const n = /^\d[\d.]*$/.test(t) ? parseNumber(t) : null;
+  if (n === null || !Number.isSafeInteger(n)) return { ok: false, message: `"${text}" không phải số tiền nguyên (đồng)` };
+  return { ok: true, minor: String(n) };
+}

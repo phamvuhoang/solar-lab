@@ -9,9 +9,9 @@
   "seller": "Kho (báo giá dự án)",
   "recordedAt": null,
   "region": null,
-  "priceMinor": "1984000",
+  "priceMinor": "3200",
   "currency": "VND",
-  "unit": "piece",
+  "unit": "W",
   "tiers": [],
   "vat": "unknown",
   "condition": "new",
@@ -19,7 +19,7 @@
   "warrantyMonths": null,
   "validUntil": null,
   "label": "báo giá dự án",
-  "notes": "3.200 đ/W × 620 W; mua lẻ tại kho"
+  "notes": "3.200 đ/W; mua lẻ tại kho. Một tấm 620 W = 1.984.000 đ"
  },
  {
   "schemaVersion": 1,

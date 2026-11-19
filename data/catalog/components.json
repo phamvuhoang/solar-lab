@@ -35,17 +35,17 @@
     "p": "manufacturer"
    },
    "betaVoc": {
-    "v": -0.0025,
+    "v": -0.0024,
     "u": "1/°C",
     "p": "manufacturer"
    },
    "betaIsc": {
-    "v": 0.00046,
+    "v": 0.0004,
     "u": "1/°C",
     "p": "manufacturer"
    },
    "betaPmax": {
-    "v": -0.003,
+    "v": -0.0029,
     "u": "1/°C",
     "p": "manufacturer"
    },
@@ -81,22 +81,22 @@
     "p": "manufacturer"
    },
    "thicknessM": {
-    "v": 0.035,
+    "v": 0.03,
     "u": "m",
     "p": "manufacturer"
    },
    "weightKg": {
-    "v": 33.6,
+    "v": 33.3,
     "u": "kg",
     "p": "manufacturer"
    }
   },
   "attrs": {
    "cells": "132 cell (12×11) mono TOPCon, kính đôi 2,0 mm",
-   "source": "Datasheet VSUN 600–625 W, Update Time 2024.04.06"
+   "source": "Datasheet VSUN 610–635 W, Version 1.0, 2025.01.14"
   },
   "datasheet": {
-   "url": "663b24645bbf8.pdf (VSUN 600–625 W, Update Time 2024.04.06)",
+   "url": "https://www.stellavolta.com/content/VSUN%20VSUN635N-132BMHR-DG%20635W%20Datasheet%20por%20Stellavolta.pdf (VSUN 610–635 W, Version 1.0, Update Time 2025.01.14, sha256 e82eaee4fad054d4d0733bd6d9342995fd94c654e94a89a9b0191081de4d517e)",
    "page": 2,
    "checkedAt": "2026-11-19"
   },
@@ -104,114 +104,7 @@
   "author": "catalog-seed",
   "editedAt": "2026-11-19T00:00:00Z",
   "derivedFrom": null,
-  "notes": "Theo bản datasheet 2024.04.06 do người dùng cung cấp. Bản 2025.01.14 (v1.0) ghi khác: dày 30 mm, nặng 33,3 kg, β Voc −0,24 %/°C, β Isc +0,04 %/°C, β Pmax −0,29 %/°C; STC điện giống nhau. Cần xác nhận bản đúng với lô hàng thật."
- },
- {
-  "schemaVersion": 1,
-  "modelId": "vsun-600",
-  "revision": 1,
-  "sku": "VSUN600N-132BMHR-DG",
-  "brand": "VSUN",
-  "name": "VSUN 600 W N-type TOPCon bifacial",
-  "kind": "panel",
-  "condition": "new",
-  "specs": {
-   "pstcW": {
-    "v": 600,
-    "u": "W",
-    "p": "manufacturer"
-   },
-   "vocV": {
-    "v": 47.9,
-    "u": "V",
-    "p": "manufacturer"
-   },
-   "iscA": {
-    "v": 15.75,
-    "u": "A",
-    "p": "manufacturer"
-   },
-   "vmpV": {
-    "v": 40.45,
-    "u": "V",
-    "p": "manufacturer"
-   },
-   "impA": {
-    "v": 14.84,
-    "u": "A",
-    "p": "manufacturer"
-   },
-   "betaVoc": {
-    "v": -0.0025,
-    "u": "1/°C",
-    "p": "manufacturer"
-   },
-   "betaIsc": {
-    "v": 0.00046,
-    "u": "1/°C",
-    "p": "manufacturer"
-   },
-   "betaPmax": {
-    "v": -0.003,
-    "u": "1/°C",
-    "p": "manufacturer"
-   },
-   "efficiency": {
-    "v": 0.2221,
-    "u": "ratio",
-    "p": "manufacturer"
-   },
-   "bifaciality": {
-    "v": 0.8,
-    "u": "ratio",
-    "p": "manufacturer",
-    "src": "80% ±10%"
-   },
-   "maxSystemV": {
-    "v": 1500,
-    "u": "V",
-    "p": "manufacturer"
-   },
-   "maxSeriesFuseA": {
-    "v": 30,
-    "u": "A",
-    "p": "manufacturer"
-   },
-   "lengthM": {
-    "v": 2.382,
-    "u": "m",
-    "p": "manufacturer"
-   },
-   "widthM": {
-    "v": 1.134,
-    "u": "m",
-    "p": "manufacturer"
-   },
-   "thicknessM": {
-    "v": 0.035,
-    "u": "m",
-    "p": "manufacturer"
-   },
-   "weightKg": {
-    "v": 33.6,
-    "u": "kg",
-    "p": "manufacturer"
-   }
-  },
-  "attrs": {
-   "cells": "132 cell (12×11) mono TOPCon, kính đôi 2,0 mm",
-   "source": "Datasheet VSUN 600–625 W, Update Time 2024.04.06"
-  },
-  "datasheet": {
-   "url": "663b24645bbf8.pdf (VSUN 600–625 W, Update Time 2024.04.06)",
-   "page": 2,
-   "checkedAt": "2026-11-19"
-  },
-  "review": "unreviewed",
-  "author": "catalog-seed",
-  "editedAt": "2026-11-19T00:00:00Z",
-  "derivedFrom": null,
-  "notes": "Theo bản datasheet 2024.04.06 do người dùng cung cấp. Bản 2025.01.14 (v1.0) ghi khác: dày 30 mm, nặng 33,3 kg, β Voc −0,24 %/°C, β Isc +0,04 %/°C, β Pmax −0,29 %/°C; STC điện giống nhau. Cần xác nhận bản đúng với lô hàng thật."
+  "notes": "Theo datasheet 2025.01.14 (v1.0) theo chỉ định của người dùng. Bản 2024.04.06 ghi khác: dày 35 mm, nặng 33,6 kg, β Voc −0,25 / β Isc +0,046 / β Pmax −0,30 %/°C; STC điện giống nhau. Bản 2025 không có cột 600 W nên không nhập VSUN 600 W."
  },
  {
   "schemaVersion": 1,

@@ -2,14 +2,16 @@ import { BUILTIN_COMPONENTS, BUILTIN_OFFERS, filterComponents, offersFor } from 
 import { capabilities, blankSpecs, cloneForEdit } from '../domain/component';
 import { diff } from '../domain/diff';
 import { newId, nowIso } from '../domain/ids';
-import { addInstances, bomLines, bomOf, createProject, openLamHa } from '../domain/project';
+import { addInstances, createProject, openLamHa } from '../domain/project';
 import { KINDS, KIND_LABEL, SPEC_DEFS, type Kind } from '../domain/specs';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { formatNumber } from '../domain/units';
+import { buildQuote } from '../cost/quote';
 import { exportProject, stageImport } from '../persistence/exchange';
+import { renderQuote } from './quote';
 import { ConflictError, ProjectRepository } from '../persistence/repository';
 import { componentForm } from './component-form';
-import { h } from './dom';
+import { download, h } from './dom';
 
 const vnd = (minor: string) => Number(minor).toLocaleString('vi-VN') + ' đ';
 const HEADLINE: Record<Kind, string> = { panel: 'pstcW', inverter: 'acRatedW', battery: 'nominalWh', controller: 'ratedW', load: 'powerW' };
@@ -71,25 +73,16 @@ export async function startApp(root: HTMLElement) {
   // ---- project --------------------------------------------------------------------------------
   async function projectScreen() {
     const p = project!;
-    const bom = bomOf(p);
-    const lines = bomLines(p);
+    const q = buildQuote(p);
     const revs = await repo.listRevisions(p.projectId);
-    const labelOf = (id: string) => p.snapshots.components.find((c) => c.modelId === id)?.name ?? id;
-    const unit = (id: string) => {
-      const sel = p.priceSelections.find((s) => s.componentRef.modelId === id);
-      return p.snapshots.offers.find((o) => o.offerId === sel?.offerId)?.priceMinor ?? null;
-    };
+    const labelOf = (key: string) => p.snapshots.components.find((c) => `${c.modelId}@${c.revision}` === key)?.name ?? key;
     const diffOut = h('div', { id: 'diff' });
     show(
       h('section', { 'aria-label': 'Bản thiết kế nháp' },
         h('h2', {}, p.name), h('p', {}, `Bản nháp · revision ${p.revision}`),
-        h('table', {}, h('thead', {}, h('tr', {}, ...['Thiết bị', 'SL', 'Đơn giá', 'Thành tiền'].map((t) => h('th', {}, t)))),
-          h('tbody', {}, ...lines.map((l) => {
-            const price = unit(l.id);
-            return h('tr', {}, h('td', {}, labelOf(l.id)), h('td', {}, String(l.quantity)), h('td', {}, price ? vnd(price) : 'chưa có giá'),
-              h('td', {}, price ? vnd(String(BigInt(price) * BigInt(l.quantity))) : '—'));
-          }))),
-        h('p', { id: 'bom-total' }, lines.length ? `Tổng phần có giá: ${bom.totalMinor ? vnd(bom.totalMinor) : 'chưa đủ giá'}` : 'Chưa có linh kiện.')),
+        h('ul', { id: 'devices' }, ...Object.entries(q.deviceCounts).map(([k, n]) => h('li', {}, `${n} × ${labelOf(k)}`))),
+        h('p', { id: 'bom-total' }, p.instances.length ? `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}${q.complete ? '' : ' · tổng hoàn chỉnh: chưa đủ'}` : 'Chưa có linh kiện.')),
+      h('button', { onClick: () => quoteScreen() }, 'Dự toán'),
       h('button', { onClick: () => catalogScreen() }, 'Thiết bị'),
       h('button', { onClick: async () => download(`${p.name}.json`, await exportProject(p)) }, 'Xuất JSON'),
       h('button', { onClick: async () => { project = await repo.cloneProject(p.projectId); say('Đã nhân bản dự án.'); projectScreen(); } }, 'Nhân bản dự án'),
@@ -103,6 +96,16 @@ export async function startApp(root: HTMLElement) {
           diffOut.replaceChildren(h('ul', {}, ...changes.slice(0, 50).map((c) => h('li', {}, `${c.path}: ${JSON.stringify(c.before)} → ${JSON.stringify(c.after)}`))));
         } }, `So với revision ${revs[i - 1].revision}`)))),
       diffOut);
+  }
+
+  async function quoteScreen() {
+    await reload();
+    const p = project!;
+    show(...renderQuote({
+      project: p, offers: [...BUILTIN_OFFERS, ...userOffers], revisions: await repo.listRevisions(p.projectId),
+      loadRevision: (n) => repo.loadRevision(p.projectId, n), saveOffer: (o) => repo.saveOffer(o),
+      apply: async (next) => { await mutate(next); await quoteScreen(); }, back: () => projectScreen(),
+    }));
   }
 
   // ---- catalog ----------------------------------------------------------------------------------
@@ -158,10 +161,4 @@ export async function startApp(root: HTMLElement) {
 
   await reload();
   home();
-}
-
-function download(name: string, text: string) {
-  const a = h('a', { href: URL.createObjectURL(new Blob([text], { type: 'application/json' })), download: name });
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

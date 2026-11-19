@@ -32,7 +32,7 @@ test('W01: mở mẫu → chọn thiết bị → nhân bản → sửa Ah → l
   await page.reload();
   await page.getByRole('button', { name: 'Mở: Lâm Hà' }).click();
   await expect(page.getByText('Bản nháp · revision 2')).toBeVisible();
-  await expect(page.getByRole('cell', { name: /bản sao/ })).toBeVisible();
+  await expect(page.locator('#devices')).toContainText('bản sao');
   expect(external).toEqual([]);
 });
 
