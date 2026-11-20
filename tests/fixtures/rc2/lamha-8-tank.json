@@ -1,0 +1,841 @@
+{
+  "format": "mekoniq-solar-lab/project",
+  "formatVersion": 1,
+  "exportedAt": "2026-11-20T00:00:00.000Z",
+  "hash": "835960a6b803354bb73e0f21e27340d8425c6aa75bb3a54a42b43ed78c2044dc",
+  "project": {
+    "schemaVersion": 1,
+    "projectId": "prj-7bb41642-70c7-49b7-914c-12cf39653021",
+    "revision": 1,
+    "name": "Lâm Hà",
+    "createdAt": "2026-11-20T05:10:22.263Z",
+    "updatedAt": "2026-11-20T05:10:22.263Z",
+    "location": {
+      "latitude": 11.87,
+      "longitude": 108.2,
+      "timezone": "Asia/Ho_Chi_Minh"
+    },
+    "instances": [
+      {
+        "instanceId": "ins-8391f9b6-ecbb-4911-9dad-a9ed5ff66c7a",
+        "kind": "panel",
+        "label": "VSUN 620 W N-type TOPCon bifacial #1",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-5f62c1c4-f4e7-449c-8139-3c39cd737cfe",
+        "kind": "panel",
+        "label": "VSUN 620 W N-type TOPCon bifacial #2",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-cec0c183-f4b9-4712-8191-00469633f58d",
+        "kind": "panel",
+        "label": "VSUN 620 W N-type TOPCon bifacial #3",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-74c58902-6b80-417c-8326-473d40fa2602",
+        "kind": "panel",
+        "label": "VSUN 620 W N-type TOPCon bifacial #4",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-cf28b71d-77ad-4924-9c2b-201bd83e3119",
+        "kind": "panel",
+        "label": "VSUN 620 W N-type TOPCon bifacial #5",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-0e4dd05d-da68-473a-9bc1-a9498614e482",
+        "kind": "panel",
+        "label": "VSUN 620 W N-type TOPCon bifacial #6",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-e1a8f9cb-9187-4bc5-af28-9b7f425ac385",
+        "kind": "panel",
+        "label": "VSUN 620 W N-type TOPCon bifacial #7",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-16247f45-7dde-44db-a3ec-b0a803b9de5b",
+        "kind": "panel",
+        "label": "VSUN 620 W N-type TOPCon bifacial #8",
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-727a8b9e-08cc-493f-9c56-056a34c86a41",
+        "kind": "battery",
+        "label": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai) #1",
+        "componentRef": {
+          "modelId": "used-battery",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-a8d625e5-b134-42a3-8435-fe42a64e8c90",
+        "kind": "inverter",
+        "label": "Luxpower SNA6000WPV off-grid 6 kW #1",
+        "componentRef": {
+          "modelId": "luxpower-sna6000wpv",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-d7d9536f-23b6-4c41-b3b4-3db93f76a369",
+        "kind": "load",
+        "label": "Tải sinh hoạt 300 W (tải mẫu) #1",
+        "componentRef": {
+          "modelId": "sample-home-load",
+          "revision": 1
+        }
+      },
+      {
+        "instanceId": "ins-00118605-5e17-4251-83f3-4b5afc43cb52",
+        "kind": "load",
+        "label": "Bơm nước 750 W (tải mẫu) #2",
+        "componentRef": {
+          "modelId": "sample-pump-load",
+          "revision": 1
+        }
+      }
+    ],
+    "edges": [
+      {
+        "edgeId": "edg-10d50727-7589-43b3-b63d-fdc647452b80",
+        "from": {
+          "instanceId": "ins-727a8b9e-08cc-493f-9c56-056a34c86a41",
+          "port": "DC"
+        },
+        "to": {
+          "instanceId": "ins-a8d625e5-b134-42a3-8435-fe42a64e8c90",
+          "port": "BAT"
+        }
+      },
+      {
+        "edgeId": "edg-aa0b56e4-db24-4ced-90d6-509649168974",
+        "from": {
+          "instanceId": "ins-a8d625e5-b134-42a3-8435-fe42a64e8c90",
+          "port": "AC"
+        },
+        "to": {
+          "instanceId": "ins-d7d9536f-23b6-4c41-b3b4-3db93f76a369",
+          "port": "AC"
+        }
+      },
+      {
+        "edgeId": "edg-3bd6031b-fdd2-427f-b74f-c411a4a65add",
+        "from": {
+          "instanceId": "ins-a8d625e5-b134-42a3-8435-fe42a64e8c90",
+          "port": "AC"
+        },
+        "to": {
+          "instanceId": "ins-00118605-5e17-4251-83f3-4b5afc43cb52",
+          "port": "AC"
+        }
+      }
+    ],
+    "roofFaces": [
+      {
+        "label": "Mái Nam (minh họa)",
+        "outline": [
+          [
+            0,
+            0
+          ],
+          [
+            10,
+            0
+          ],
+          [
+            10,
+            3.25
+          ],
+          [
+            0,
+            3.25
+          ]
+        ],
+        "holes": [],
+        "tiltDeg": 10,
+        "azimuthDeg": 180,
+        "origin": {
+          "e": 0,
+          "n": 0,
+          "up": 3
+        },
+        "setbackM": 0.3,
+        "setbackSource": "assumption",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229"
+      },
+      {
+        "label": "Mái Bắc (minh họa)",
+        "outline": [
+          [
+            0,
+            0
+          ],
+          [
+            10,
+            0
+          ],
+          [
+            10,
+            3.25
+          ],
+          [
+            0,
+            3.25
+          ]
+        ],
+        "holes": [],
+        "tiltDeg": 10,
+        "azimuthDeg": 0,
+        "origin": {
+          "e": 10,
+          "n": 6.4,
+          "up": 3
+        },
+        "setbackM": 0.3,
+        "setbackSource": "assumption",
+        "roofFaceId": "roof-889b68a9-e483-49ac-bff8-df23781f991f"
+      }
+    ],
+    "priceSelections": [
+      {
+        "componentRef": {
+          "modelId": "vsun-620",
+          "revision": 1
+        },
+        "offerId": "off-lamha-vsun620"
+      },
+      {
+        "componentRef": {
+          "modelId": "used-battery",
+          "revision": 1
+        },
+        "offerId": "off-lamha-used-battery"
+      }
+    ],
+    "snapshots": {
+      "components": [
+        {
+          "schemaVersion": 1,
+          "modelId": "vsun-620",
+          "revision": 1,
+          "sku": "VSUN620N-132BMHR-DG",
+          "brand": "VSUN",
+          "name": "VSUN 620 W N-type TOPCon bifacial",
+          "kind": "panel",
+          "condition": "new",
+          "specs": {
+            "pstcW": {
+              "v": 620,
+              "u": "W",
+              "p": "manufacturer"
+            },
+            "vocV": {
+              "v": 48.7,
+              "u": "V",
+              "p": "manufacturer"
+            },
+            "iscA": {
+              "v": 15.95,
+              "u": "A",
+              "p": "manufacturer"
+            },
+            "vmpV": {
+              "v": 41.23,
+              "u": "V",
+              "p": "manufacturer"
+            },
+            "impA": {
+              "v": 15.04,
+              "u": "A",
+              "p": "manufacturer"
+            },
+            "betaVoc": {
+              "v": -0.0024,
+              "u": "1/°C",
+              "p": "manufacturer"
+            },
+            "betaIsc": {
+              "v": 0.0004,
+              "u": "1/°C",
+              "p": "manufacturer"
+            },
+            "betaPmax": {
+              "v": -0.0029,
+              "u": "1/°C",
+              "p": "manufacturer"
+            },
+            "efficiency": {
+              "v": 0.2295,
+              "u": "ratio",
+              "p": "manufacturer"
+            },
+            "bifaciality": {
+              "v": 0.8,
+              "u": "ratio",
+              "p": "manufacturer",
+              "src": "80% ±10%"
+            },
+            "maxSystemV": {
+              "v": 1500,
+              "u": "V",
+              "p": "manufacturer"
+            },
+            "maxSeriesFuseA": {
+              "v": 30,
+              "u": "A",
+              "p": "manufacturer"
+            },
+            "lengthM": {
+              "v": 2.382,
+              "u": "m",
+              "p": "manufacturer"
+            },
+            "widthM": {
+              "v": 1.134,
+              "u": "m",
+              "p": "manufacturer"
+            },
+            "thicknessM": {
+              "v": 0.03,
+              "u": "m",
+              "p": "manufacturer"
+            },
+            "weightKg": {
+              "v": 33.3,
+              "u": "kg",
+              "p": "manufacturer"
+            },
+            "bypassDiodes": {
+              "v": 3,
+              "u": "count",
+              "p": "manufacturer",
+              "src": "datasheet: Junction Box IP68, 3 diodes; chưa có sơ đồ cell/chuỗi cell cho từng diode"
+            }
+          },
+          "attrs": {
+            "cells": "132 cell (12×11) mono TOPCon, kính đôi 2,0 mm",
+            "source": "Datasheet VSUN 610–635 W, Version 1.0, 2025.01.14"
+          },
+          "datasheet": {
+            "url": "https://www.stellavolta.com/content/VSUN%20VSUN635N-132BMHR-DG%20635W%20Datasheet%20por%20Stellavolta.pdf (VSUN 610–635 W, Version 1.0, Update Time 2025.01.14, sha256 e82eaee4fad054d4d0733bd6d9342995fd94c654e94a89a9b0191081de4d517e)",
+            "page": 2,
+            "checkedAt": "2026-11-19"
+          },
+          "review": "unreviewed",
+          "author": "catalog-seed",
+          "editedAt": "2026-11-19T00:00:00Z",
+          "derivedFrom": null,
+          "notes": "Theo datasheet 2025.01.14 (v1.0) theo chỉ định của người dùng. Bản 2024.04.06 ghi khác: dày 35 mm, nặng 33,6 kg, β Voc −0,25 / β Isc +0,046 / β Pmax −0,30 %/°C; STC điện giống nhau. Bản 2025 không có cột 600 W nên không nhập VSUN 600 W."
+        },
+        {
+          "schemaVersion": 1,
+          "modelId": "used-battery",
+          "revision": 1,
+          "sku": "used-battery",
+          "brand": "Tự nhập",
+          "name": "Bộ pin cũ 51,2 V × 165 Ah (người dùng khai)",
+          "kind": "battery",
+          "condition": "used",
+          "specs": {
+            "nominalV": {
+              "v": 51.2,
+              "u": "V",
+              "p": "user"
+            },
+            "capacityAh": {
+              "v": 165,
+              "u": "Ah",
+              "p": "user"
+            },
+            "nominalWh": {
+              "v": 8448,
+              "u": "Wh",
+              "p": "user"
+            },
+            "maxDischargeA": {
+              "v": 100,
+              "u": "A",
+              "p": "assumption",
+              "src": "giả định: cần xác nhận 100 A là dòng liên tục"
+            },
+            "sohRatio": {
+              "v": null,
+              "u": "ratio",
+              "p": "assumption",
+              "src": "chưa đo"
+            }
+          },
+          "attrs": {
+            "chemistry": "chưa rõ",
+            "condition": "pin cũ, chưa có số đo SoH"
+          },
+          "datasheet": null,
+          "review": "unreviewed",
+          "author": "catalog-seed",
+          "editedAt": "2026-11-19T00:00:00Z",
+          "derivedFrom": null,
+          "notes": "Báo giá dự án 16.000.000 đ. Dòng xả 100 A và SoH là giả định cho tới khi đo."
+        },
+        {
+          "schemaVersion": 1,
+          "modelId": "luxpower-sna6000wpv",
+          "revision": 1,
+          "sku": "SNA6000WPV",
+          "brand": "Luxpower",
+          "name": "Luxpower SNA6000WPV off-grid 6 kW",
+          "kind": "inverter",
+          "condition": "new",
+          "specs": {
+            "acRatedW": {
+              "v": 6000,
+              "u": "W",
+              "p": "manufacturer"
+            },
+            "pvMaxPowerW": {
+              "v": 9600,
+              "u": "W",
+              "p": "manufacturer",
+              "src": "4800/4800 mỗi MPPT"
+            },
+            "pvVocMaxV": {
+              "v": 480,
+              "u": "V",
+              "p": "manufacturer",
+              "src": "manual WPV: dải 100~480 V; datasheet SNA 3-6K chung ghi 500 V, dùng giá trị thấp hơn"
+            },
+            "pvStartV": {
+              "v": 100,
+              "u": "V",
+              "p": "manufacturer"
+            },
+            "mpptVminV": {
+              "v": 120,
+              "u": "V",
+              "p": "manufacturer"
+            },
+            "mpptVmaxV": {
+              "v": 385,
+              "u": "V",
+              "p": "manufacturer"
+            },
+            "mpptCount": {
+              "v": 2,
+              "u": "count",
+              "p": "manufacturer"
+            },
+            "pvImaxPerMpptA": {
+              "v": 17,
+              "u": "A",
+              "p": "manufacturer"
+            },
+            "pvIscMaxPerMpptA": {
+              "v": 25,
+              "u": "A",
+              "p": "manufacturer"
+            },
+            "batteryVminV": {
+              "v": 46.4,
+              "u": "V",
+              "p": "manufacturer",
+              "src": "pin Li-ion; chì-axit 38,4 V"
+            },
+            "batteryVmaxV": {
+              "v": 60,
+              "u": "V",
+              "p": "manufacturer"
+            },
+            "batteryMaxChargeA": {
+              "v": 140,
+              "u": "A",
+              "p": "manufacturer"
+            },
+            "batteryMaxDischargeA": {
+              "v": 140,
+              "u": "A",
+              "p": "manufacturer"
+            },
+            "efficiencyMax": {
+              "v": 0.93,
+              "u": "ratio",
+              "p": "manufacturer",
+              "src": "manual WPV: peak 93%; datasheet SNA 3-6K ghi 95,0%, dùng giá trị thấp hơn"
+            },
+            "surgeW": {
+              "v": 12000,
+              "u": "W",
+              "p": "manufacturer",
+              "src": "2 × công suất định mức trong 5 s (manual WPV §6)"
+            }
+          },
+          "attrs": {
+            "source": "SNA 3000-6000 WPV User Manual §6 Specifications; so chéo SNA 3-6K Datasheet 20260729",
+            "surge": "2 × công suất định mức trong 5 s"
+          },
+          "datasheet": {
+            "url": "SNA-3-6K-User-manual-English-OffGrid-Single-Phase-LuxpowerTek.pdf (SNA 3000-6000 WPV, 25.12.3)",
+            "page": 52,
+            "checkedAt": "2026-11-19"
+          },
+          "review": "unreviewed",
+          "author": "catalog-seed",
+          "editedAt": "2026-11-19T00:00:00Z",
+          "derivedFrom": null,
+          "notes": "Hai tài liệu của hãng lệch nhau ở Voc tối đa (480 vs 500 V) và hiệu suất (93 vs 95 %); lấy giá trị bảo thủ của manual đúng biến thể WPV. Dải pin 46,4–60 V áp dụng cho pin lithium."
+        },
+        {
+          "schemaVersion": 1,
+          "modelId": "sample-home-load",
+          "revision": 1,
+          "sku": "sample-home-load",
+          "brand": "Mẫu minh họa",
+          "name": "Tải sinh hoạt 300 W (tải mẫu)",
+          "kind": "load",
+          "condition": "new",
+          "specs": {
+            "powerW": {
+              "v": 300,
+              "u": "W",
+              "p": "assumption"
+            },
+            "powerFactor": {
+              "v": 0.9,
+              "u": "ratio",
+              "p": "assumption"
+            },
+            "startupW": {
+              "v": null,
+              "u": "W",
+              "p": "assumption"
+            }
+          },
+          "attrs": {
+            "source": "giả định thiết kế: thay bằng công suất sinh hoạt thật của hộ"
+          },
+          "datasheet": null,
+          "review": "unreviewed",
+          "author": "catalog-seed",
+          "editedAt": "2026-11-19T00:00:00Z",
+          "derivedFrom": null,
+          "notes": "Công suất trung bình giả định, chưa đo. Lịch dùng đặt ở bước Hệ thống."
+        },
+        {
+          "schemaVersion": 1,
+          "modelId": "sample-pump-load",
+          "revision": 1,
+          "sku": "sample-pump-load",
+          "brand": "Mẫu minh họa",
+          "name": "Bơm nước 750 W (tải mẫu)",
+          "kind": "load",
+          "condition": "new",
+          "specs": {
+            "powerW": {
+              "v": 750,
+              "u": "W",
+              "p": "assumption"
+            },
+            "powerFactor": {
+              "v": 0.8,
+              "u": "ratio",
+              "p": "assumption"
+            },
+            "startupW": {
+              "v": 2250,
+              "u": "W",
+              "p": "assumption",
+              "src": "giả định 3× công suất chạy"
+            }
+          },
+          "attrs": {
+            "source": "giả định thiết kế"
+          },
+          "datasheet": null,
+          "review": "unreviewed",
+          "author": "catalog-seed",
+          "editedAt": "2026-11-19T00:00:00Z",
+          "derivedFrom": null,
+          "notes": "Chưa có đường cong Q–H nên chỉ tính tải điện."
+        }
+      ],
+      "offers": [
+        {
+          "schemaVersion": 1,
+          "offerId": "off-lamha-vsun620",
+          "componentRef": {
+            "modelId": "vsun-620",
+            "revision": 1
+          },
+          "seller": "Kho (báo giá dự án)",
+          "recordedAt": null,
+          "region": null,
+          "priceMinor": "3200",
+          "currency": "VND",
+          "unit": "W",
+          "tiers": [],
+          "vat": "unknown",
+          "condition": "new",
+          "shippingMinor": null,
+          "warrantyMonths": null,
+          "validUntil": null,
+          "label": "báo giá dự án",
+          "notes": "3.200 đ/W; mua lẻ tại kho. Một tấm 620 W = 1.984.000 đ"
+        },
+        {
+          "schemaVersion": 1,
+          "offerId": "off-lamha-used-battery",
+          "componentRef": {
+            "modelId": "used-battery",
+            "revision": 1
+          },
+          "seller": "Người bán pin cũ (báo giá dự án)",
+          "recordedAt": null,
+          "region": null,
+          "priceMinor": "16000000",
+          "currency": "VND",
+          "unit": "piece",
+          "tiers": [],
+          "vat": "unknown",
+          "condition": "used",
+          "shippingMinor": null,
+          "warrantyMonths": null,
+          "validUntil": null,
+          "label": "báo giá dự án",
+          "notes": "Bộ pin cũ 51,2 V × 165 Ah"
+        }
+      ]
+    },
+    "strings": [
+      {
+        "stringId": "str-035fd3ea-9c6e-4898-bae0-0d728236effe",
+        "label": "Chuỗi 1",
+        "panelIds": [
+          "ins-8391f9b6-ecbb-4911-9dad-a9ed5ff66c7a",
+          "ins-5f62c1c4-f4e7-449c-8139-3c39cd737cfe",
+          "ins-cec0c183-f4b9-4712-8191-00469633f58d",
+          "ins-74c58902-6b80-417c-8326-473d40fa2602"
+        ],
+        "target": {
+          "instanceId": "ins-a8d625e5-b134-42a3-8435-fe42a64e8c90",
+          "port": "M1"
+        }
+      },
+      {
+        "stringId": "str-a9425e62-084b-4625-b602-2b05ce852717",
+        "label": "Chuỗi 2",
+        "panelIds": [
+          "ins-cf28b71d-77ad-4924-9c2b-201bd83e3119",
+          "ins-0e4dd05d-da68-473a-9bc1-a9498614e482",
+          "ins-e1a8f9cb-9187-4bc5-af28-9b7f425ac385",
+          "ins-16247f45-7dde-44db-a3ec-b0a803b9de5b"
+        ],
+        "target": {
+          "instanceId": "ins-a8d625e5-b134-42a3-8435-fe42a64e8c90",
+          "port": "M2"
+        }
+      }
+    ],
+    "loadPlans": [
+      {
+        "instanceId": "ins-d7d9536f-23b6-4c41-b3b4-3db93f76a369",
+        "fractions": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "priority": 1
+      },
+      {
+        "instanceId": "ins-00118605-5e17-4251-83f3-4b5afc43cb52",
+        "fractions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "priority": 2,
+        "pump": {
+          "staticHeadM": null,
+          "frictionK": null,
+          "curve": null
+        }
+      }
+    ],
+    "design": {
+      "coldCellTempC": 5,
+      "hotCellTempC": 70
+    },
+    "pv": {
+      "tiltDeg": 10,
+      "azimuthDeg": 180,
+      "weatherId": "lam-ha-2023-pvgis-era5"
+    },
+    "placements": [
+      {
+        "instanceId": "ins-8391f9b6-ecbb-4911-9dad-a9ed5ff66c7a",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229",
+        "center": [
+          0.867,
+          1.491
+        ],
+        "angleDeg": 0
+      },
+      {
+        "instanceId": "ins-5f62c1c4-f4e7-449c-8139-3c39cd737cfe",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229",
+        "center": [
+          2.021,
+          1.491
+        ],
+        "angleDeg": 0
+      },
+      {
+        "instanceId": "ins-cec0c183-f4b9-4712-8191-00469633f58d",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229",
+        "center": [
+          3.175,
+          1.491
+        ],
+        "angleDeg": 0
+      },
+      {
+        "instanceId": "ins-74c58902-6b80-417c-8326-473d40fa2602",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229",
+        "center": [
+          4.329,
+          1.491
+        ],
+        "angleDeg": 0
+      },
+      {
+        "instanceId": "ins-cf28b71d-77ad-4924-9c2b-201bd83e3119",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229",
+        "center": [
+          5.483,
+          1.491
+        ],
+        "angleDeg": 0
+      },
+      {
+        "instanceId": "ins-0e4dd05d-da68-473a-9bc1-a9498614e482",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229",
+        "center": [
+          6.637,
+          1.491
+        ],
+        "angleDeg": 0
+      },
+      {
+        "instanceId": "ins-e1a8f9cb-9187-4bc5-af28-9b7f425ac385",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229",
+        "center": [
+          7.7909999999999995,
+          1.491
+        ],
+        "angleDeg": 0
+      },
+      {
+        "instanceId": "ins-16247f45-7dde-44db-a3ec-b0a803b9de5b",
+        "roofFaceId": "roof-bc61684c-78aa-4b27-9d81-b49cb7640229",
+        "center": [
+          8.945,
+          1.491
+        ],
+        "angleDeg": 0
+      }
+    ],
+    "obstacles": [
+      {
+        "label": "Bồn nước",
+        "kind": "cylinder",
+        "roofFaceId": null,
+        "center": {
+          "e": 11,
+          "n": -1
+        },
+        "baseUp": 3,
+        "angleDeg": 0,
+        "size": {
+          "x": 1.3,
+          "y": 1.3,
+          "z": 2.5
+        },
+        "obstacleId": "obs-bbc19528-bc6d-4f11-98a8-9c7716a51fdd"
+      }
+    ],
+    "shade": {
+      "enabled": true,
+      "mode": "standard",
+      "grid": 4
+    }
+  }
+}
