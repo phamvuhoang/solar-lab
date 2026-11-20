@@ -167,9 +167,12 @@ test('W06: 40 tấm + 10 vật cản: cùng 40 ID, đo FPS; báo vượt biên t
 test('W12: Nhà mẫu với 40 tấm + 10 vật cản + thiết bị: đo FPS', async ({ page }) => {
   await page.goto('/#/mau');
   await tab(page, 'du-toan');
-  await page.locator('[data-device="vsun-620@1"]').getByLabel(/Số lượng/).fill('40');
-  await page.locator('[data-device="vsun-620@1"]').getByRole('button', { name: 'Cập nhật SL' }).click();
-  await expect(page.locator('#quote-known')).toContainText('79.360.000', { timeout: 15000 }); // 40 × 1.984.000; the sample's other prices are missing; the first edit of the sample also creates the project
+  // tab() can leave a second render of the panel in flight that resets the typed quantity: retry the (idempotent) edit until it lands
+  await expect(async () => {
+    await page.locator('[data-device="vsun-620@1"]').getByLabel(/Số lượng/).fill('40');
+    await page.locator('[data-device="vsun-620@1"]').getByRole('button', { name: 'Cập nhật SL' }).click();
+    await expect(page.locator('#quote-known')).toContainText('79.360.000', { timeout: 3000 }); // 40 × 1.984.000; the sample's other prices are missing
+  }).toPass({ timeout: 20000 });
   await tab(page, 'mai');
   await page.locator('#nr-w').fill('12,5');
   await page.locator('#nr-s').fill('10,5');

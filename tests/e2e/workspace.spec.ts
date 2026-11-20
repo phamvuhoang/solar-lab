@@ -177,3 +177,14 @@ test('Three.js đang tải: Mặt bằng trước; chế độ người dùng ch
   await page.locator('#view-mode-3d').click();
   await expect(page.locator('canvas[data-panels="8"]')).toBeVisible();
 });
+
+test('mất ngữ cảnh WebGL: nút 3D tắt, khung nhìn về Mặt bằng, có thông báo', async ({ page }) => {
+  await page.goto('/#/mau');
+  const view = page.locator('canvas[data-panels="8"]');
+  await expect(view).toBeVisible({ timeout: 20000 });
+  await expect(page.locator('#view-mode-3d')).toBeEnabled();
+  await view.evaluate((c) => { const gl = (c as HTMLCanvasElement).getContext('webgl2') ?? (c as HTMLCanvasElement).getContext('webgl'); gl!.getExtension('WEBGL_lose_context')!.loseContext(); });
+  await expect(page.locator('#webgl-fallback')).toBeVisible();
+  await expect(page.locator('#view-mode-3d')).toBeDisabled();
+  await expect(page.locator('#view-mode-plan')).toHaveAttribute('aria-pressed', 'true');
+});

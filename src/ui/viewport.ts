@@ -57,7 +57,7 @@ export function createViewport(host: ViewportHost): Viewport {
       fpsOut.textContent = `${f.toFixed(0)} FPS (${m.panels.length} tấm, ${m.obstacles.length} vật cản)${m.devices.length ? ` · ${m.devices.length} thiết bị` : ''}`;
     }), fpsOut,
     layerBox('roof', 'Mái'), layerBox('frame', 'Khung'), layerBox('panels', 'Tấm'), layerBox('wires', 'Đường nối'), layerBox('labels', 'Nhãn')),
-    h('p', { id: 'view-legend' }, '— AC · - - DC từ tấm · ··· DC pin/bơm · khung nét đứt = kích thước minh họa'));
+    h('p', { id: 'view-legend' }, 'Dây vẽ minh họa: — AC · - - DC từ tấm · ··· DC pin/bơm · khung nét đứt = kích thước minh họa'));
   const view2d = h('div', { id: 'view-2d' });
 
   /** Draws the shown mode; the 3D scene is kept current even behind a 2D mode, so switching back is instant. */
@@ -78,7 +78,7 @@ export function createViewport(host: ViewportHost): Viewport {
   }
   function setMode(m: ViewMode) { chosen = m; draw(); }
   /** WebGL failed or was lost: the 3D button is off and the view stays 2D; every screen keeps its tables. */
-  const fail = (m: string) => { api?.dispose(); api = null; why.textContent = m; fallback.hidden = false; modes['3d'].textContent = '3D'; draw(); };
+  const fail = (m: string) => { api?.dispose(); api = null; why.textContent = m; fallback.hidden = false; modes['3d'].textContent = '3D'; modes['3d'].disabled = true; draw(); };
 
   createThreeView(canvasHost, {
     onSelect: pick,
