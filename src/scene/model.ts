@@ -18,8 +18,8 @@ export interface SceneModel {
   issues: PlacementIssue[];
   /** Drawn boxes: pack size from the datasheet, everything else an illustrative default. Positions never enter a calculation. */
   devices: { instanceId: string; kind: 'inverter' | 'battery' | 'controller' | 'load'; label: string; center: V3; size: { x: number; y: number; z: number }; sizeSource: 'spec' | 'illustrative'; placed: boolean; status: 'fail' | 'limited' | null }[];
-  /** Conceptual wires; refId is a stringId or an edgeId. */
-  wires: { id: string; kind: 'dc-pv' | 'dc-bat' | 'dc-pump' | 'ac'; from: V3; to: V3; refId: string }[];
+  /** Conceptual wires; refId is a stringId or an edgeId; fromKind: what stands at `from` (an edge may be drawn either way). */
+  wires: { id: string; kind: 'dc-pv' | 'dc-bat' | 'dc-pump' | 'ac'; from: V3; to: V3; refId: string; fromKind: 'panel' | SceneModel['devices'][number]['kind'] }[];
   /** Illustration only: not computed by the engine, no numbers. */
   props: { kind: 'meter' | 'protection'; label: string; center: V3 }[];
 }
@@ -97,13 +97,13 @@ export function buildSceneModel(p: Project, findings: readonly Finding[] = []): 
   const dev = new Map(out.devices.map((d) => [d.instanceId, d]));
   for (const s of strings) {
     const last = out.panels.find((q) => q.instanceId === s.panelIds[s.panelIds.length - 1]), to = s.target && dev.get(s.target.instanceId);
-    if (last && to) out.wires.push({ id: `wire:${s.stringId}`, kind: 'dc-pv', from: { ...last.center }, to: { ...to.center }, refId: s.stringId });
+    if (last && to) out.wires.push({ id: `wire:${s.stringId}`, kind: 'dc-pv', from: { ...last.center }, to: { ...to.center }, refId: s.stringId, fromKind: 'panel' });
   }
   for (const e of p.edges) {
     const a = dev.get(e.from.instanceId), z = dev.get(e.to.instanceId), t = ix.port(e.from)?.type, u = ix.port(e.to)?.type;
     if (!a || !z) continue;
     const kind = t === 'battery-dc' || u === 'battery-dc' ? 'dc-bat' : t === 'pump-dc-out' || u === 'pump-dc-out' ? 'dc-pump' : t === 'ac-out' || u === 'ac-out' ? 'ac' : null;
-    if (kind) out.wires.push({ id: `wire:${e.edgeId}`, kind, from: { ...a.center }, to: { ...z.center }, refId: e.edgeId });
+    if (kind) out.wires.push({ id: `wire:${e.edgeId}`, kind, from: { ...a.center }, to: { ...z.center }, refId: e.edgeId, fromKind: a.kind });
   }
   const inv = out.devices.find((d) => d.kind === 'inverter');
   if (inv && simPolicyOf(p).gridAvailable) out.props.push({ kind: 'meter', label: 'Công tơ (minh họa)', center: { e: inv.center.e, n: inv.center.n + inv.size.y / 2 + 0.4, up: inv.center.up } });

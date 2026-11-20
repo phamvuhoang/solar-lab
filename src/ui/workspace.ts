@@ -168,6 +168,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const view = createViewport({
     project: () => project, selection: () => selection, apply: (next) => saved(next), selected: () => selected,
     setSelection: pick, select: (id) => pick([id]), remove: () => { void requestDelete(selection); },
+    replay: () => simState.runs.find((r) => r.source.kind === 'current')?.result ?? null,
   });
 
   // ---- "Đang chọn" on top of the panel; kept while project and selection stay, so an open preview survives other repaints ----
@@ -347,6 +348,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
         loadRevision: (n) => repo.loadRevision(project.projectId, n), loadWeather,
         apply: saved,
         state: simState, rerender: () => { void again(); }, go,
+        onReplayStep: (st) => { if (tab === 'he-thong') view.setReplay(st); }, // a late render must not paint flows over another tab
       });
     },
     'du-toan': async () => {
@@ -403,6 +405,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     if (t !== tab) {
       insp = null; // user-made models may have changed: "Đổi model" lists them
       if (tab === 'bong') { stopShadePlayback(); view.setOverlay({ sun: null, heat: null }); }
+      if (tab === 'he-thong') view.setReplay(null); // the replay's sun and flows belong to the system screen
       if (tab === 'du-an') recordedOpen = false;
       panel.replaceChildren(); // never show the previous tab's controls under the new tab
     }

@@ -99,3 +99,27 @@ test('W05: cấu hình B (6+2) bơm DC: thiếu đường cong thì ghi thiếu,
   await page.locator('#sim-run').click();
   await expect(page.locator('#sim-table tbody tr', { hasText: 'Bơm: thể tích' })).toContainText(/Bơm nước 750 W \(tải mẫu\): [\d.]+ m³/, { timeout: 30000 });
 });
+
+test('W13: kéo thanh phát lại → mũi tên công suất và Mặt Trời trên hình, số có "kW"; rời màn thì tắt', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/#/mau');
+  await page.locator('#coach-skip').click();
+  await expect(page.locator('#health-pv')).toHaveAttribute('data-state', 'pass', { timeout: 60_000 }); // the automatic run of the sample
+  await tab(page, 'he-thong');
+  await expect(page.locator('#sim-result')).toBeVisible({ timeout: 30000 });
+  const canvas = page.locator('#ws-view canvas');
+  await expect(canvas).toBeVisible({ timeout: 20000 });
+
+  await page.locator('#replay-slider').fill('4325'); // 12h giờ địa phương, cuối tháng 6
+  await expect.poll(async () => canvas.getAttribute('data-flows')).toMatch(/^\[\{"wireId":"wire:/);
+  const flows = JSON.parse((await canvas.getAttribute('data-flows'))!) as { wireId: string; w: number; dir: number }[];
+  expect(flows.some((f) => f.w > 0)).toBe(true);
+  await expect(page.locator('#view-flows')).toContainText('PV vào inverter');
+  await expect(page.locator('#view-flows')).toContainText('kW');
+  expect(await canvas.getAttribute('data-sun')).toMatch(/^\[/); // cùng con trỏ thời gian đặt Mặt Trời
+
+  await tab(page, 'pv');
+  await expect.poll(async () => canvas.getAttribute('data-flows')).toBe('');
+  expect(await canvas.getAttribute('data-sun')).toBe('');
+  await expect(page.locator('#view-flows')).toBeHidden();
+});

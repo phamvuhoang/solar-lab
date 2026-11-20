@@ -2,8 +2,11 @@ import { renderDiagram } from '../diagrams/editor';
 import { renderFacePlan, type PlanHandlers } from '../diagrams/roof-plan';
 import { movePanels, removePlacements, rotate90 } from '../domain/layout-edit';
 import type { Project } from '../domain/types';
+import type { SimResult } from '../engine/system';
+import { flowsAt } from '../scene/flows';
 import { buildSceneModel, type SceneModel } from '../scene/model';
 import { ALL_LAYERS, createThreeView, WebGLUnavailable, type Layers, type Overlay, type ViewApi } from '../scene/three-view';
+import { sunVector } from '../shade/geometry';
 import { validateDesign } from '../validation/strings';
 import { h } from './dom';
 
@@ -14,8 +17,11 @@ export interface ViewportHost {
   selected(): string | null; select(id: string): void;
   /** The Delete key on the 3D view with a device (any non-panel item) selected: preview removing what is selected. */
   remove(): void;
+  /** The run of the current design that the system screen's replay shows. */
+  replay(): SimResult | null;
 }
-export interface Viewport { el: HTMLElement; refresh(): void; setOverlay(o: Overlay): void; setMode(m: ViewMode): void; dispose(): void }
+/** setReplay: the replay's time cursor (null = off) sets the sun and the power on each wire, with the numbers as text under the view. */
+export interface Viewport { el: HTMLElement; refresh(): void; setOverlay(o: Overlay): void; setReplay(step: number | null): void; setMode(m: ViewMode): void; dispose(): void }
 
 let chosen: ViewMode | null = null; // the mode the person picked: kept for the session, across projects
 
@@ -27,6 +33,7 @@ let chosen: ViewMode | null = null; // the mode the person picked: kept for the 
 export function createViewport(host: ViewportHost): Viewport {
   let api: ViewApi | null = null, disposed = false, layers: Layers = ALL_LAYERS, overlay: Overlay = { sun: null, heat: null };
   let drawn: { project: Project; key: string; model: SceneModel } | null = null; // what the view shows now
+  let replayStep: number | null = null;
 
   const shown = (): ViewMode => (chosen && (chosen !== '3d' || api) ? chosen : api ? '3d' : host.project().roofFaces.length ? 'plan' : 'diagram');
   const key = () => `${shown()}|${host.selection().join(',')}|${host.selected() ?? ''}`;
@@ -68,6 +75,13 @@ export function createViewport(host: ViewportHost): Viewport {
     layerBox('roof', 'Mái'), layerBox('frame', 'Khung'), layerBox('panels', 'Tấm'), layerBox('wires', 'Đường nối'), layerBox('labels', 'Nhãn')),
     h('p', { id: 'view-legend' }, 'Dây vẽ minh họa: — AC · - - DC từ tấm · ··· DC pin/bơm · khung nét đứt = kích thước minh họa'));
   const view2d = h('div', { id: 'view-2d' });
+  const flowText = h('p', { id: 'view-flows', hidden: true });
+  /** Flows follow the model drawn now (wires move with devices); the text shows in every mode, also without WebGL. */
+  const paintFlows = () => {
+    const r = replayStep === null ? null : host.replay(), at = r && drawn ? flowsAt(drawn.model, r, replayStep!) : null;
+    api?.setFlows(at?.flows ?? []);
+    flowText.hidden = !at; flowText.textContent = at ? `Bước đang phát lại: ${at.text.join(' · ')}` : '';
+  };
 
   /** Draws the shown mode; the 3D scene is kept current even behind a 2D mode, so switching back is instant. */
   function draw() {
@@ -84,6 +98,7 @@ export function createViewport(host: ViewportHost): Viewport {
       if (focused) view2d.querySelector<SVGElement>(`[data-id="${CSS.escape(focused)}"]`)?.focus(); // keyboard nudges keep their place
     } else view2d.replaceChildren();
     drawn = { project, key: key(), model };
+    if (replayStep !== null) paintFlows();
   }
   function setMode(m: ViewMode) { chosen = m; draw(); }
   /** WebGL failed or was lost: the 3D button is off and the view stays 2D; every screen keeps its tables. */
@@ -104,7 +119,7 @@ export function createViewport(host: ViewportHost): Viewport {
     .catch((e) => { if (!disposed) fail(e instanceof WebGLUnavailable ? e.message : String(e)); });
 
   const el = h('section', { id: 'ws-view', 'aria-label': 'Khung nhìn' },
-    h('div', { className: 'view-modes', role: 'group', 'aria-label': 'Chế độ khung nhìn' }, modes['3d'], modes.diagram, modes.plan), fallback, box3d, view2d);
+    h('div', { className: 'view-modes', role: 'group', 'aria-label': 'Chế độ khung nhìn' }, modes['3d'], modes.diagram, modes.plan), fallback, box3d, view2d, flowText);
   return {
     el,
     refresh() {
@@ -112,6 +127,13 @@ export function createViewport(host: ViewportHost): Viewport {
       if (!drawn || drawn.project !== host.project() || drawn.key !== key()) draw(); // same project, selection and mode: nothing to redraw
     },
     setOverlay(o) { overlay = o; api?.setOverlay(o); },
+    setReplay(step) {
+      if (step === null && replayStep === null) return;
+      replayStep = step;
+      const r = step === null ? null : host.replay(), sv = r ? sunVector(r.pv.series.azimuthDeg[step!], r.pv.series.zenithDeg[step!]) : null; // the engine's own sun for that step
+      overlay = { sun: sv && { e: sv[0], n: sv[1], up: sv[2] }, heat: null }; api?.setOverlay(overlay);
+      paintFlows();
+    },
     setMode,
     dispose() { disposed = true; api?.dispose(); api = null; },
   };

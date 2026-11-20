@@ -31,6 +31,8 @@ export interface SimCtx {
   project: Project; components: Component[]; offers: Offer[]; revisions: { revision: number; savedAt: string }[];
   loadRevision(n: number): Promise<Project | undefined>; loadWeather(id: string): Promise<WeatherSeries | undefined>;
   apply(next: Project): Promise<void>; state: SimState; rerender(): void; go(tab: Tab): void;
+  /** The replay's time cursor on the shared view: sun and power flows of that step of the current design's run; null = none shown. */
+  onReplayStep(step: number | null): void;
 }
 
 const pct = (x: number | null) => (x === null ? '—' : (x * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' %');
@@ -63,6 +65,7 @@ export async function renderSim(ctx: SimCtx): Promise<Node[]> {
     if (pa && pb) cost = compareQuotes(buildQuote(pa), buildQuote(pb));
   }
 
+  if (!runs.length || !weather) ctx.onReplayStep(null);
   return [
     h('h2', {}, `Hệ thống: pin, tải, bơm · ${p.name}`), h('button', { onClick: () => ctx.go('pv') }, 'Thời tiết và PV'), msg,
     h('p', { id: 'sim-weather' }, weather ? `Dữ liệu: ${weather.name} (${weather.source.period ?? 'không rõ năm'}) · ${weather.source.name}` : 'Chưa chọn dữ liệu thời tiết: vào "Thời tiết và PV" để chọn và khai độ nghiêng/hướng.'),
@@ -283,7 +286,11 @@ function replay(ctx: SimCtx, cols: Run[], step: number, tz: string): HTMLElement
   const note = h('span', { id: 'replay-note', role: 'status' });
   const alertNone = (label: string) => { note.textContent = `Không có bước nào cho "${label}" trong dữ liệu này.`; };
   const slider = h('input', { type: 'range', id: 'replay-slider', min: 0, max: n - 1, value: step, 'aria-label': 'Bước thời gian', style: 'width:100%' });
+  // the view shows the run of the design it draws; a revision's run (A) would put its numbers on wires it may not have
+  const cursor = (i: number) => ctx.onReplayStep(run.source.kind === 'current' ? i : null);
+  slider.addEventListener('input', () => cursor(Number(slider.value))); // the view follows while dragging; the panel on release
   slider.addEventListener('change', () => go(Number(slider.value)));
+  cursor(step);
   const date = localDate(s.t[step] + d.period.stepSeconds / 2, tz);
   const idx = s.t.map((t, i) => (localDate(t + d.period.stepSeconds / 2, tz) === date ? i : -1)).filter((i) => i >= 0);
   const xs = idx.map((i) => localHour(s.t[i], tz) + (((s.t[i] % 3600) + 3600) % 3600) / 3600), pick = (a: number[], k = 1 / dt) => idx.map((i) => a[i] * k);

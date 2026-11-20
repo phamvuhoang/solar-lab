@@ -1,5 +1,6 @@
 import type { Group, Object3D, Sprite } from 'three';
 import { enuToThree, type V3 } from '../domain/roof';
+import type { Flow } from './flows';
 import type { SceneModel } from './model';
 
 export interface Layers { roof: boolean; frame: boolean; panels: boolean; wires: boolean; labels: boolean }
@@ -34,6 +35,8 @@ export interface Overlay { sun: V3 | null; heat: ReadonlyMap<string, number> | n
 export interface ViewApi {
   canvas: HTMLCanvasElement;
   setOverlay(o: Overlay): void;
+  /** Replay: one cone per wire at its middle, pointing the way power goes, size ∝ √W; [] clears. Static: nothing animates. */
+  setFlows(flows: Flow[]): void;
   update(model: SceneModel, selection: ReadonlySet<string>, layers: Layers): void;
   setCamera(kind: 'overview' | 'top'): void;
   /** Frames per second while the camera orbits, measured over `ms`. */
@@ -80,7 +83,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   const content: Group = new THREE.Group();
   scene.add(content);
 
-  let model: SceneModel | null = null, selection: ReadonlySet<string> = new Set(), layers: Layers = ALL_LAYERS, overlay: Overlay = { sun: null, heat: null };
+  let model: SceneModel | null = null, selection: ReadonlySet<string> = new Set(), layers: Layers = ALL_LAYERS, overlay: Overlay = { sun: null, heat: null }, flows: Flow[] = [];
   let frame = 0, disposed = false, fitted: boolean | null = null; // null: never framed; false: framed an empty scene; true: framed a roof
   const need = () => { if (!frame && !disposed) frame = requestAnimationFrame(() => { frame = 0; renderer.render(scene, camera); }); };
   controls.addEventListener('change', need);
@@ -192,6 +195,16 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
       const line = new THREE.Line(geo, track(st.dash ? new THREE.LineDashedMaterial({ color: st.color, dashSize: st.dash[0], gapSize: st.dash[1] }) : new THREE.LineBasicMaterial({ color: st.color })));
       line.computeLineDistances();
       content.add(line);
+    }
+    if (layers.wires) for (const f of flows) {
+      const w = m.wires.find((x) => x.id === f.wireId);
+      if (!w || f.w < 1) continue; // no power, no arrow; the number is still in the text under the view
+      const a = to3(f.dir === 1 ? w.from : w.to), d = to3(f.dir === 1 ? w.to : w.from).sub(a), rad = 0.25 * Math.sqrt(f.w / 1000);
+      if (d.length() < 1e-6) continue;
+      const cone = new THREE.Mesh(track(new THREE.ConeGeometry(rad, rad * 3, 16)), track(new THREE.MeshBasicMaterial({ color: WIRE_STYLE[w.kind].color })));
+      cone.position.copy(a).addScaledVector(d, 0.5);
+      cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+      content.add(cone);
     }
     const tag = Math.max(0.6, Math.min(1.6, r * 0.11)), short = (t: string) => (t.length > 28 ? t.slice(0, 27) + '…' : t); // full names are in the diagram
     let floor = -Infinity; // device labels stand on a ladder with a leader line each, so neighbours on the wall never cover each other
@@ -305,6 +318,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
     canvas.dataset.devicePos = pos(model.devices);
     canvas.dataset.props = model.props.map((x) => x.label).join(',');
     canvas.dataset.sun = overlay.sun ? JSON.stringify([overlay.sun.e, overlay.sun.n, overlay.sun.up].map((x) => +x.toFixed(3))) : '';
+    canvas.dataset.flows = flows.length ? JSON.stringify(flows.map((f) => ({ ...f, w: Math.round(f.w) }))) : '';
     canvas.dataset.heat = overlay.heat ? JSON.stringify(Object.fromEntries([...overlay.heat].map(([k, v]) => [k, +v.toFixed(3)]))) : '';
     canvas.dataset.damping = String(controls.enableDamping);
     canvas.dataset.camera = JSON.stringify({ pos: camera.position.toArray().map((x) => +x.toFixed(2)), target: controls.target.toArray().map((x) => +x.toFixed(2)), aspect: +camera.aspect.toFixed(2), fov: camera.fov });
@@ -326,6 +340,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
       publish();
     },
     setOverlay(o) { overlay = o; rebuild(); publish(); },
+    setFlows(f) { if (!f.length && !flows.length) return; flows = f; rebuild(); publish(); },
     setCamera: fit,
     fps(ms) {
       return new Promise((resolve) => {
