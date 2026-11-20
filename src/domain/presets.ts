@@ -1,5 +1,6 @@
-import { addEdge, addString, dropInstances, indexProject, suggestGrouping, stringsOf, type PortRef } from './graph';
+import { addEdge, addString, dropInstances, indexProject, portsOf, suggestGrouping, stringsOf, unassignedPanels, type PortRef } from './graph';
 import { addInstances } from './project';
+import { fillFace } from './layout-edit';
 import { refKey, type Component, type Offer, type Project } from './types';
 
 export type PresetKind = 'one-string' | 'two-strings-one-tracker' | 'two-trackers';
@@ -81,6 +82,45 @@ export function addPanelBatch(p: Project, panel: Component, n: number, invComp: 
     at += size;
   });
   return next;
+}
+
+/** Strings on this inverter made only of `modelKey` panels, plus unassigned panels of that model, re-split by proposeStrings over the MPPT ports no other string uses. Series order kept (existing strings in order, then unassigned in instance order). Throws NO_INVERTER, NO_FREE_MPPT. */
+export function restringPanels(p: Project, inverterId: string, modelKey: string): Project {
+  const ix = indexProject(p), inv = ix.inst.get(inverterId);
+  if (!inv || inv.inst.kind !== 'inverter') throw new Error('NO_INVERTER');
+  const isModel = (id: string) => { const r = ix.inst.get(id)?.inst.componentRef; return !!r && refKey(r) === modelKey; };
+  const mine = stringsOf(p).filter((s) => s.target?.instanceId === inverterId && s.panelIds.length > 0 && s.panelIds.every(isModel));
+  const mineIds = new Set(mine.map((s) => s.stringId));
+  const taken = new Set(stringsOf(p).filter((s) => !mineIds.has(s.stringId) && s.target?.instanceId === inverterId).map((s) => s.target!.port));
+  const free = portsOf(inv.inst, inv.comp).filter((x) => x.type === 'mppt-in' && !taken.has(x.id));
+  if (!free.length) throw new Error('NO_FREE_MPPT');
+  const ids = [...mine.flatMap((s) => s.panelIds), ...unassignedPanels(p).filter(isModel)];
+  if (!ids.length) return p;
+  const panel = ix.inst.get(ids[0])?.comp;
+  // ponytail: free-port trick - proposeStrings sees an inverter copy with mpptCount = free ports, so its per-tracker power cap is also divided by the free count
+  const probe = inv.comp && structuredClone(inv.comp);
+  if (probe) probe.specs.mpptCount = { ...(probe.specs.mpptCount ?? { u: '', p: 'assumption' }), v: free.length };
+  let next: Project = { ...structuredClone(p), strings: stringsOf(p).filter((s) => !mineIds.has(s.stringId)) };
+  let at = 0;
+  (panel ? proposeStrings(ids.length, panel, probe) : suggestGrouping(ids.length, free.length)).forEach((size, i) => {
+    next = addString(next, { panelIds: ids.slice(at, at + size), target: { instanceId: inverterId, port: free[i].id } });
+    at += size;
+  });
+  return next;
+}
+
+/** Bảng Thêm "Tấm pin": addInstances, restring trên inverter đầu tiên (nếu có), đặt tấm mới lên mặt mái còn chỗ (mặt đang có tấm cùng model trước). */
+export function addPanels(p: Project, panel: Component, n: number, offers: readonly Offer[] = []): { project: Project; left: number } {
+  const old = new Set(p.instances.map((i) => i.instanceId));
+  let next = addInstances(p, panel, n, offers);
+  const added = next.instances.filter((i) => !old.has(i.instanceId)).map((i) => i.instanceId);
+  const inv = firstOf(next, 'inverter');
+  if (inv) next = restringPanels(next, inv.instanceId, refKey(panel));
+  const sameModel = new Set((next.placements ?? []).filter((x) => { const r = next.instances.find((i) => i.instanceId === x.instanceId)?.componentRef; return !!r && refKey(r) === refKey(panel); }).map((x) => x.roofFaceId));
+  const faces = [...next.roofFaces].sort((a, b) => Number(sameModel.has(b.roofFaceId)) - Number(sameModel.has(a.roofFaceId)));
+  let todo = added;
+  for (const f of faces) { if (!todo.length) break; const r = fillFace(next, f.roofFaceId, todo); next = r.project; todo = r.left; }
+  return { project: next, left: todo.length };
 }
 
 export type LamHaConfig = 'shared8' | 'split6+2';
