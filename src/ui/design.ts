@@ -5,13 +5,14 @@ import { refKey, type Component, type Offer, type Project } from '../domain/type
 import { parseNumber, parseQuantity } from '../domain/units';
 import { designOf, validateDesign, type Finding } from '../validation/strings';
 import { h } from './dom';
+import type { Tab } from './route';
 
 export interface DesignCtx {
   project: Project; components: Component[]; offers: Offer[]; selected: string | null;
   /** focusIds: element ids to try, in order, once the screen has re-rendered. */
   select(id: string | null, focusIds?: string[]): void; apply(next: Project): Promise<void>;
-  history: { canUndo: boolean; canRedo: boolean; undo(): void; redo(): void }; back(): void;
-  openRoof(): void;
+  history: { canUndo: boolean; canRedo: boolean; undo(): void; redo(): void };
+  go(tab: Tab): void;
 }
 
 const STATUS_LABEL = { pass: 'đạt', fail: 'không đạt', limited: 'bị giới hạn công suất', unknown: 'chưa đủ dữ liệu' } as const;
@@ -46,7 +47,7 @@ export function renderDesign(ctx: DesignCtx): Node[] {
   return [
     h('h2', {}, `Thiết kế · ${p.name}`),
     h('div', {}, h('button', { id: 'undo', disabled: !ctx.history.canUndo, onClick: ctx.history.undo }, 'Hoàn tác'), h('button', { id: 'redo', disabled: !ctx.history.canRedo, onClick: ctx.history.redo }, 'Làm lại'),
-      h('button', { onClick: ctx.back }, 'Quay lại dự án'), h('button', { id: 'open-roof', onClick: ctx.openRoof }, ctx.selected && p.strings?.some((x) => x.stringId === ctx.selected) ? 'Xem chuỗi đang chọn trên mái 3D' : 'Mái nhà 3D')),
+      h('button', { id: 'open-roof', onClick: () => ctx.go('mai') }, ctx.selected && p.strings?.some((x) => x.stringId === ctx.selected) ? 'Xem chuỗi đang chọn trên mái 3D' : 'Mái nhà 3D')),
     msg,
     renderDiagram(p, findings, ctx.selected, (id) => ctx.select(id)),
     h('h3', {}, 'Kiểm tra điện'),

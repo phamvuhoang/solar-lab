@@ -39,7 +39,7 @@ test('W08 bài 2: đoán sai vẫn được giải thích; bảng số thay cho 
   await expect(page.locator('#ls-result svg')).toBeVisible();
   await page.locator('#ls-tables summary').click();
   await expect(page.locator('#ls-tables')).toContainText('ngày 1, 12h');
-  await page.getByRole('button', { name: 'Về danh sách' }).click();
+  await page.locator('#ls-back').click();
   await expect(page.locator('#saved')).toHaveCount(0); // bài học không lưu dự án
 });
 

@@ -1,18 +1,18 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { ENGINE_VERSION } from '../../src/engine/pv';
+import { tab } from './nav';
 
 const pick = async (select: Locator, text: RegExp) => select.selectOption((await select.locator('option', { hasText: text }).first().getAttribute('value')) as string);
 
 test('W04: chọn dataset → khai hướng → chạy PV trong worker → công suất, nguồn, CSV; đổi thiết lập thì kết quả cũ không còn hiển thị', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#design-btn').click();
+  await tab(page, 'thiet-ke');
   await page.locator('#preset').selectOption('two-trackers');
   await page.locator('#apply-preset').click();
   await expect(page.locator('#status')).toContainText('Đã lưu: revision 2');
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
 
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);
   await expect(page.locator('#wx-info')).toContainText('PVGIS (PVGIS-ERA5');
@@ -60,7 +60,7 @@ test('W04: chọn dataset → khai hướng → chạy PV trong worker → công
 test('W04: nhập CSV sai báo đúng dòng và giữ nguyên lựa chọn; nhập CSV đúng thì dùng được', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   const meta = '# latitude: 11.87\n# longitude: 108.2\n# source: thử\n# method: synthetic\n# timestamp_convention: start\n# step_seconds: 3600\n';
   const head = 'timestamp_utc,ghi_wm2,dni_wm2,dhi_wm2,temp_air_c,wind_ms\n';
   const bad = meta + head + '2023-06-01T00:00:00Z,0,0,0,20,1\n2023-06-01T01:00:00Z,0,0,0,20,1\n2023-06-01T01:00:00Z,0,0,0,20,1\n';

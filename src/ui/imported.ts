@@ -8,7 +8,7 @@ import { h } from './dom';
 
 export interface ImportedState { outcomes: Map<string, ReplayOutcome>; busy: boolean }
 export const freshImported = (): ImportedState => ({ outcomes: new Map(), busy: false });
-export interface ImportedCtx { project: Project; recorded: RecordedSet; loadWeather(id: string): Promise<WeatherSeries | undefined>; state: ImportedState; rerender(): void; open(): void; back(): void }
+export interface ImportedCtx { project: Project; recorded: RecordedSet; loadWeather(id: string): Promise<WeatherSeries | undefined>; state: ImportedState; rerender(): void; open(): void; back?(): void }
 
 const STATUS_TEXT: Record<ReplayStatus, string> = {
   reproduced: 'Tái lập đúng (cùng engine, cùng mã đầu vào, mọi chỉ số trùng)',
@@ -47,7 +47,7 @@ export async function renderImported(ctx: ImportedCtx): Promise<Node[]> {
     st.busy = false; ctx.rerender();
   });
   return [
-    h('h2', {}, `Gói đã nhập · ${p.name}`), h('button', { id: 'im-open', onClick: ctx.open }, 'Mở dự án'), h('button', { onClick: ctx.back }, 'Về danh sách'),
+    h('h2', {}, `Gói đã nhập · ${p.name}`), h('button', { id: 'im-open', onClick: ctx.open }, 'Mở dự án'), ctx.back && h('button', { onClick: ctx.back }, 'Về danh sách'),
     h('p', { id: 'im-meta' }, `Gói ${rec.kind === 'full' ? 'đầy đủ' : 'báo cáo'} xuất ${rec.exportedAt.slice(0, 19).replace('T', ' ')} bởi build ${rec.app.buildId} (engine ${rec.app.engines.pv} · ${rec.app.engines.dispatch} · ${rec.app.engines.shade}); nhập ${rec.importedAt.slice(0, 19).replace('T', ' ')}.`),
     h('p', { id: 'im-weather' }, rec.weatherRef ? `Thời tiết: ${rec.weatherRef.name} (${rec.weatherRef.n} bước, mã ${rec.weatherRef.contentHash.slice(0, 12)}) — ${weather ? 'có sẵn trong máy này' : 'CHƯA có trong máy này, nên chưa chạy lại được'}.` : 'Gói không nói tới dữ liệu thời tiết.'),
     h('p', {}, 'Cột "Đã ghi" là số liệu nằm trong gói, giữ nguyên như lúc xuất. Cột "Chạy lại" là kết quả mới tính trên máy này; hai phần không bao giờ ghi đè nhau.'),

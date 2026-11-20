@@ -16,7 +16,7 @@ const REASON = { NO_OFFER: 'chưa chọn báo giá', NO_PRICE: 'báo giá "liên
 export interface QuoteCtx {
   project: Project; offers: Offer[]; revisions: { revision: number }[];
   loadRevision(n: number): Promise<Project | undefined>; saveOffer(o: Offer): Promise<void>;
-  apply(next: Project): Promise<void>; back(): void;
+  apply(next: Project): Promise<void>;
   /** Quote line keys (design:model@rev) of the panels selected elsewhere; their rows are highlighted. */
   selectedKeys?: string[];
 }
@@ -74,7 +74,6 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
     h('h3', {}, 'Thêm dòng bổ sung'), extraForm(ctx, fail),
     h('h3', {}, 'So sánh A/B với revision cũ'), compare(ctx, q),
     h('button', { id: 'export-csv', onClick: () => download(`${p.name}-du-toan.csv`, quoteToCsv(q, p.name), 'text/csv;charset=utf-8') }, 'Xuất CSV'),
-    h('button', { onClick: ctx.back }, 'Quay lại dự án'),
   ].filter(Boolean) as Node[];
 }
 

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { tab } from './nav';
 
 const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đã lưu: revision');
 const rev = async (page: Page) => Number(((await page.locator('#status').textContent()) ?? '').match(/revision (\d+)/)?.[1] ?? 0);
@@ -13,7 +14,7 @@ const cell = (page: Page, id: string, col: number) => page.locator(`#panel-table
 async function openRoof(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#roof-btn').click();
+  await tab(page, 'mai');
   await page.locator('#add-demo-roof').click();
   await saved(page);
   await page.locator('#fill-face').click();
@@ -84,9 +85,8 @@ test('W06: bàn phím trên mặt bằng, dịch bằng nút, bỏ chọn; layou
   await expect(page.locator('#panel-table tr[aria-selected="true"]')).toHaveCount(0);
 
   const savedA = await cell(page, id, 3).textContent();
-  await page.reload();
-  await page.getByRole('button', { name: /^Mở: Lâm Hà/ }).click();
-  await page.locator('#roof-btn').click();
+  await page.reload(); // the address keeps the project and tab open
+  await tab(page, 'mai');
   await expect(page.locator('#place-tools')).toContainText('Đã đặt 8/8');
   expect(await cell(page, id, 3).textContent()).toBe(savedA);
 });
@@ -111,20 +111,18 @@ test('W06: chọn đồng bộ giữa sơ đồ điện, mái 3D và BOM; chuỗ
   await expect(page.locator('svg.diagram g.node.selected')).toContainText('Chuỗi 2');
   // BOM: dòng thiết bị của tấm đang chọn được tô sáng
   await page.locator('#open-roof').click();
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.getByRole('button', { name: 'Dự toán' }).click();
+  await tab(page, 'du-toan');
   await expect(page.locator('#quote-table tr[data-key="design:vsun-620@1"]')).toHaveAttribute('aria-selected', 'true');
 });
 
 test('W06: 40 tấm + 10 vật cản: cùng 40 ID, đo FPS; báo vượt biên trên mái lõm và vùng loại trừ', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.getByRole('button', { name: 'Dự toán' }).click();
+  await tab(page, 'du-toan');
   await page.locator('[data-device="vsun-620@1"]').getByLabel(/Số lượng/).fill('40');
   await page.locator('[data-device="vsun-620@1"]').getByRole('button', { name: 'Cập nhật SL' }).click();
   await expect(page.locator('#quote-known')).toContainText('95.360.000'); // 40 × 1.984.000 + pin cũ 16.000.000
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#roof-btn').click();
+  await tab(page, 'mai');
   await page.locator('#nr-w').fill('12,5');
   await page.locator('#nr-s').fill('10,5');
   await page.locator('#nr-t').fill('15');
@@ -196,8 +194,7 @@ test('W06: xoay camera và dịch tấm trong cùng mặt mái không làm kết
   await page.locator('#preset').selectOption('two-trackers');
   await page.locator('#apply-preset').click();
   await expect(page.locator('#status')).toContainText('Đã lưu: revision');
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await page.locator('#wx-select').selectOption({ index: 1 });
   await saved(page);
   // không khai độ nghiêng/hướng của dự án: mọi chuỗi đã nằm trên mặt mái nên lấy hướng từ mái
@@ -206,8 +203,7 @@ test('W06: xoay camera và dịch tấm trong cùng mặt mái không làm kết
   await expect(page.locator('#pv-result')).toBeVisible({ timeout: 20000 });
   await expect(page.locator('#pv-result')).toContainText('nghiêng 10°, azimuth 180°');
 
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#roof-btn').click();
+  await tab(page, 'mai');
   await expect(canvas(page)).toBeVisible({ timeout: 20000 });
   await expect.poll(async () => canvas(page).getAttribute('data-panels')).toBe('8');
   const cam0 = await canvas(page).getAttribute('data-camera');
@@ -226,8 +222,7 @@ test('W06: xoay camera và dịch tấm trong cùng mặt mái không làm kết
   await page.locator('#nudge-right').click();
   await expect.poll(() => rev(page)).toBeGreaterThan(before); // đã ghi revision layout mới
 
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await expect(page.locator('#pv-result')).toBeVisible(); // kết quả cũ vẫn khớp đầu vào
   await expect(page.locator('#stale-result')).toHaveCount(0);
 });

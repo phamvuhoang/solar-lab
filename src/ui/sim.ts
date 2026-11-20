@@ -12,6 +12,7 @@ import { localDate, localHour, type WeatherSeries } from '../weather/series';
 import { runSimInWorker } from '../worker/client';
 import { shadeFor } from '../shade/usage';
 import { download, h } from './dom';
+import type { Tab } from './route';
 
 export const REASON_VI: Record<Reason, string> = {
   PV_TO_LOAD: 'PV cấp thẳng cho tải', BATTERY_CHARGE: 'Sạc pin từ PV dư', BATTERY_DISCHARGE: 'Pin cấp cho tải', BATTERY_FULL: 'Pin đầy, không sạc thêm', RESERVE_REACHED: 'Pin chạm mức dự phòng, không cấp thêm',
@@ -27,7 +28,7 @@ export interface SimState { runs: Run[]; side: 0 | 1; step: number; progress: Re
 export interface SimCtx {
   project: Project; components: Component[]; offers: Offer[]; revisions: { revision: number; savedAt: string }[];
   loadRevision(n: number): Promise<Project | undefined>; loadWeather(id: string): Promise<WeatherSeries | undefined>;
-  apply(next: Project): Promise<void>; state: SimState; rerender(): void; back(): void; goPv(): void;
+  apply(next: Project): Promise<void>; state: SimState; rerender(): void; go(tab: Tab): void;
 }
 
 const pct = (x: number | null) => (x === null ? '—' : (x * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' %');
@@ -62,7 +63,7 @@ export async function renderSim(ctx: SimCtx): Promise<Node[]> {
   }
 
   return [
-    h('h2', {}, `Hệ thống: pin, tải, bơm · ${p.name}`), h('button', { onClick: ctx.back }, 'Quay lại dự án'), h('button', { onClick: ctx.goPv }, 'Thời tiết và PV'), msg,
+    h('h2', {}, `Hệ thống: pin, tải, bơm · ${p.name}`), h('button', { onClick: () => ctx.go('pv') }, 'Thời tiết và PV'), msg,
     h('p', { id: 'sim-weather' }, weather ? `Dữ liệu: ${weather.name} (${weather.source.period ?? 'không rõ năm'}) · ${weather.source.name}` : 'Chưa chọn dữ liệu thời tiết: vào "Thời tiết và PV" để chọn và khai độ nghiêng/hướng.'),
     h('h3', {}, '1. Cấu hình mẫu Lâm Hà'), configButtons(ctx, say),
     h('h3', {}, '2. Chính sách điều phối'), policyForm(ctx, say),

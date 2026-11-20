@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tab } from './nav';
 
 const DIST = fileURLToPath(new URL('../../dist/', import.meta.url));
 const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.csv': 'text/csv' };
@@ -44,11 +45,10 @@ test('W08: app tải đủ file, mở lại khi mất mạng, kể cả sau khi 
   await context.setOffline(true);
   await page.reload();
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await page.locator('#wx-select').selectOption({ index: 1 }); // thời tiết đóng gói nạp được khi không có mạng
   await expect(page.locator('#status')).toContainText('Đã lưu: revision');
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#roof-btn').click(); // chunk three lazy lấy từ cache
+  await tab(page, 'mai'); // chunk three lazy lấy từ cache
   await expect(page.locator('#add-demo-roof')).toBeVisible();
   await expect(page.locator('#offline-status')).toHaveAttribute('data-state', 'ready');
 });
@@ -77,6 +77,7 @@ test('W08: bản cập nhật đủ file chờ người dùng bấm Cập nhật
   await ready(page);
   const [old] = await cacheKeys(page);
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
+  await tab(page, 'du-an');
   await expect(page.locator('#devices')).toBeVisible(); // đã có bản nháp lưu trong kho
   const code = await readFile(join(DIST, 'sw.js'), 'utf8');
   d.swOverride.body = bumped(code, 'ban-moi');
@@ -87,6 +88,6 @@ test('W08: bản cập nhật đủ file chờ người dùng bấm Cập nhật
   await page.locator('#offline-update').click();
   await expect.poll(() => cacheKeys(page).catch(() => []), { timeout: 30000 }).toEqual(['mekoniq-shell-ban-moi']); // trang tải lại ngay sau khi bản mới nhận quyền
   await page.waitForLoadState('load');
-  await expect(page.locator('#saved li')).toHaveCount(1); // bản nháp vẫn còn sau khi cập nhật
+  await expect(page.locator('#devices')).toBeVisible(); // bản nháp vẫn còn sau khi cập nhật (địa chỉ giữ dự án đang mở)
   d.server.close();
 });

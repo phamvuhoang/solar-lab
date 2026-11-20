@@ -1,0 +1,54 @@
+/* rc.2 rules, moved verbatim from index.html (the A4 report layout depends on them) */
+body{font:16px system-ui,sans-serif;margin:0 auto;max-width:48rem;padding:1rem 16px}button,input,select,textarea{font:inherit;margin:.25rem}.finding{display:block;text-align:left;width:100%}.finding.fail{border-left:6px solid #c0392b}.finding.limited{border-left:6px dashed #d68910}.finding.unknown{border-left:6px dotted #777}.node:focus,.port:focus{outline:3px solid #2874a6}.node,.port{cursor:pointer}tr.selected,tr[aria-selected=true]{background:#fef08a}table{border-collapse:collapse}.panel:focus{outline:3px solid #2874a6}td,th{padding:.2rem .5rem;text-align:left}.num{text-align:right}.report-page{border:1px solid #8886;padding:12px;margin-top:8px}.report-page table{width:100%;font-size:.9rem}.report-page th,.report-page td{border-bottom:1px solid #8884;vertical-align:top}@page{size:A4;margin:14mm}@media print{body{max-width:none;padding:0;font-size:11pt}#app>*:not(.report-page),footer{display:none!important}.report-page{border:0;padding:0;margin:0}.report-page section,.report-page table{break-inside:avoid}.report-page svg{max-width:100%}}
+
+/* ---- tokens: light by default, dark when the system asks ------------------------------------------------------- */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff; --fg: #1b1b1b; --muted: #5c5c5c; --accent: #2874a6;
+  --ok: #1e8449; --err: #c0392b; --lim: #d68910; --unk: #777777;
+  --border: #8886; --radius: 6px;
+  --space-1: .25rem; --space-2: .5rem; --space-3: 1rem; --space-4: 1.5rem;
+  --touch: 44px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #16181d; --fg: #e8e8e8; --muted: #a8a8a8; --accent: #5dade2; --ok: #58d68d; --err: #ec7063; --lim: #f5b041; --unk: #a6a6a6; --border: #fff4; }
+  tr.selected, tr[aria-selected=true] { color: #1b1b1b; } /* the yellow highlight stays light */
+}
+body { background: var(--bg); color: var(--fg); }
+button, input, select { min-height: var(--touch); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* ---- workspace: one column on phones, grid areas from 720 px --------------------------------------------------- */
+#ws > * { min-width: 0; }
+#ws-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+#ws-top h1, #ws-name { font-size: 1.1rem; margin: 0; }
+#ws-rev { color: var(--muted); }
+#ws-help summary { line-height: var(--touch); cursor: pointer; }
+#ws-top #status { flex-basis: 100%; margin: 0; }
+#ws-top #status:empty { display: none; }
+#ws-steps { display: flex; gap: var(--space-1); overflow-x: auto; margin-top: var(--space-2); }
+#ws-steps button { flex: 0 0 auto; border-radius: var(--radius); }
+#ws-steps [aria-current=step] { background: var(--accent); color: var(--bg); font-weight: 600; }
+#ws-tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+#ws-tabs [aria-selected=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
+#ws-panel { overflow-x: auto; }
+#ws-health { display: flex; gap: var(--space-1); overflow-x: auto; white-space: nowrap; border-top: 1px solid var(--border); padding-top: var(--space-1); }
+#ws-health button { flex: 0 0 auto; text-align: left; border-left: 6px dotted var(--unk); }
+#ws-health [data-state=pass] { border-left: 6px solid var(--ok); }
+#ws-health [data-state=fail] { border-left: 6px solid var(--err); }
+#ws-health [data-state=limited] { border-left: 6px dashed var(--lim); }
+.health-state { margin-left: .5em; font-weight: 600; }
+@media (min-width: 720px) {
+  #ws { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "steps" "tabs" "panel" "health"; }
+  #ws-top { grid-area: top; } #ws-steps { grid-area: steps; } #ws-tabs { grid-area: tabs; } #ws-panel { grid-area: panel; } #ws-health { grid-area: health; }
+  #ws-health { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); white-space: normal; overflow: visible; }
+}
+
+/* ---- print: only the A4 report page of the panel ----------------------------------------------------------------- */
+@media print {
+  #app>#ws { display: block !important; } /* the workspace holds the report page; the rc.2 rule above would hide it */
+  #ws-top, #ws-steps, #ws-tabs, #ws-health, #ws-panel > :not(.report-page) { display: none !important; }
+  #ws-panel { overflow: visible !important; } /* a scroll box would not break across pages */
+}

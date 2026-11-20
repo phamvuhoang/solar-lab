@@ -7,12 +7,13 @@ import { parseNumber } from '../domain/units';
 import { buildSceneModel } from '../scene/model';
 import { ALL_LAYERS, createThreeView, WebGLUnavailable, type Layers, type ViewApi } from '../scene/three-view';
 import { h } from './dom';
+import type { Tab } from './route';
 
 export interface RoofState { layers: Layers; faceId: string | null; angle: 0 | 90; stepCm: number; fps: number | null }
 export interface RoofCtx {
   project: Project; selection: string[]; state: RoofState;
   apply(next: Project): Promise<void>; setSelection(ids: string[]): void; rerender(): void;
-  history: { canUndo: boolean; canRedo: boolean; undo(): void; redo(): void }; back(): void; goDesign(): void; goShade(): void;
+  history: { canUndo: boolean; canRedo: boolean; undo(): void; redo(): void }; go(tab: Tab): void;
 }
 
 // The WebGL canvas outlives screen re-renders (every edit re-renders): it is created once and re-attached.
@@ -182,7 +183,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
 
   return [
     h('h2', {}, `Mái nhà 3D · ${p.name}`),
-    h('div', {}, btn('Hoàn tác', ctx.history.undo, 'undo', !ctx.history.canUndo), btn('Làm lại', ctx.history.redo, 'redo', !ctx.history.canRedo), btn('Quay lại dự án', ctx.back), btn('Sơ đồ điện', ctx.goDesign, 'to-design'), btn('Bóng che', ctx.goShade, 'to-shade')), msg,
+    h('div', {}, btn('Hoàn tác', ctx.history.undo, 'undo', !ctx.history.canUndo), btn('Làm lại', ctx.history.redo, 'redo', !ctx.history.canRedo), btn('Sơ đồ điện', () => ctx.go('thiet-ke'), 'to-design'), btn('Bóng che', () => ctx.go('bong'), 'to-shade')), msg,
     h('p', {}, 'Tọa độ ENU (Đông, Bắc, Lên) tính bằng mét; hướng mặt mái theo chiều kim đồng hồ từ Bắc. Mái và vật cản minh họa là giả định: thay bằng số đo công trình.'),
     h('h3', {}, '1. Mái và vật cản'),
     p.roofFaces.length ? null : h('p', {}, 'Chưa có mặt mái.'),

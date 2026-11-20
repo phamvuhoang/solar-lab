@@ -12,6 +12,7 @@ import type { Project } from '../domain/types';
 import { localDate, localHour, type WeatherSeries } from '../weather/series';
 import { runPvBatchInWorker, runShadeInWorker, type Job } from '../worker/client';
 import { download, h } from './dom';
+import type { Tab } from './route';
 
 export interface SceneSummary {
   label: 'A' | 'B'; title: string; key: string; mode: 'preview' | 'standard'; samplesPerPanel: number; stepSeconds: number; modelVersion: string;
@@ -27,7 +28,7 @@ export interface ShadeState { date: string | null; step: number; scenes: SceneSu
 export interface ShadeCtx {
   project: Project; revisions: { revision: number; savedAt: string }[]; selection: string[]; state: ShadeState;
   loadRevision(n: number): Promise<Project | undefined>; loadWeather(id: string): Promise<WeatherSeries | undefined>;
-  apply(next: Project): Promise<void>; setSelection(ids: string[]): void; rerender(): void; back(): void; goRoof(): void; goPv(): void;
+  apply(next: Project): Promise<void>; setSelection(ids: string[]): void; rerender(): void; go(tab: Tab): void;
 }
 
 // ---- persistent WebGL view (same pattern as the roof screen) ------------------------------------------------------
@@ -63,7 +64,7 @@ export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
 
   const head = [
     h('h2', {}, `Bóng che · ${p.name}`),
-    h('div', {}, h('button', { onClick: ctx.back }, 'Quay lại dự án'), h('button', { onClick: ctx.goRoof, id: 'sh-to-roof' }, 'Mái nhà 3D'), h('button', { onClick: ctx.goPv }, 'Thời tiết và PV')), msg,
+    h('div', {}, h('button', { onClick: () => ctx.go('mai'), id: 'sh-to-roof' }, 'Mái nhà 3D'), h('button', { onClick: () => ctx.go('pv') }, 'Thời tiết và PV')), msg,
     h('p', {}, 'Mô hình: tia thẳng từ các điểm mẫu trên mặt tấm tới Mặt Trời, bị chặn bởi vật cản (hộp/trụ đúng hình) và mặt mái khác. Chỉ trực xạ bị che; khuếch tán trời và phản xạ đất giữ nguyên. Tấm không che nhau.'),
   ];
   if (!weather) return [...head, h('p', { id: 'sh-weather' }, 'Chưa chọn dữ liệu thời tiết: vào "Thời tiết và PV" để chọn.')];

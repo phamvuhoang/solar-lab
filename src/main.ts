@@ -1,3 +1,4 @@
+import './ui/styles.css';
 import { registerOffline } from './offline/register';
 import { explainStartupError, exportUnopenable } from './persistence/backup';
 import { startApp } from './ui/app';

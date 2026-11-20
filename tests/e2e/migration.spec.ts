@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { tab } from './nav';
 
 /** Turns the app's live v3 database into a v2 one (what the previous release would have left on disk), then reloads. */
 async function downgradeToV2(page: Page) {
@@ -22,16 +23,17 @@ async function downgradeToV2(page: Page) {
 test('W09 migration N−1: mở bản mới trên DB v2 → sao lưu tự động trước khi nâng, dữ liệu còn nguyên, khôi phục thành bản sao; xuất tất cả nhập lại được', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.getByRole('button', { name: 'Dự toán' }).click();
+  await tab(page, 'du-toan');
   await expect(page.locator('#quote-known')).toContainText('31.872.000');
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
+  await page.locator('#ws-home').click(); // the reload below must land on the home page
   await downgradeToV2(page);
   await page.reload();
   await expect(page.locator('#status')).toContainText('Đã sao lưu 1 dự án trước khi nâng cấp kho dữ liệu (từ v2)');
   await expect(page.locator('#saved li')).toHaveCount(1);
   await page.getByRole('button', { name: /^Mở: / }).click();
+  await tab(page, 'du-an');
   await expect(page.locator('#bom-total')).toContainText('31.872.000'); // dự án và giá nguyên vẹn sau khi nâng cấp
-  await page.getByRole('button', { name: 'Quay lại' }).click();
+  await page.locator('#ws-home').click();
   await expect(page.locator('.backup')).toContainText('từ v2');
   // dự án trong máy y hệt bản sao lưu: khôi phục không tạo bản trùng
   await page.locator('.restore-backup').click();
@@ -39,12 +41,11 @@ test('W09 migration N−1: mở bản mới trên DB v2 → sao lưu tự độn
   await expect(page.locator('#saved li')).toHaveCount(1);
   // người dùng sửa tiếp sau khi nâng cấp rồi mới khôi phục: bản sao lưu quay lại thành bản sao, không ghi đè
   await page.getByRole('button', { name: /^Mở: / }).click();
-  await page.getByRole('button', { name: 'Dự toán' }).click();
+  await tab(page, 'du-toan');
   await page.locator('[data-device="vsun-620@1"]').getByLabel(/Số lượng/).fill('6');
   await page.locator('[data-device="vsun-620@1"]').getByRole('button', { name: 'Cập nhật SL' }).click();
   await expect(page.locator('#quote-known')).toContainText('27.904.000');
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.getByRole('button', { name: 'Quay lại' }).click();
+  await page.locator('#ws-home').click();
   await page.locator('.restore-backup').click();
   await expect(page.locator('#status')).toContainText('Đã khôi phục 1 dự án (bản mới nhất của từng dự án, không kèm lịch sử revision; bản sao lưu vẫn giữ nguyên); 1 dự án trùng ID được khôi phục thành bản sao');
   await expect(page.locator('#saved li')).toHaveCount(2);

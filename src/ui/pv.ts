@@ -17,7 +17,7 @@ export interface PvCtx {
   loadWeather(id: string): Promise<WeatherSeries | undefined>;
   saveWeather(s: WeatherSeries): Promise<void>;
   apply(next: Project): Promise<void>;
-  lastResult: PvResult | null; setResult(r: PvResult | null): void; rerender(): void; back(): void;
+  lastResult: PvResult | null; setResult(r: PvResult | null): void; rerender(): void;
 }
 
 const kwh = (wh: number) => (Math.abs(wh) < 50 ? 0 : wh / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 }); // avoids "−0"
@@ -48,7 +48,7 @@ export async function renderPv(ctx: PvCtx): Promise<Node[]> {
   const result = ctx.lastResult && hash && ctx.lastResult.inputHash === hash ? ctx.lastResult : null;
 
   return [
-    h('h2', {}, `Mô phỏng PV · ${p.name}`), h('button', { onClick: ctx.back }, 'Quay lại dự án'), msg,
+    h('h2', {}, `Mô phỏng PV · ${p.name}`), msg,
     h('h3', {}, '1. Dữ liệu thời tiết'), weatherSection(ctx, weather, say),
     h('h3', {}, '2. Thiết lập mảng và mô hình'), settingsForm(ctx, st, say),
     h('h3', {}, '3. Chạy'), runSection(ctx, compiled, hash, compileIssues, weather, say),

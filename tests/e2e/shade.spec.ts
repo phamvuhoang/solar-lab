@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { tab } from './nav';
 
 const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đã lưu: revision');
 const rev = async (page: Page) => Number(((await page.locator('#status').textContent()) ?? '').match(/revision (\d+)/)?.[1] ?? 0);
@@ -8,11 +9,10 @@ const rev = async (page: Page) => Number(((await page.locator('#status').textCon
 async function openShade(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await page.locator('#wx-select').selectOption({ index: 1 });
   await saved(page);
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#design-btn').click();
+  await tab(page, 'thiet-ke');
   await page.locator('#preset').selectOption('two-trackers');
   await page.locator('#apply-preset').click();
   await saved(page);
@@ -123,8 +123,7 @@ test('W07: bật bóng che mà chưa tính thì PV từ chối; tính xong thì 
   await expect(page.locator('#pv-messages')).toContainText('SHADE_NOT_COMPUTED');
   await expect(page.locator('#pv-result')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#shade-btn').click();
+  await tab(page, 'bong');
   await page.locator('#sh-year').click();
   await expect(page.locator('#sh-results')).toBeVisible({ timeout: 40000 });
   await page.locator('button', { hasText: 'Thời tiết và PV' }).click();
@@ -151,9 +150,8 @@ test('W07: phát chuyển động Mặt Trời đổi giờ; bật giảm chuy�
   expect(await page.locator('#sh-time').textContent()).toBe(stopped);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.reload();
-  await page.getByRole('button', { name: /^Mở: Lâm Hà/ }).click();
-  await page.locator('#shade-btn').click();
+  await page.reload(); // the address keeps the project and tab open
+  await tab(page, 'bong');
   await expect(page.locator('#sh-play')).toBeDisabled();
 });
 

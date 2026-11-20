@@ -4,6 +4,7 @@ import { ENGINE_VERSION } from '../../src/engine/pv';
 import { DISPATCH_VERSION } from '../../src/engine/dispatch';
 import { SHADE_MODEL_VERSION } from '../../src/shade/geometry';
 import { readFileSync } from 'node:fs';
+import { tab } from './nav';
 
 /**
  * Role journeys written as scripts a person can also follow (docs/uat/). These run the SAME steps by machine, which proves the flow
@@ -16,15 +17,14 @@ const BAD = /NaN|undefined|Infinity|\[object|(^|[^\p{L}])null([^\p{L}]|$)/u;
 async function toSim(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);
   await saved(page);
   await page.locator('#pv-tilt').fill('10');
   await page.locator('#pv-az').fill('180');
   await page.locator('#pv-save').click();
   await saved(page);
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#sim-btn').click();
+  await tab(page, 'he-thong');
   await page.locator('#cfg-shared8').click();
   await saved(page);
   await page.locator('#s-min').fill('25');
@@ -35,7 +35,7 @@ async function toSim(page: Page) {
 test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và còn thiếu gì, rồi chỉ ra giờ thiếu điện', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.getByRole('button', { name: 'Dự toán' }).click();
+  await tab(page, 'du-toan');
   await expect(page.locator('#quote-known')).toContainText('31.872.000');
   const battery = page.locator('[data-device="used-battery@1"]');
   await battery.getByRole('button', { name: 'Thêm báo giá' }).click();
@@ -46,17 +46,15 @@ test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và cò
   await expect(page.locator('tr[data-key="design:used-battery@1"]')).toContainText('15.500.000');
   await expect(page.locator('#quote-known')).toContainText('31.372.000'); // 15.872.000 + 15.500.000
   await expect(page.locator('#quote-total')).toContainText('chưa đủ để báo'); // vẫn thiếu khung, dây, bảo vệ, công
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
 
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);
   await saved(page);
   await page.locator('#pv-tilt').fill('10');
   await page.locator('#pv-az').fill('180');
   await page.locator('#pv-save').click();
   await saved(page);
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#sim-btn').click();
+  await tab(page, 'he-thong');
   await page.locator('#cfg-shared8').click();
   await saved(page);
   await page.locator('#s-min').fill('25');
@@ -74,7 +72,7 @@ test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và cò
 test('UAT thợ: tạo một SKU, đọc giải thích lỗi MPPT (công thức, nguồn, hậu quả) rồi sửa', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.getByRole('button', { name: 'Thiết bị' }).click();
+  await tab(page, 'thiet-bi');
   await page.locator('#new-kind').selectOption('battery');
   await page.getByRole('button', { name: 'Tạo thiết bị từ đầu' }).click();
   await page.locator('#f-name').fill('Pin thợ nhập 100Ah');
@@ -84,9 +82,8 @@ test('UAT thợ: tạo một SKU, đọc giải thích lỗi MPPT (công thức,
   await page.getByRole('button', { name: 'Lưu thiết bị' }).click();
   await expect(page.locator('#status')).toContainText('Đã lưu Pin thợ nhập 100Ah (revision 1)');
   await expect(page.locator('article.card', { hasText: 'Pin thợ nhập 100Ah' })).toContainText('chưa kiểm datasheet');
-  await page.getByRole('button', { name: 'Quay lại' }).click();
 
-  await page.locator('#design-btn').click();
+  await tab(page, 'thiet-ke');
   await page.locator('#d-cold').fill('5'); await page.locator('#d-hot').fill('70');
   await page.getByRole('button', { name: 'Lưu thiết lập' }).click();
   await saved(page);
@@ -115,8 +112,7 @@ test('Kiểm số liệu: không màn hình hay CSV nào có NaN/undefined/null;
   expect(simCsv.match(BAD)).toBeNull();
   const header = simCsv.split('\r\n').find((l) => l.startsWith('timestamp_utc'))!.split(',');
   expect(header.filter((c) => !/(_wh|_utc|_date|_hour|soc_end|reasons|residual)/.test(c) && !/^local_/.test(c))).toEqual([]); // cột năng lượng đều ghi Wh trong tên
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.getByRole('button', { name: 'Dự toán' }).click();
+  await tab(page, 'du-toan');
   await scan('dự toán');
   const q = await dl('#export-csv');
   expect(q.match(BAD)).toBeNull();
@@ -125,16 +121,14 @@ test('Kiểm số liệu: không màn hình hay CSV nào có NaN/undefined/null;
   const missing = q.split('\r\n').map(cells).filter((c) => c[8] === 'chưa có giá'); // cột Trạng thái
   expect(missing.length).toBeGreaterThan(0);
   for (const c of missing) expect(c[7], c.join(',')).toBe(''); // Thành tiền để trống, không phải 0
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await page.locator('#pv-run').click();
   await expect(page.locator('#pv-result')).toBeVisible({ timeout: 30000 });
   await scan('PV');
   const pv = await dl('#pv-csv');
   expect(pv.match(BAD)).toBeNull();
   expect(pv).toMatch(/poa_wm2,tcell_c,apparent_zenith_deg,azimuth_deg,p_ideal_w,p_after_loss_w,p_after_tracker_w,p_after_inverter_w,e_after_inverter_wh/);
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#report-btn').click();
+  await tab(page, 'bao-cao');
   await page.locator('#rp-compute').click();
   await expect(page.locator('#rp-ab')).toBeVisible({ timeout: 60000 });
   await scan('báo cáo');
@@ -174,13 +168,15 @@ test('Phiên bản: màn About đọc release-manifest, nói rõ đã/chưa đ�
 test('Soát: file dự án bị sửa tay (mã băm lệch) vẫn nhập được nhưng hiện cảnh báo trước khi mở', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
+  await tab(page, 'du-an');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Xuất JSON' }).click()]);
   const doc = JSON.parse(await readFile((await dl.path())!, 'utf8'));
   doc.project.snapshots.offers[0].priceMinor = '1';
-  await page.getByRole('button', { name: 'Quay lại' }).click();
+  await page.locator('#ws-home').click();
   await page.locator('#import-file').setInputFiles({ name: 'sua-tay.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(doc)) });
   await expect(page.locator('#issues')).toContainText('HASH_MISMATCH');
   await page.locator('#open-imported').click();
+  await tab(page, 'du-an');
   await expect(page.locator('#devices')).toBeVisible();
 });
 

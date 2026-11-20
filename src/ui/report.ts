@@ -17,6 +17,7 @@ import { BUNDLED_WEATHER } from '../weather/bundled';
 import type { WeatherSeries } from '../weather/series';
 import { runPvInWorker, runSimInWorker, type Job } from '../worker/client';
 import { download, h } from './dom';
+import type { Tab } from './route';
 import projectSchema from '../../schemas/project-v1.json';
 
 const OWNER_FIELDS = projectSchema.properties.owner.properties;
@@ -27,7 +28,7 @@ export const freshReport = (): ReportState => ({ forRevision: null, pv: null, ru
 export interface ReportCtx {
   project: Project; revisions: { revision: number; savedAt: string }[]; state: ReportState; buildId: string;
   loadRevision(n: number): Promise<Project | undefined>; loadWeather(id: string): Promise<WeatherSeries | undefined>;
-  apply(next: Project): Promise<void>; rerender(): void; back(): void; goPv(): void;
+  apply(next: Project): Promise<void>; rerender(): void; go(tab: Tab): void;
 }
 
 const LEVEL_TEXT: Record<LevelState, string> = { done: 'đã thực hiện', gaps: 'đã thực hiện, còn thiếu', 'not-run': 'chưa chạy', off: 'không bật', 'out-of-scope': 'ngoài phạm vi công cụ' };
@@ -178,7 +179,7 @@ export async function renderReport(ctx: ReportCtx): Promise<Node[]> {
   const sim = st.runs.find((r) => r.label === 'B') ?? st.runs[0];
   const csvBtn = (id: string, text: string, enabled: boolean, f: () => void) => h('button', { id, disabled: !enabled, onClick: f }, text);
   return [
-    h('h2', {}, `Báo cáo và chia sẻ · ${p.name}`), h('button', { id: 'rp-back', onClick: ctx.back }, 'Quay lại dự án'), h('button', { onClick: ctx.goPv }, 'Thời tiết và PV'), msg,
+    h('h2', {}, `Báo cáo và chia sẻ · ${p.name}`), h('button', { onClick: () => ctx.go('pv') }, 'Thời tiết và PV'), msg,
     h('h3', {}, '1. Thông tin liên hệ (không dùng trong tính toán)'), ownerForm,
     h('label', {}, incContact, ' Đưa thông tin liên hệ vào báo cáo và gói xuất (mặc định bỏ khi chia sẻ)'),
     h('h3', {}, '2. Kết quả đưa vào báo cáo'), h('div', {}, compute, ' ', h('label', {}, selA), cancel, prog),

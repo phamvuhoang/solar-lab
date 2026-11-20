@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
+import { tab } from './nav';
 
 /** Playwright's label option is exact-string only; match option text by regex instead. */
 const pick = async (select: Locator, text: RegExp) => select.selectOption(await select.locator('option', { hasText: text }).first().getAttribute('value') as string);
@@ -6,7 +7,7 @@ const pick = async (select: Locator, text: RegExp) => select.selectOption(await 
 test('W03: preset 2 chuỗi cùng tracker → lỗi Isc → bấm lỗi → chuyển sang MPPT 2 → hết lỗi; BOM giữ nguyên; undo/redo', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#design-btn').click();
+  await tab(page, 'thiet-ke');
 
   // thiết lập nhiệt độ thiết kế
   await page.locator('#d-cold').fill('5');
@@ -22,9 +23,9 @@ test('W03: preset 2 chuỗi cùng tracker → lỗi Isc → bấm lỗi → chuy
   await expect(isc).toContainText('31,9 A');
   await expect(page.locator('svg.diagram')).toContainText('vượt giới hạn thiết kế');
 
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
+  await tab(page, 'du-an');
   const bomBefore = await page.locator('#bom-total').textContent();
-  await page.locator('#design-btn').click();
+  await tab(page, 'thiet-ke');
 
   // bấm lỗi → focus vào cổng của chuỗi; đổi bằng bàn phím/form
   await page.locator('button.finding[data-code="ISC_TRACKER"]').click();
@@ -36,9 +37,9 @@ test('W03: preset 2 chuỗi cùng tracker → lỗi Isc → bấm lỗi → chuy
   await expect(page.locator('button.finding.fail[data-code="ISC_TRACKER"]')).toHaveCount(0);
 
   // chỉ chuyển cổng: giá/BOM không đổi
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
+  await tab(page, 'du-an');
   expect(await page.locator('#bom-total').textContent()).toBe(bomBefore);
-  await page.locator('#design-btn').click();
+  await tab(page, 'thiet-ke');
 
   // undo / redo
   await page.locator('#undo').click();
@@ -61,7 +62,7 @@ test('W03: preset 2 chuỗi cùng tracker → lỗi Isc → bấm lỗi → chuy
 test('W03: thêm theo lô có preview và xác nhận; thiếu dữ liệu hiển thị là chưa đủ dữ liệu, không phải đạt', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#design-btn').click();
+  await tab(page, 'thiet-ke');
   await page.locator('#preset').selectOption('two-trackers');
   await page.locator('#apply-preset').click();
 

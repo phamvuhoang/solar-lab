@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Locator, type Page } from '@playwright
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ENGINE_VERSION } from '../../src/engine/pv';
+import { tab } from './nav';
 
 const pick = async (select: Locator, text: RegExp) => select.selectOption((await select.locator('option', { hasText: text }).first().getAttribute('value')) as string);
 const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đã lưu: revision');
@@ -9,31 +10,29 @@ const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đ�
 const pickLastA = async (page: Page) => { await expect(page.locator('#rp-a')).toBeVisible(); await expect(page.locator('#rp-a option')).not.toHaveCount(1); const n = await page.locator('#rp-a option').count(); await page.locator('#rp-a').selectOption({ index: n - 1 }); };
 const pumpCard = (page: Page) => page.locator('.card[data-load]', { hasText: 'Bơm nước' });
 
-/** Lâm Hà, thời tiết đóng gói, cấu hình A (8 tấm vào inverter), hai revision: bơm 18h rồi bơm 11h. Dừng ở màn dự án. */
+/** Lâm Hà, thời tiết đóng gói, cấu hình A (8 tấm vào inverter), hai revision: bơm 18h rồi bơm 11h. Dừng ở tab Hệ thống. */
 async function setup(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);
   await saved(page);
   await page.locator('#pv-tilt').fill('10');
   await page.locator('#pv-az').fill('180');
   await page.locator('#pv-save').click();
   await saved(page);
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#sim-btn').click();
+  await tab(page, 'he-thong');
   await page.locator('#cfg-shared8').click();
   await saved(page);
   await pumpCard(page).locator('input[id^="lp-hours-"]').fill('11');
   await pumpCard(page).getByRole('button', { name: 'Lưu lịch' }).click();
   await saved(page);
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
 }
 const download = async (page: Page, button: string) => { const [dl] = await Promise.all([page.waitForEvent('download'), page.locator(button).click()]); return readFile((await dl.path())!, 'utf8'); };
 
 test('W08: báo cáo A4 có giả định, cấp độ kiểm tra, ngày giá, biểu đồ, nguồn thời tiết, A/B; in ra PDF A4; CSV BOM; bỏ liên hệ khi chia sẻ', async ({ page }) => {
   await setup(page);
-  await page.locator('#report-btn').click();
+  await tab(page, 'bao-cao');
   await page.locator('#rp-o-name').fill('Anh Hùng');
   // ô liên hệ không nhận dài hơn schema cho phép (nếu nhận, dự án lưu được nhưng file "Xuất tất cả" không nhập lại được)
   await page.locator('#rp-o-phone').pressSequentially('0909 123 456 (anh Hùng) / 0912 345 678 (chị Lan)');
@@ -119,7 +118,7 @@ test('W08: báo cáo A4 có giả định, cấp độ kiểm tra, ngày giá, b
 
 async function exportFull(page: Page, dir: string, name = 'goi.json') {
   await setup(page);
-  await page.locator('#report-btn').click();
+  await tab(page, 'bao-cao');
   await pickLastA(page);
   await page.locator('#rp-compute').click();
   await expect(page.locator('#rp-ab')).toBeVisible({ timeout: 60000 });
@@ -162,6 +161,7 @@ test('W08 máy B: cache rỗng → thiết lập app → ngoại tuyến → nh�
   for (const [rec, now] of [[4, 10], [5, 11], [6, 12], [7, 13]] as const) expect(await cells(now)).toEqual(await cells(rec));
   expect((await cells(4)).some((x) => /kWh/.test(x))).toBe(true);
   await b.locator('#im-open').click();
+  await tab(b, 'du-an');
   await expect(b.locator('#bom-total')).toContainText('tổng hoàn chỉnh: chưa đủ'); // giá thiếu vẫn thiếu sau khi nhập
   await ctx.close();
 });
@@ -172,7 +172,7 @@ test('W08: gói hỏng chỉ rõ vị trí và giữ nháp cũ; engine khác phi
   const b = await ctx.newPage();
   await b.goto('/');
   await b.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await b.getByRole('button', { name: 'Quay lại' }).first().click();
+  await b.locator('#ws-home').click();
   await expect(b.locator('#saved li')).toHaveCount(1);
 
   // 1. dữ liệu thời tiết bị sửa: báo đúng trường, nháp cũ còn nguyên
@@ -210,14 +210,13 @@ test('W08: gói hỏng chỉ rõ vị trí và giữ nháp cũ; engine khác phi
   await expect(b.locator('#issues')).toContainText('WEATHER_NOT_ATTACHED');
   await expect(b.locator('#im-weather')).toContainText('CHƯA có trong máy này');
   await b.locator('#im-open').click();
+  await tab(b, 'du-an');
   await expect(b.locator('#bom-total')).toBeVisible();
-  await b.locator('#design-btn').click();
+  await tab(b, 'thiet-ke');
   await expect(b.getByRole('heading', { name: /Thiết kế|Sơ đồ/ }).first()).toBeVisible();
-  await b.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await b.locator('#pv-btn').click();
+  await tab(b, 'pv');
   await expect(b.getByRole('heading', { name: /Mô phỏng PV/ })).toBeVisible();
-  await b.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await b.getByRole('button', { name: 'Quay lại' }).click();
+  await b.locator('#ws-home').click();
   await expect(b.locator('#saved li')).toHaveCount(3);
 
   // 4. hết dung lượng: giả lập tại lớp lưu trữ, dự án đang có không bị đụng

@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { tab } from './nav';
 
 test('W02: Dự án → Dự toán → đổi số lượng/báo giá → xem phần chênh → xuất CSV', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.getByRole('button', { name: 'Dự toán' }).click();
+  await tab(page, 'du-toan');
 
   await expect(page.locator('#quote-known')).toContainText('31.872.000');
   await expect(page.locator('#quote-total')).toContainText('chưa đủ để báo');

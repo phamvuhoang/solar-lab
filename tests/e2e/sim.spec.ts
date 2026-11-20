@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { tab } from './nav';
 
 const pick = async (select: Locator, text: RegExp) => select.selectOption((await select.locator('option', { hasText: text }).first().getAttribute('value')) as string);
 const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đã lưu: revision');
@@ -7,15 +8,14 @@ const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đ�
 async function setupPv(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
-  await page.locator('#pv-btn').click();
+  await tab(page, 'pv');
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);
   await saved(page);
   await page.locator('#pv-tilt').fill('10');
   await page.locator('#pv-az').fill('180');
   await page.locator('#pv-save').click();
   await saved(page);
-  await page.getByRole('button', { name: 'Quay lại dự án' }).click();
-  await page.locator('#sim-btn').click();
+  await tab(page, 'he-thong');
 }
 const pumpCard = (page: Page) => page.locator('.card[data-load]', { hasText: 'Bơm nước' });
 
