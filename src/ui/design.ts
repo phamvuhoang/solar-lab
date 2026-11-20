@@ -1,4 +1,3 @@
-import { renderDiagram } from '../diagrams/editor';
 import { addEdge, indexProject, isStringTarget, portKey, removeEdge, removeString, setStringSize, setStringTarget, stringsOf, dropInstances, unassignedPanels, PORT_TYPE_LABEL } from '../domain/graph';
 import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset, proposeStrings, PRESET_LABEL, type PresetKind } from '../domain/presets';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
@@ -49,7 +48,7 @@ export function renderDesign(ctx: DesignCtx): Node[] {
     h('div', {}, h('button', { id: 'undo', disabled: !ctx.history.canUndo, onClick: ctx.history.undo }, 'Hoàn tác'), h('button', { id: 'redo', disabled: !ctx.history.canRedo, onClick: ctx.history.redo }, 'Làm lại'),
       h('button', { id: 'open-roof', onClick: () => ctx.go('mai') }, ctx.selected && p.strings?.some((x) => x.stringId === ctx.selected) ? 'Xem chuỗi đang chọn trên mái 3D' : 'Mái nhà 3D')),
     msg,
-    renderDiagram(p, findings, ctx.selected, (id) => ctx.select(id)),
+    h('p', {}, 'Sơ đồ điện ở khung nhìn, nút "Sơ đồ". Bấm một hộp trong sơ đồ hoặc một mục bên dưới để xem chi tiết.'),
     h('h3', {}, 'Kiểm tra điện'),
     h('p', { id: 'findings-summary' }, `${findings.filter((f) => f.status === 'fail' && f.severity === 'error').length} lỗi thiết kế · ${findings.filter((f) => f.status === 'limited').length} giới hạn công suất · ${findings.filter((f) => f.status === 'unknown').length} chưa đủ dữ liệu · ${good.length} đạt`),
     h('ul', { id: 'findings' }, ...bad.map(finding)),

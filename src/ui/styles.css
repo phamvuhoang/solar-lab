@@ -58,6 +58,11 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 #ws-health [data-state=fail] { border-left: 6px solid var(--err); }
 #ws-health [data-state=limited] { border-left: 6px dashed var(--lim); }
 .health-state { margin-left: .5em; font-weight: 600; }
+/* ---- the view: 3D | diagram | plan; the pressed mode is bold and underlined, not only coloured --------------------- */
+.view-modes { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.view-modes [aria-pressed=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
+#view-legend { margin: var(--space-1) 0; color: var(--muted); font-size: .9rem; }
+#view-2d > svg { display: block; margin-bottom: var(--space-2); }
 /* ---- steps still to do, at the top of the panel; first-look callouts on the sample, outlining what they talk about - */
 #checklist { border: 1px solid var(--border); border-radius: var(--radius); padding: 0 var(--space-2); margin-block: var(--space-2); }
 #checklist summary { line-height: var(--touch); cursor: pointer; font-weight: 600; }
@@ -76,7 +81,8 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
   /* a callout floats in the grid area it is about (the area is its containing block), so the layout does not move */
   #ws, #ws-main { position: relative; }
   #coach { position: absolute; z-index: 10; top: var(--space-2); left: var(--space-2); max-width: 22rem; margin: 0; box-shadow: 0 2px 10px #0004; }
-  #coach[data-at=view] { grid-area: view; } #coach[data-at=panel] { grid-area: panel; }
+  #coach[data-at=view] { grid-area: view; top: calc(var(--touch) + var(--space-3)); } /* below the view's mode buttons */
+  #coach[data-at=panel] { grid-area: panel; }
   #coach[data-at=health] { grid-row: 3 / 4; top: auto; bottom: var(--space-2); }
 }
 

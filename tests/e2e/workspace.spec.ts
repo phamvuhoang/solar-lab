@@ -72,6 +72,7 @@ test('nền tối: chữ trong hộp của sơ đồ điện vẫn đọc đư�
   await page.emulateMedia({ colorScheme: 'dark' });
   await openLamHa(page);
   await tab(page, 'thiet-ke');
+  await page.locator('#view-mode-diagram').click();
   const node = page.locator('svg.diagram g.node').first();
   await expect(node).toBeVisible();
   const ratio = await node.evaluate((g) => {
@@ -121,4 +122,58 @@ test('bấm chỗ trống trên 3D không xóa số đang gõ ở tab PV', async
   await view.click({ position: { x: 10, y: 10 } }); // empty ground: the 3D clears the selection
   await page.waitForTimeout(500); // a repaint would have replaced the form by now
   await expect(page.locator('#pv-albedo')).toHaveValue('0,31');
+});
+
+test('Nhà mẫu trong 3D có 4 thiết bị, chú giải bằng chữ, công tơ ghi minh họa', async ({ page }) => {
+  await page.goto('/#/mau');
+  const view = page.locator('canvas[data-devices]');
+  await expect(view).toBeVisible({ timeout: 20000 });
+  await expect(page.locator('#view-mode-3d')).toHaveAttribute('aria-pressed', 'true');
+  const ids = (await view.getAttribute('data-devices'))!.split(',');
+  expect(ids).toHaveLength(4);
+  await expect(page.locator('#view-legend')).toContainText('AC');
+  await expect(page.locator('#view-legend')).toContainText('minh họa');
+  await expect(view).toHaveAttribute('data-props', /Công tơ \(minh họa\)/);
+  // a device is picked like a panel: the inverter, first on the device wall
+  await view.scrollIntoViewIfNeeded();
+  const [x, y] = JSON.parse((await view.getAttribute('data-device-pos'))!)[ids[0]] as [number, number];
+  await view.click({ position: { x, y } });
+  await expect.poll(() => view.getAttribute('data-selected')).toBe(ids[0]);
+});
+
+test('WebGL tắt: khung nhìn là Mặt bằng, chọn tấm vẫn được', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...a: unknown[]) { return /webgl/i.test(type) ? null : (orig as (...x: unknown[]) => unknown).call(this, type, ...a); } as typeof orig;
+  });
+  await page.goto('/#/mau');
+  await expect(page.locator('#webgl-fallback')).toContainText('vẫn đầy đủ');
+  await expect(page.locator('#view-mode-3d')).toBeDisabled();
+  await expect(page.locator('#view-mode-plan')).toHaveAttribute('aria-pressed', 'true');
+  const panels = page.locator('#ws-view svg[id^="plan-"] g.panel');
+  await expect(panels).toHaveCount(8);
+  const id = (await panels.first().getAttribute('data-id'))!;
+  await panels.first().click();
+  await expect(page.locator(`#ws-view g.panel[data-id="${id}"]`)).toHaveClass(/selected/);
+  await expect(page.locator(`#panel-table tr[data-id="${id}"]`)).toHaveAttribute('aria-selected', 'true');
+  await page.locator('#view-mode-diagram').click(); // the diagram is the other 2D mode
+  await expect(page.locator('#ws-view svg.diagram')).toBeVisible();
+});
+
+test('Three.js đang tải: Mặt bằng trước; chế độ người dùng chọn được giữ khi 3D sẵn sàng', async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  await page.route(/three\.module/, async (route) => { await gate; await route.continue(); });
+  await page.goto('/#/mau');
+  await expect(page.locator('#ws-view svg[id^="plan-"]')).toHaveCount(2);
+  await expect(page.locator('#view-mode-plan')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#view-mode-3d')).toBeDisabled();
+  await expect(page.locator('#webgl-fallback')).toBeHidden(); // loading is not a failure
+  await page.locator('#view-mode-diagram').click();
+  release();
+  await expect(page.locator('#view-mode-3d')).toBeEnabled({ timeout: 20000 });
+  await expect(page.locator('#view-mode-diagram')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#ws-view svg.diagram')).toBeVisible();
+  await page.locator('#view-mode-3d').click();
+  await expect(page.locator('canvas[data-panels="8"]')).toBeVisible();
 });

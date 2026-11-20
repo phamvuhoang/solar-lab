@@ -6,6 +6,13 @@ export interface Layers { roof: boolean; frame: boolean; panels: boolean; wires:
 export const ALL_LAYERS: Layers = { roof: true, frame: true, panels: true, wires: true, labels: true };
 export const STRING_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#dc2626', '#4d7c0f', '#be185d'];
 export const stringColor = (index: number) => (index > 0 ? STRING_COLORS[(index - 1) % STRING_COLORS.length] : '#64748b');
+/** Grid, labels and camera distance scale from at least this radius (m), so an empty or one-box scene is not all label. */
+const MIN_RADIUS = 4;
+const DEVICE_COLOR = { inverter: 0x334155, battery: 0x0f766e, controller: 0x7c3aed, load: 0x9a3412 };
+/** Wire kind → colour and dash (metres); the dash pattern, not the colour, tells the kinds apart (legend in the viewport). */
+const WIRE_STYLE: Record<SceneModel['wires'][number]['kind'], { color: number; dash: [number, number] | null }> = {
+  ac: { color: 0x111827, dash: null }, 'dc-pv': { color: 0x2563eb, dash: [0.3, 0.15] }, 'dc-bat': { color: 0x15803d, dash: [0.08, 0.08] }, 'dc-pump': { color: 0x0e7490, dash: [0.08, 0.08] },
+};
 
 export interface ViewHandlers {
   onSelect(ids: string[], mode: 'set' | 'toggle'): void;
@@ -36,7 +43,7 @@ export interface ViewApi {
 export class WebGLUnavailable extends Error { constructor(why: string) { super(why); this.name = 'WebGLUnavailable'; } }
 
 /**
- * Three.js scene, loaded only when the 3D tab opens. It draws a SceneModel and nothing else: it never creates instances or prices.
+ * Three.js scene, loaded lazily by the workspace view. It draws a SceneModel and nothing else: it never creates instances or prices.
  * Coordinates arrive in ENU and are mapped to Three.js (x = East, y = Up, z = −North) at the very edge.
  */
 export async function createThreeView(host: HTMLElement, handlers: ViewHandlers, height = 440): Promise<ViewApi> {
@@ -49,7 +56,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   const canvas = document.createElement('canvas');
   canvas.tabIndex = 0;
   canvas.setAttribute('role', 'img');
-  canvas.setAttribute('aria-label', 'Mái nhà 3D. Dùng danh sách tấm bên dưới để chọn bằng bàn phím; phím mũi tên dịch camera.');
+  canvas.setAttribute('aria-label', 'Nhà, mái, tấm và thiết bị 3D. Chọn bằng bàn phím ở Mặt bằng, Sơ đồ hoặc danh sách tấm; phím mũi tên dịch camera.');
   canvas.style.cssText = `width:100%;height:${height}px;display:block;touch-action:none;border:1px solid #8886;border-radius:4px`;
   host.append(canvas);
   let renderer: InstanceType<typeof THREE.WebGLRenderer>;
@@ -74,7 +81,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   scene.add(content);
 
   let model: SceneModel | null = null, selection: ReadonlySet<string> = new Set(), layers: Layers = ALL_LAYERS, overlay: Overlay = { sun: null, heat: null };
-  let frame = 0, disposed = false, fitted = false;
+  let frame = 0, disposed = false, fitted: boolean | null = null; // null: never framed; false: framed an empty scene; true: framed a roof
   const need = () => { if (!frame && !disposed) frame = requestAnimationFrame(() => { frame = 0; renderer.render(scene, camera); }); };
   controls.addEventListener('change', need);
 
@@ -82,24 +89,35 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   const geometries: { dispose(): void }[] = [];
   const track = <T extends { dispose(): void }>(g: T): T => { geometries.push(g); return g; };
   const textSprite = (text: string, color: string, size: number): Sprite => {
-    // width follows the text so long labels ("Bồn nước") are not clipped
-    const c = document.createElement('canvas'), w = Math.max(128, Math.round(text.length * 26 + 40)); c.width = w; c.height = 64;
+    // width follows the longest line so long labels ("Bồn nước") are not clipped; '\n' starts a new line
+    const lines = text.split('\n'), c = document.createElement('canvas'), w = Math.max(128, Math.round(Math.max(...lines.map((l) => l.length)) * 26 + 40)), ht = 64 * lines.length; c.width = w; c.height = ht;
     const g = c.getContext('2d')!;
-    g.fillStyle = '#ffffffd9'; g.fillRect(0, 0, w, 64); g.strokeStyle = color; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, 58);
-    g.fillStyle = '#111'; g.font = 'bold 38px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, 34);
+    g.fillStyle = '#ffffffd9'; g.fillRect(0, 0, w, ht); g.strokeStyle = color; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, ht - 6);
+    g.fillStyle = '#111'; g.font = 'bold 38px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; lines.forEach((l, i) => g.fillText(l, w / 2, 34 + i * 64));
     const tex = track(new THREE.CanvasTexture(c));
     const sp = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: tex, depthTest: false })));
-    sp.scale.set(size * (w / 128), size / 2, 1);
+    sp.scale.set(size * (w / 128), (size / 2) * lines.length, 1);
     return sp;
   };
   const panelMeshes = new Map<string, { mesh: Object3D; edges: Object3D }>();
+  const pickable: Object3D[] = []; // panels and devices: what a click can select
+  /** A box standing on its centre (size.z is the height); illustrative sizes get a dashed outline. */
+  const box = (center: V3, size: { x: number; y: number; z: number }, color: number, edge: number, dashed: boolean, glow: boolean) => {
+    const geo = track(new THREE.BoxGeometry(size.x, size.z, size.y)), at = to3(center);
+    const mesh = new THREE.Mesh(geo, track(new THREE.MeshStandardMaterial({ color, roughness: 0.7, emissive: new THREE.Color(glow ? 0xfacc15 : 0x000000), emissiveIntensity: glow ? 0.5 : 0 })));
+    const edges = new THREE.LineSegments(track(new THREE.EdgesGeometry(geo)), track(dashed ? new THREE.LineDashedMaterial({ color: edge, dashSize: 0.06, gapSize: 0.05 }) : new THREE.LineBasicMaterial({ color: edge })));
+    edges.computeLineDistances();
+    mesh.position.copy(at); edges.position.copy(at); mesh.castShadow = true; mesh.receiveShadow = true;
+    content.add(mesh, edges);
+    return mesh;
+  };
 
   function rebuild() {
     for (const o of [...content.children]) content.remove(o);
     geometries.splice(0).forEach((g) => g.dispose());
-    panelMeshes.clear();
+    panelMeshes.clear(); pickable.length = 0;
     if (!model) return need();
-    const m = model, r = m.bounds.radius;
+    const m = model, r = Math.max(MIN_RADIUS, m.bounds.radius);
     const ground = Math.min(m.bounds.min.up, 0);
     const grid = new THREE.GridHelper(Math.ceil(r * 5), Math.ceil(r * 5), 0x94a3b8, 0xcbd5e1);
     grid.position.set(m.bounds.center.e, ground - 0.01, -m.bounds.center.n);
@@ -161,13 +179,40 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
         mesh.userData = { instanceId: pn.instanceId, faceId: pn.faceId };
         const edges = new THREE.LineLoop(track(new THREE.BufferGeometry().setFromPoints(c)), track(new THREE.LineBasicMaterial({ color: pn.invalid ? 0xdc2626 : sel ? 0xeab308 : 0x0f172a })));
         content.add(mesh, edges);
-        panelMeshes.set(pn.instanceId, { mesh, edges });
+        panelMeshes.set(pn.instanceId, { mesh, edges }); pickable.push(mesh);
       }
     }
     if (layers.wires) for (const rt of m.routes) if (rt.points.length > 1) {
       const line = new THREE.Line(track(new THREE.BufferGeometry().setFromPoints(rt.points.map(to3))), track(new THREE.LineDashedMaterial({ color: new THREE.Color(stringColor(rt.stringIndex)), dashSize: 0.18, gapSize: 0.1 })));
       line.computeLineDistances();
       content.add(line);
+    }
+    if (layers.wires) for (const w of m.wires) {
+      const st = WIRE_STYLE[w.kind], geo = track(new THREE.BufferGeometry().setFromPoints([to3(w.from), to3(w.to)]));
+      const line = new THREE.Line(geo, track(st.dash ? new THREE.LineDashedMaterial({ color: st.color, dashSize: st.dash[0], gapSize: st.dash[1] }) : new THREE.LineBasicMaterial({ color: st.color })));
+      line.computeLineDistances();
+      content.add(line);
+    }
+    const tag = Math.max(0.6, Math.min(1.6, r * 0.11)), short = (t: string) => (t.length > 28 ? t.slice(0, 27) + '…' : t); // full names are in the diagram
+    let floor = -Infinity; // device labels stand on a ladder with a leader line each, so neighbours on the wall never cover each other
+    // ponytail: one ladder for all devices; devices placed far apart (T17 moves) get needlessly high labels, group by distance if that shows
+    for (const d of m.devices) {
+      const sel = selection.has(d.instanceId), edge = d.status === 'fail' ? 0xdc2626 : d.status === 'limited' ? 0xd97706 : sel ? 0xeab308 : 0x0f172a;
+      const mesh = box(d.center, d.size, DEVICE_COLOR[d.kind], edge, d.sizeSource === 'illustrative', sel);
+      mesh.userData = { instanceId: d.instanceId };
+      pickable.push(mesh);
+      // the status is a word on a red/amber badge, never hidden, not even with the labels layer off
+      const lines = [...(d.status ? [d.status === 'fail' ? 'Lỗi' : 'Giới hạn'] : []), ...(layers.labels ? [short(d.label), ...(d.sizeSource === 'illustrative' ? ['(kích thước minh họa)'] : [])] : [])];
+      if (!lines.length) continue;
+      const t = textSprite(lines.join('\n'), d.status === 'fail' ? '#dc2626' : d.status === 'limited' ? '#d97706' : '#334155', tag);
+      const top = mesh.position.y + d.size.z / 2, y = Math.max(top + 0.3, floor);
+      floor = y + (tag / 2) * lines.length + 0.15;
+      t.center.set(0.5, 0); t.position.set(mesh.position.x, y, mesh.position.z); t.renderOrder = 1; // over obstacle labels
+      content.add(t, new THREE.Line(track(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(mesh.position.x, top, mesh.position.z), new THREE.Vector3(mesh.position.x, y, mesh.position.z)])), track(new THREE.LineBasicMaterial({ color: 0x64748b }))));
+    }
+    for (const pr of m.props) { // illustration only: dashed outline, the label says so
+      box(pr.center, pr.kind === 'meter' ? { x: 0.2, y: 0.15, z: 0.3 } : { x: 0.4, y: 0.2, z: 0.5 }, 0xcbd5e1, 0x475569, true, false);
+      if (layers.labels) { const t = textSprite(pr.label, '#64748b', tag * 0.8); t.center.set(0.5, 1); const c = to3(pr.center); t.position.set(c.x, c.y - 0.2, c.z); content.add(t); }
     }
     if (layers.labels) {
       const size = Math.max(0.7, Math.min(2.2, r * 0.12));
@@ -180,7 +225,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   const fit = (kind: 'overview' | 'top') => {
     const b = model?.bounds;
     if (!b) return;
-    const c = to3(b.center), d = Math.max(6, b.radius * 2.6);
+    const c = to3(b.center), d = Math.max(MIN_RADIUS, b.radius) * 2.6;
     controls.target.copy(c);
     if (kind === 'top') camera.position.set(c.x, c.y + d * 1.4, c.z + 0.001);
     else camera.position.set(c.x - d * 0.35, c.y + d * 0.75, c.z + d); // from the south-west, looking north-east
@@ -192,18 +237,17 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   const pointer = (e: PointerEvent) => { const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1)); ray.setFromCamera(ndc, camera); };
   const hit = (e: PointerEvent): string | null => {
     pointer(e);
-    const hits = ray.intersectObjects([...panelMeshes.values()].map((x) => x.mesh), false);
+    const hits = ray.intersectObjects(pickable, false);
     return hits.length ? (hits[0].object.userData.instanceId as string) : null;
   };
   let down: { x: number; y: number; id: string | null; shift: boolean; plane: InstanceType<typeof THREE.Plane> | null; start: InstanceType<typeof THREE.Vector3> | null; dragging: boolean; ids: string[]; faceId: string | null } | null = null;
   const faceOf = (id: string) => model?.panels.find((p) => p.instanceId === id)?.faceId ?? null;
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    const id = hit(e);
-    const ids = id && selection.has(id) ? [...selection].filter((x) => faceOf(x) === faceOf(id)) : id ? [id] : [];
-    down = { x: e.clientX, y: e.clientY, id, shift: e.shiftKey || e.ctrlKey || e.metaKey, plane: null, start: null, dragging: false, ids, faceId: id ? faceOf(id) : null };
-    if (id) { // dragging starts on a panel: orbiting is suspended for this gesture
-      const pn = model!.panels.find((p) => p.instanceId === id)!;
+    const id = hit(e), pn = id ? model?.panels.find((p) => p.instanceId === id) : undefined;
+    const ids = pn && selection.has(pn.instanceId) ? [...selection].filter((x) => faceOf(x) === pn.faceId) : pn ? [pn.instanceId] : [];
+    down = { x: e.clientX, y: e.clientY, id, shift: e.shiftKey || e.ctrlKey || e.metaKey, plane: null, start: null, dragging: false, ids, faceId: pn?.faceId ?? null };
+    if (pn) { // dragging starts on a panel: orbiting is suspended for this gesture; a device is only picked (moving it is a list action)
       down.plane = new THREE.Plane().setFromNormalAndCoplanarPoint(to3(pn.normal), to3(pn.center)); // a direction maps like a point: x = E, y = Up, z = −N
       const p = new THREE.Vector3();
       ray.ray.intersectPlane(down.plane, p);
@@ -222,7 +266,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
     return { da, db, shift: move };
   };
   canvas.addEventListener('pointermove', (e) => {
-    if (!down || !down.id) return;
+    if (!down?.id || !down.plane) return;
     if (!down.dragging && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) {
       down.dragging = true; controls.enabled = false;
       if (!selection.has(down.id)) handlers.onSelect([down.id], 'set');
@@ -252,19 +296,22 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   const publish = () => {
     if (!model) return;
     camera.updateMatrixWorld();
-    const pos: Record<string, [number, number]> = {};
-    for (const pn of model.panels) { const v = to3(pn.center).project(camera); pos[pn.instanceId] = [Math.round(((v.x + 1) / 2) * canvas.clientWidth), Math.round(((1 - v.y) / 2) * canvas.clientHeight)]; }
+    const pos = (xs: { instanceId: string; center: V3 }[]) => JSON.stringify(Object.fromEntries(xs.map((x) => { const v = to3(x.center).project(camera); return [x.instanceId, [Math.round(((v.x + 1) / 2) * canvas.clientWidth), Math.round(((1 - v.y) / 2) * canvas.clientHeight)]]; })));
     canvas.dataset.panels = String(model.panels.length);
     canvas.dataset.panelIds = model.panels.map((x) => x.instanceId).join(',');
     canvas.dataset.selected = [...selection].join(',');
-    canvas.dataset.panelPos = JSON.stringify(pos);
+    canvas.dataset.panelPos = pos(model.panels);
+    canvas.dataset.devices = model.devices.map((x) => x.instanceId).join(',');
+    canvas.dataset.devicePos = pos(model.devices);
+    canvas.dataset.props = model.props.map((x) => x.label).join(',');
     canvas.dataset.sun = overlay.sun ? JSON.stringify([overlay.sun.e, overlay.sun.n, overlay.sun.up].map((x) => +x.toFixed(3))) : '';
     canvas.dataset.heat = overlay.heat ? JSON.stringify(Object.fromEntries([...overlay.heat].map(([k, v]) => [k, +v.toFixed(3)]))) : '';
     canvas.dataset.damping = String(controls.enableDamping);
     canvas.dataset.camera = JSON.stringify({ pos: camera.position.toArray().map((x) => +x.toFixed(2)), target: controls.target.toArray().map((x) => +x.toFixed(2)), aspect: +camera.aspect.toFixed(2), fov: camera.fov });
   };
   controls.addEventListener('end', publish);
-  const resize = () => { const w = Math.max(200, host.clientWidth); renderer.setSize(w, height, false); camera.aspect = w / height; camera.updateProjectionMatrix(); need(); };
+  // also republishes positions: the canvas may have been drawn while hidden (2D mode) or before a window resize
+  const resize = () => { const w = Math.max(200, host.clientWidth); renderer.setSize(w, height, false); camera.aspect = w / height; camera.updateProjectionMatrix(); need(); publish(); };
   const ro = new ResizeObserver(resize);
   ro.observe(host);
   resize();
@@ -274,7 +321,8 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
     update(m, sel, ly) {
       model = m; selection = sel; layers = ly;
       rebuild();
-      if (!fitted && m.faces.length) { fitted = true; fit('overview'); } // frame the roof once it exists, not the empty scene
+      // frame once, and once more when the roof first appears; an unframed camera sits at the origin, inside the north arrow
+      if (fitted === null || (!fitted && m.faces.length)) { fitted = m.faces.length > 0; fit('overview'); }
       publish();
     },
     setOverlay(o) { overlay = o; rebuild(); publish(); },

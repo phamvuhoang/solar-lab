@@ -1,5 +1,4 @@
 import { buildQuote } from '../cost/quote';
-import { renderFacePlan } from '../diagrams/roof-plan';
 import { addHole, addObstacle, addRoofFace, clearPlacements, demoGableRoof, faceRect, fillFace, movePanels, placeGrid, removeFace, removeObstacle, removePlacements, rotate90, unplacedPanels, updateFace } from '../domain/layout-edit';
 import { isSimplePolygon, type Pt } from '../domain/roof';
 import { refKey, type Project } from '../domain/types';
@@ -108,12 +107,6 @@ export function renderRoof(ctx: RoofCtx): Node[] {
     h('div', {}, 'Dịch tấm chọn: ', h('label', {}, stepSel), btn('←', nudge(-1, 0), 'nudge-left'), btn('→', nudge(1, 0), 'nudge-right'), btn('↑ lên dốc', nudge(0, 1), 'nudge-up'), btn('↓ xuống dốc', nudge(0, -1), 'nudge-down'),
       h('span', {}, ' (hoặc kéo trên mặt bằng/3D, rời chuột thì snap lưới 5 cm và cạnh tấm bên cạnh; mặt bằng: ←→↑↓, Shift = 1 cm, R xoay, Delete xóa, Esc bỏ chọn)')));
 
-  // ---- 3. views ------------------------------------------------------------------------------------------------
-  const plans = p.roofFaces.map((f) => renderFacePlan(p, f, model, sel, {
-    onSelect: (i, mode) => ctx.setSelection(mode === 'toggle' ? (ctx.selection.includes(i[0]) ? ctx.selection.filter((x) => x !== i[0]) : [...ctx.selection, i[0]]) : i),
-    onMove: (i, d, snap) => run(() => movePanels(p, i, d, { snap })), onRotate: (i) => run(() => rotate90(p, i)), onRemove: (i) => run(() => removePlacements(p, i)), onClear: () => ctx.setSelection([]),
-  }));
-
   // selection details: same ids as the BOM
   const quote = buildQuote(p);
   const info = (() => {
@@ -156,7 +149,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
       btn('Thêm hộp 0,6×0,6×0,8 m trên mái', () => (p.roofFaces[0] ? run(() => addObstacle(p, { label: 'Ống thông hơi', kind: 'box', roofFaceId: p.roofFaces[0].roofFaceId, center: { e: 5, n: 1.2 }, baseUp: 3.2, angleDeg: 0, size: { x: 0.6, y: 0.6, z: 0.8 } })) : say(['Thêm mặt mái trước'])), 'add-box')),
     obstacleList.length ? h('ul', { id: 'obstacles' }, ...obstacleList) : null,
     h('h3', {}, '2. Đặt tấm'), tools,
-    h('h3', {}, '3. Xem'), ...plans, info,
+    h('h3', {}, '3. Xem'), h('p', {}, 'Mặt bằng từng mặt mái ở khung nhìn, nút "Mặt bằng".'), info,
     h('h3', {}, 'Kiểm tra vị trí'), issues,
     h('h3', {}, 'Danh sách tấm'),
     h('table', { id: 'panel-table' }, h('thead', {}, h('tr', {}, ...['Tấm', 'ID', 'Mặt mái', 'a (m)', 'b (m)', 'Hướng đặt', 'Chuỗi', 'Trạng thái'].map((t) => h('th', {}, t)))), h('tbody', {}, ...rows)),

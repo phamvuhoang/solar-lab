@@ -30,18 +30,22 @@ test('W06: mái minh họa → điền 8 tấm → 3D cùng 8 ID → chọn/kéo
   // cùng 8 ID trên 2D (mặt bằng), danh sách và 3D
   const ids3d = (await canvas(page).getAttribute('data-panel-ids'))!.split(',').sort();
   const idsTable = (await page.locator('#panel-table tbody tr').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.id))).sort();
+  await page.locator('#view-mode-plan').click();
   const idsPlan = (await page.locator('svg[id^="plan-"] g.panel').evaluateAll((gs) => gs.map((g) => (g as SVGElement).dataset.id))).sort();
   expect(ids3d).toHaveLength(8);
   expect(idsTable).toEqual(ids3d);
   expect(idsPlan).toEqual(ids3d);
 
   // chọn bằng click trong 3D → bảng và mặt bằng đồng bộ
+  await page.locator('#view-mode-3d').click();
   const p0 = await pos(page, 0);
   await canvas(page).click({ position: { x: p0.x, y: p0.y } });
   await expect.poll(async () => canvas(page).getAttribute('data-selected')).toBe(p0.id);
   await expect(page.locator(`#panel-table tr[data-id="${p0.id}"]`)).toHaveAttribute('aria-selected', 'true');
+  await page.locator('#view-mode-plan').click();
   await expect(page.locator(`svg g.panel[data-id="${p0.id}"]`)).toHaveClass(/selected/);
   await expect(page.locator('#sel-info')).toContainText('8 chiếc cùng loại'); // BOM không đổi vì đặt tấm
+  await page.locator('#view-mode-3d').click();
 
   // kéo trong 3D → revision mới, cùng ID, a thay đổi
   const before = await rev(page), a0 = await cell(page, p0.id, 3).textContent();
@@ -70,6 +74,7 @@ test('W06: mái minh họa → điền 8 tấm → 3D cùng 8 ID → chọn/kéo
 
 test('W06: bàn phím trên mặt bằng, dịch bằng nút, bỏ chọn; layout lưu và mở lại sau khi tải lại trang', async ({ page }) => {
   await openRoof(page);
+  await page.locator('#view-mode-plan').click();
   const first = page.locator('svg[id^="plan-"] g.panel').first();
   const id = (await first.getAttribute('data-id'))!;
   const a0 = Number(((await cell(page, id, 3).textContent()) ?? '').replace(',', '.'));
@@ -99,6 +104,7 @@ test('W06: chọn đồng bộ giữa sơ đồ điện, mái 3D và BOM; chuỗ
   await page.locator('#apply-preset').click();
   await expect(page.locator('#status')).toContainText('Đã lưu: revision');
   // chọn chuỗi 1 ở sơ đồ → mở mái: 4 tấm của chuỗi được chọn
+  await page.locator('#view-mode-diagram').click();
   await page.locator('svg.diagram g.node[data-id^="str-"]').first().click();
   await page.locator('#open-roof').click();
   await expect(page.locator('#panel-table tr[aria-selected="true"]')).toHaveCount(4);
@@ -136,8 +142,10 @@ test('W06: 40 tấm + 10 vật cản: cùng 40 ID, đo FPS; báo vượt biên t
   await expect(canvas(page)).toBeVisible({ timeout: 20000 });
   await expect.poll(async () => canvas(page).getAttribute('data-panels')).toBe('40');
   expect((await canvas(page).getAttribute('data-panel-ids'))!.split(',')).toHaveLength(40);
+  await page.locator('#view-mode-plan').click();
   await expect(page.locator('svg[id^="plan-"] g.panel')).toHaveCount(40);
   await expect(page.locator('#layout-issues')).toContainText('Mọi vị trí hợp lệ');
+  await page.locator('#view-mode-3d').click();
   await page.locator('#measure-fps').click();
   await expect(page.locator('#fps-result')).toContainText('FPS (40 tấm, 10 vật cản)', { timeout: 15000 });
   const fps = Number(((await page.locator('#fps-result').textContent()) ?? '').match(/(\d+) FPS/)?.[1]);
@@ -154,6 +162,33 @@ test('W06: 40 tấm + 10 vật cản: cùng 40 ID, đo FPS; báo vượt biên t
   await page.locator('#clear-all').click();
   await page.locator('#place-grid').click();
   await expect(page.locator('#layout-issues')).toContainText('PANEL_OUT_OF_BOUNDS'); // tấm đặt vào vùng khuyết của mái chữ L
+});
+
+test('W12: Nhà mẫu với 40 tấm + 10 vật cản + thiết bị: đo FPS', async ({ page }) => {
+  await page.goto('/#/mau');
+  await tab(page, 'du-toan');
+  await page.locator('[data-device="vsun-620@1"]').getByLabel(/Số lượng/).fill('40');
+  await page.locator('[data-device="vsun-620@1"]').getByRole('button', { name: 'Cập nhật SL' }).click();
+  await expect(page.locator('#quote-known')).toContainText('79.360.000', { timeout: 15000 }); // 40 × 1.984.000; the sample's other prices are missing; the first edit of the sample also creates the project
+  await tab(page, 'mai');
+  await page.locator('#nr-w').fill('12,5');
+  await page.locator('#nr-s').fill('10,5');
+  await page.locator('#nr-t').fill('15');
+  await page.locator('#add-rect').click();
+  await saved(page);
+  await page.locator('#place-face').selectOption({ index: 2 });
+  await page.locator('#fill-face').click();
+  await expect(page.locator('#place-tools')).toContainText('Đã đặt 40/40');
+  for (let k = 0; k < 9; k++) { const r = await rev(page); await page.locator('#add-tank').click(); await expect.poll(() => rev(page)).toBeGreaterThan(r); } // + the sample's own tank
+  await expect(page.locator('#obstacles li')).toHaveCount(10);
+  await expect(canvas(page)).toBeVisible({ timeout: 20000 });
+  await expect.poll(async () => canvas(page).getAttribute('data-panels')).toBe('40');
+  expect((await canvas(page).getAttribute('data-devices'))!.split(',')).toHaveLength(4);
+  await page.locator('#measure-fps').click();
+  await expect(page.locator('#fps-result')).toContainText('FPS (40 tấm, 10 vật cản) · 4 thiết bị', { timeout: 15000 });
+  const fps = Number(((await page.locator('#fps-result').textContent()) ?? '').match(/(\d+) FPS/)?.[1]);
+  console.log('FPS Nhà mẫu 40 tấm + 10 vật cản + 4 thiết bị:', fps);
+  expect(fps).toBeGreaterThanOrEqual(30);
 });
 
 test('W06: không có WebGL → mặt bằng 2D và danh sách vẫn sửa được, có thông báo', async ({ page }) => {
@@ -218,6 +253,7 @@ test('W06: xoay camera và dịch tấm trong cùng mặt mái không làm kết
   await expect.poll(async () => canvas(page).getAttribute('data-camera')).not.toBe(cam0);
   void box;
   const before = await rev(page);
+  await page.locator('#view-mode-plan').click();
   const first = page.locator('svg[id^="plan-"] g.panel').first();
   await first.click();
   await page.locator('#nudge-right').click();

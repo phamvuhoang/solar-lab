@@ -8,6 +8,7 @@ test('W03: preset 2 chuỗi cùng tracker → lỗi Isc → bấm lỗi → chuy
   await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'thiet-ke');
+  await page.locator('#view-mode-diagram').click(); // the diagram is drawn in the shared view; the mode stays for the session
 
   // thiết lập nhiệt độ thiết kế
   await page.locator('#d-cold').fill('5');
@@ -63,6 +64,7 @@ test('W03: thêm theo lô có preview và xác nhận; thiếu dữ liệu hiể
   await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'thiet-ke');
+  await page.locator('#view-mode-diagram').click(); // the diagram is drawn in the shared view; the mode stays for the session
   await page.locator('#preset').selectOption('two-trackers');
   await page.locator('#apply-preset').click();
 

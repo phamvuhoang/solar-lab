@@ -1,64 +1,109 @@
-import { movePanels } from '../domain/layout-edit';
+import { renderDiagram } from '../diagrams/editor';
+import { renderFacePlan, type PlanHandlers } from '../diagrams/roof-plan';
+import { movePanels, removePlacements, rotate90 } from '../domain/layout-edit';
 import type { Project } from '../domain/types';
 import { buildSceneModel, type SceneModel } from '../scene/model';
 import { ALL_LAYERS, createThreeView, WebGLUnavailable, type Layers, type Overlay, type ViewApi } from '../scene/three-view';
+import { validateDesign } from '../validation/strings';
 import { h } from './dom';
 
-export interface ViewportHost { project(): Project; selection(): string[]; setSelection(ids: string[]): void; apply(next: Project): Promise<void> }
-export interface Viewport { el: HTMLElement; refresh(): void; setOverlay(o: Overlay): void; dispose(): void }
+export type ViewMode = '3d' | 'diagram' | 'plan';
+export interface ViewportHost {
+  project(): Project; selection(): string[]; setSelection(ids: string[]): void; apply(next: Project): Promise<void>;
+  /** The diagram's selected object (string, device or port id) and picking one there. */
+  selected(): string | null; select(id: string): void;
+}
+export interface Viewport { el: HTMLElement; refresh(): void; setOverlay(o: Overlay): void; setMode(m: ViewMode): void; dispose(): void }
+
+let chosen: ViewMode | null = null; // the mode the person picked: kept for the session, across projects
 
 /**
- * The workspace's one 3D view. It lives as long as the workspace: changing step or tab never rebuilds the canvas,
- * and selecting or dragging a panel works the same whichever step is open.
+ * The workspace's one view: 3D, the electrical diagram or the roof plan. It lives as long as the workspace: changing step or tab
+ * never rebuilds the canvas, and selecting or moving a panel works the same whichever step is open. While Three.js loads, or when
+ * WebGL is unavailable, the plan (the diagram if there is no roof yet) is shown instead of 3D.
  */
 export function createViewport(host: ViewportHost): Viewport {
   let api: ViewApi | null = null, disposed = false, layers: Layers = ALL_LAYERS, overlay: Overlay = { sun: null, heat: null };
-  let drawn: { project: Project; sel: string; model: SceneModel } | null = null; // what the canvas shows now
+  let drawn: { project: Project; key: string; model: SceneModel } | null = null; // what the view shows now
 
-  const draw = () => {
-    if (!api) return;
-    const project = host.project(), ids = host.selection(), model = buildSceneModel(project);
-    api.update(model, new Set(ids.filter((id) => model.panels.some((x) => x.instanceId === id))), layers);
-    drawn = { project, sel: ids.join(','), model };
+  const shown = (): ViewMode => (chosen && (chosen !== '3d' || api) ? chosen : api ? '3d' : host.project().roofFaces.length ? 'plan' : 'diagram');
+  const key = () => `${shown()}|${host.selection().join(',')}|${host.selected() ?? ''}`;
+  const pick = (ids: string[], mode: 'set' | 'toggle') => { const s = host.selection(); host.setSelection(mode === 'toggle' ? (s.includes(ids[0]) ? s.filter((x) => x !== ids[0]) : [...s, ids[0]]) : ids); };
+  const plan: PlanHandlers = {
+    onSelect: pick, onClear: () => host.setSelection([]),
+    onMove: (ids, d, snap) => { void host.apply(movePanels(host.project(), ids, d, { snap })); },
+    onRotate: (ids) => { void host.apply(rotate90(host.project(), ids)); },
+    onRemove: (ids) => { void host.apply(removePlacements(host.project(), ids)); },
   };
+
   const why = h('span', {});
   const fallback = h('div', { id: 'webgl-fallback', role: 'status', hidden: true },
-    h('p', {}, 'Không dùng được 3D (', why, '). Mặt bằng 2D, các bảng và danh sách tấm vẫn đầy đủ; bạn có thể tiếp tục đặt, sửa tấm và xem bóng như bình thường.'));
+    h('p', {}, 'Không dùng được 3D (', why, '). Khung nhìn dùng Mặt bằng 2D và Sơ đồ; các bảng và danh sách tấm vẫn đầy đủ; bạn có thể tiếp tục đặt, sửa tấm và xem bóng như bình thường.'));
+  const btn = (id: string, label: string, f: () => void) => h('button', { id, type: 'button', onClick: f }, label);
+  const modes = { '3d': btn('view-mode-3d', '3D · đang tải', () => setMode('3d')), diagram: btn('view-mode-diagram', 'Sơ đồ', () => setMode('diagram')), plan: btn('view-mode-plan', 'Mặt bằng', () => setMode('plan')) };
+  modes['3d'].disabled = true;
   const canvasHost = h('div', {});
   const fpsOut = h('span', { id: 'fps-result' });
-  const btn = (id: string, label: string, f: () => void) => h('button', { id, type: 'button', onClick: f }, label);
-  const layerBox = (key: keyof Layers, label: string) => {
-    const b = h('input', { type: 'checkbox', id: `layer-${key}`, checked: layers[key] });
-    b.addEventListener('change', () => { layers = { ...layers, [key]: b.checked }; draw(); });
+  const layerBox = (k: keyof Layers, label: string) => {
+    const b = h('input', { type: 'checkbox', id: `layer-${k}`, checked: layers[k] });
+    b.addEventListener('change', () => { layers = { ...layers, [k]: b.checked }; draw(); });
     return h('label', {}, b, ` ${label}`);
   };
-  const box = h('div', { id: 'view3d-box' }, canvasHost, h('div', { className: 'view-tools' },
+  const box3d = h('div', { id: 'view3d-box', hidden: true }, canvasHost, h('div', { className: 'view-tools' },
     btn('cam-overview', 'Tổng quan', () => api?.setCamera('overview')), btn('cam-top', 'Từ trên xuống', () => api?.setCamera('top')),
     btn('measure-fps', 'Đo FPS (4 giây)', async () => {
       if (!api || !drawn) { fpsOut.textContent = '3D chưa sẵn sàng'; return; }
       const m = drawn.model, f = await api.fps(4000);
-      fpsOut.textContent = `${f.toFixed(0)} FPS (${m.panels.length} tấm, ${m.obstacles.length} vật cản)`;
+      fpsOut.textContent = `${f.toFixed(0)} FPS (${m.panels.length} tấm, ${m.obstacles.length} vật cản)${m.devices.length ? ` · ${m.devices.length} thiết bị` : ''}`;
     }), fpsOut,
-    layerBox('roof', 'Mái'), layerBox('frame', 'Khung'), layerBox('panels', 'Tấm'), layerBox('wires', 'Đường nối'), layerBox('labels', 'Nhãn')));
-  /** WebGL failed or was lost: the notice replaces the 3D block; every screen keeps its 2D plan and tables. */
-  const fail = (m: string) => { api?.dispose(); api = null; why.textContent = m; fallback.hidden = false; box.hidden = true; };
+    layerBox('roof', 'Mái'), layerBox('frame', 'Khung'), layerBox('panels', 'Tấm'), layerBox('wires', 'Đường nối'), layerBox('labels', 'Nhãn')),
+    h('p', { id: 'view-legend' }, '— AC · - - DC từ tấm · ··· DC pin/bơm · khung nét đứt = kích thước minh họa'));
+  const view2d = h('div', { id: 'view-2d' });
+
+  /** Draws the shown mode; the 3D scene is kept current even behind a 2D mode, so switching back is instant. */
+  function draw() {
+    const project = host.project(), findings = validateDesign(project), model = buildSceneModel(project, findings), mode = shown(), sel = host.selection();
+    for (const [m, b] of Object.entries(modes)) b.setAttribute('aria-pressed', String(m === mode));
+    box3d.hidden = mode !== '3d'; view2d.hidden = mode === '3d';
+    const drawnIds = new Set([...model.panels, ...model.devices].map((x) => x.instanceId));
+    api?.update(model, new Set(sel.filter((id) => drawnIds.has(id))), layers);
+    if (mode !== '3d') {
+      const a = document.activeElement, focused = a instanceof Element && view2d.contains(a) ? a.getAttribute('data-id') : null;
+      view2d.replaceChildren(...(mode === 'diagram' ? [renderDiagram(project, findings, host.selected(), host.select)]
+        : project.roofFaces.length ? project.roofFaces.map((f) => renderFacePlan(project, f, model, new Set(sel), plan))
+          : [h('p', {}, 'Chưa có mặt mái để vẽ mặt bằng. Thêm mặt mái ở bước Bố trí.')]));
+      if (focused) view2d.querySelector<SVGElement>(`[data-id="${CSS.escape(focused)}"]`)?.focus(); // keyboard nudges keep their place
+    } else view2d.replaceChildren();
+    drawn = { project, key: key(), model };
+  }
+  function setMode(m: ViewMode) { chosen = m; draw(); }
+  /** WebGL failed or was lost: the 3D button is off and the view stays 2D; every screen keeps its tables. */
+  const fail = (m: string) => { api?.dispose(); api = null; why.textContent = m; fallback.hidden = false; modes['3d'].textContent = '3D'; draw(); };
 
   createThreeView(canvasHost, {
-    onSelect: (ids, mode) => { const s = host.selection(); host.setSelection(mode === 'toggle' ? (s.includes(ids[0]) ? s.filter((x) => x !== ids[0]) : [...s, ids[0]]) : ids); },
+    onSelect: pick,
     onMove: (ids, d) => { void host.apply(movePanels(host.project(), ids, d, { snap: true })); },
     onClear: () => host.setSelection([]),
     onContextLost: () => fail('Mất ngữ cảnh WebGL'),
   }, matchMedia('(max-width: 719px)').matches ? 300 : 440)
-    .then((v) => { if (disposed) return v.dispose(); api = v; v.setOverlay(overlay); draw(); })
+    .then((v) => {
+      if (disposed) return v.dispose();
+      api = v; v.setOverlay(overlay);
+      modes['3d'].textContent = '3D'; modes['3d'].disabled = false;
+      draw();
+    })
     .catch((e) => { if (!disposed) fail(e instanceof WebGLUnavailable ? e.message : String(e)); });
 
+  const el = h('section', { id: 'ws-view', 'aria-label': 'Khung nhìn' },
+    h('div', { className: 'view-modes', role: 'group', 'aria-label': 'Chế độ khung nhìn' }, modes['3d'], modes.diagram, modes.plan), fallback, box3d, view2d);
   return {
-    el: h('section', { id: 'ws-view', 'aria-label': 'Khung nhìn' }, fallback, box),
+    el,
     refresh() {
-      const d = drawn, ids = host.selection().join(',');
-      if (!d || d.project !== host.project() || d.sel !== ids) draw(); // same project and selection: nothing to redraw
+      if (disposed) return;
+      if (!drawn || drawn.project !== host.project() || drawn.key !== key()) draw(); // same project, selection and mode: nothing to redraw
     },
     setOverlay(o) { overlay = o; api?.setOverlay(o); },
+    setMode,
     dispose() { disposed = true; api?.dispose(); api = null; },
   };
 }

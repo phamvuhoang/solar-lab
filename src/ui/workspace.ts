@@ -103,6 +103,8 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     const owners = new Set(selection.map(stringOfPanel).filter(Boolean));
     selected = owners.size === 1 ? [...owners][0]! : null;
   };
+  /** Diagram pick: the object it shows as selected; a string also selects its panels. */
+  const select = (id: string | null) => { selected = id; const st = id ? project.strings?.find((x) => x.stringId === id) : undefined; if (st) selection = [...st.panelIds]; };
   const historyFor = (refresh: () => Promise<void>) => ({
     canUndo: history.canUndo, canRedo: history.canRedo,
     undo: () => { const cur = project!; const prev = history.undo(cur); void (async () => { if (prev) { if (await save(prev)) say(`Đã lưu: revision ${project!.revision}`); else history.redo(prev); } await refresh(); })(); },
@@ -139,14 +141,15 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const panel = h('section', { id: 'ws-panel', role: 'tabpanel' });
   let health = h('footer', { id: 'ws-health' });
   // one 3D view for the whole workspace: it outlives step and tab changes; selecting or dragging in it works on every tab
+  // only tabs that show the selection repaint; any other tab keeps what is being typed into it
+  const selectionChanged = () => { if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else view.refresh(); };
   const view = createViewport({
-    project: () => project, selection: () => selection, apply: (next) => saved(next),
+    project: () => project, selection: () => selection, apply: (next) => saved(next), selected: () => selected,
     setSelection: (ids) => {
       if (ids.join(',') === selection.join(',')) return; // e.g. a click on empty ground with nothing selected
-      setSelection(ids);
-      // only tabs that show the selection repaint; any other tab keeps what is being typed into it
-      if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else view.refresh();
+      setSelection(ids); selectionChanged();
     },
+    select: (id) => { if (id !== selected) { select(id); selectionChanged(); } },
   });
   const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, view.el, tabs, panel), health);
   const help = h('details', { id: 'ws-help' }, h('summary', {}, 'Trợ giúp'),
@@ -225,7 +228,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
       };
       return renderDesign({
         project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], selected,
-        select: (id, focusIds = []) => { selected = id; const st = id ? project!.strings?.find((x) => x.stringId === id) : undefined; if (st) selection = [...st.panelIds]; pendingFocus = focusIds; void again(); },
+        select: (id, focusIds = []) => { select(id); pendingFocus = focusIds; void again(); },
         apply: saved,
         history: {
           canUndo: history.canUndo, canRedo: history.canRedo,
