@@ -75,6 +75,17 @@ test('phím Delete trên 3D mở xem trước xóa', async ({ page }) => {
   await expect(view).toHaveAttribute('data-devices', ids.filter((x) => x !== ids[1]).join(','));
   await page.locator('#ws-undo').click();
   await expect(view).toHaveAttribute('data-devices', ids.join(','));
+  // only a panel selected: Delete takes it off the roof, as the plan does (no preview; undo puts it back)
+  const panel = (await view.getAttribute('data-panel-ids'))!.split(',')[0];
+  const [x, y] = JSON.parse((await view.getAttribute('data-panel-pos'))!)[panel] as [number, number];
+  await view.click({ position: { x, y } });
+  await expect.poll(() => view.getAttribute('data-selected')).toBe(panel);
+  await view.press('Delete');
+  await expect(page.locator('canvas[data-panels="7"]')).toBeVisible();
+  await expect(page.locator(`#panel-table tr[data-id="${panel}"]`)).toContainText('chưa đặt');
+  await expect(page.locator('#insp-preview')).toBeEmpty();
+  await page.locator('#ws-undo').click();
+  await expect(page.locator('canvas[data-panels="8"]')).toBeVisible();
 });
 
 test('dự án trống: lỗi miền thành câu thường, không lưu; Inverter nối cả tấm của chuỗi chưa nối', async ({ page }) => {

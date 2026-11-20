@@ -3,6 +3,7 @@ import { BUILTIN_OFFERS, offersFor } from '../../src/catalog/catalog';
 import { buildQuote } from '../../src/cost/quote';
 import { describeChange } from '../../src/domain/change';
 import { fillFace, moveDevice } from '../../src/domain/layout-edit';
+import { dropInstances, setStringTarget } from '../../src/domain/graph';
 import { addInstances } from '../../src/domain/project';
 import { addAcLoad, addPumpBranch, ALL_DAY, atHour, replaceComponent } from '../../src/domain/presets';
 import { buildSampleHouse, SAMPLE_WEATHER_ID } from '../../src/domain/seed';
@@ -77,5 +78,23 @@ describe('moveDevice', () => {
     expect(c.devicePlacements).toEqual(a.devicePlacements!.map((d) => ({ ...d, e: q(from.e) })));
     expect(buildSceneModel(c).devices.filter((d) => d.instanceId !== id).every((d) => !d.placed)).toBe(true);
     expect(() => moveDevice(p, 'nope', 0.1, 0, from)).toThrow('UNKNOWN_INSTANCE');
+  });
+});
+describe('describeChange: chuỗi bị tháo hoặc chuyển cổng', () => {
+  const unplugged = (lines: string[]) => lines.filter((l) => l.includes('tháo khỏi'));
+  test('xóa inverter: hai chuỗi tháo khỏi MPPT, nói rõ không phát điện', () => {
+    const p = seed(), inv = p.instances.find((i) => i.kind === 'inverter')!;
+    const lines = describeChange(p, dropInstances(p, new Set([inv.instanceId])));
+    expect(unplugged(lines)).toEqual(['Chuỗi 1: tháo khỏi MPPT 1 (4 tấm, không phát điện)', 'Chuỗi 2: tháo khỏi MPPT 2 (4 tấm, không phát điện)']);
+  });
+  test('xóa controller của nhánh bơm PV: một chuỗi tháo; đổi cổng: chuyển sang', () => {
+    let p = seed();
+    const before = new Set(p.instances.map((i) => i.instanceId));
+    p = addInstances(p, catalog('vsun-620'), 2);
+    p = addPumpBranch(p, catalog('sample-pump-controller'), catalog('sample-pump-load'), p.instances.filter((i) => !before.has(i.instanceId)).map((i) => i.instanceId));
+    const ctl = p.instances.find((i) => i.kind === 'controller')!, pump = p.strings!.find((s) => s.target?.instanceId === ctl.instanceId)!;
+    expect(unplugged(describeChange(p, dropInstances(p, new Set([ctl.instanceId]))))).toEqual([`${pump.label}: tháo khỏi PV vào (2 tấm, không phát điện)`]);
+    const s2 = p.strings![1];
+    expect(describeChange(p, setStringTarget(p, s2.stringId, { ...s2.target!, port: 'M1' }))).toContain('Chuỗi 2: chuyển sang MPPT 1');
   });
 });

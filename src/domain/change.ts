@@ -1,4 +1,4 @@
-import { stringsOf } from './graph';
+import { indexProject, portKey, stringsOf } from './graph';
 import { unplacedPanels } from './layout-edit';
 import type { Project } from './types';
 import { validateDesign } from '../validation/strings';
@@ -31,6 +31,13 @@ export function describeChange(before: Project, after: Project): string[] {
     const f = findings.find((x) => x.code === 'VOC_COLD_ABS' && x.stringId === s.stringId);
     const voc = f && f.value !== null && f.limit !== null ? `Voc lạnh ${num(f.value)}/${num(f.limit)} V` : 'Voc lạnh chưa đủ dữ liệu';
     out.push(`${s.label}: ${o ? o.panelIds.length : 0} → ${s.panelIds.length} tấm, ${voc}`);
+  }
+  // a removed device (or an edited port) leaves its strings elsewhere: say where they no longer go
+  const portName = (p: Project, t: { instanceId: string; port: string }) => indexProject(p).port(t)?.label ?? t.port;
+  for (const s of stringsOf(after)) {
+    const o = old.get(s.label);
+    if (!o?.target || (s.target && portKey(s.target) === portKey(o.target))) continue;
+    out.push(s.target ? `${s.label}: chuyển sang ${portName(after, s.target)}` : `${s.label}: tháo khỏi ${portName(before, o.target)} (${s.panelIds.length} tấm, không phát điện)`);
   }
   const now = new Set(stringsOf(after).map((s) => s.label));
   for (const s of stringsOf(before)) if (!now.has(s.label)) out.push(`${s.label}: bỏ`);

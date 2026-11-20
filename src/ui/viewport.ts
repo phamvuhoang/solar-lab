@@ -12,7 +12,7 @@ export interface ViewportHost {
   project(): Project; selection(): string[]; setSelection(ids: string[]): void; apply(next: Project): Promise<void>;
   /** The diagram's selected object (string, device or port id) and picking one there. */
   selected(): string | null; select(id: string): void;
-  /** The Delete key on the 3D view: preview removing what is selected. */
+  /** The Delete key on the 3D view with a device (any non-panel item) selected: preview removing what is selected. */
   remove(): void;
 }
 export interface Viewport { el: HTMLElement; refresh(): void; setOverlay(o: Overlay): void; setMode(m: ViewMode): void; dispose(): void }
@@ -45,7 +45,13 @@ export function createViewport(host: ViewportHost): Viewport {
   const modes = { '3d': btn('view-mode-3d', '3D · đang tải', () => setMode('3d')), diagram: btn('view-mode-diagram', 'Sơ đồ', () => setMode('diagram')), plan: btn('view-mode-plan', 'Mặt bằng', () => setMode('plan')) };
   modes['3d'].disabled = true;
   const canvasHost = h('div', {});
-  canvasHost.addEventListener('keydown', (e) => { if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); host.remove(); } });
+  // Delete in 3D: only panels selected → off the roof, as in the plan (undo brings them back); a device too → the delete preview
+  canvasHost.addEventListener('keydown', (e) => {
+    const sel = host.selection(), p = host.project();
+    if ((e.key !== 'Delete' && e.key !== 'Backspace') || !sel.length) return;
+    e.preventDefault();
+    if (sel.every((id) => p.instances.some((i) => i.instanceId === id && i.kind === 'panel'))) plan.onRemove(sel); else host.remove();
+  });
   const fpsOut = h('span', { id: 'fps-result' });
   const layerBox = (k: keyof Layers, label: string) => {
     const b = h('input', { type: 'checkbox', id: `layer-${k}`, checked: layers[k] });

@@ -162,7 +162,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const pick = (ids: string[]) => { if (choose(ids)) selectionChanged(); }; // equal selection (e.g. empty ground clicked twice): nothing repaints
   const view = createViewport({
     project: () => project, selection: () => selection, apply: (next) => saved(next), selected: () => selected,
-    setSelection: pick, select: (id) => pick([id]), remove: () => { if (selection.length) void requestDelete(selection); },
+    setSelection: pick, select: (id) => pick([id]), remove: () => { void requestDelete(selection); },
   });
 
   // ---- "Đang chọn" on top of the panel; kept while project and selection stay, so an open preview survives other repaints ----
