@@ -1,4 +1,4 @@
-import { addEdge, indexProject, isStringTarget, portKey, removeEdge, removeString, setStringSize, setStringTarget, stringsOf, dropInstances, unassignedPanels, PORT_TYPE_LABEL } from '../domain/graph';
+import { addEdge, indexProject, isStringTarget, portKey, removeEdge, removeString, setStringSize, setStringTarget, stringsOf, unassignedPanels, PORT_TYPE_LABEL } from '../domain/graph';
 import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset, proposeStrings, PRESET_LABEL, type PresetKind } from '../domain/presets';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { parseNumber, parseQuantity } from '../domain/units';
@@ -10,11 +10,13 @@ export interface DesignCtx {
   project: Project; components: Component[]; offers: Offer[]; selected: string | null;
   /** focusIds: element ids to try, in order, once the screen has re-rendered. */
   select(id: string | null, focusIds?: string[]): void; apply(next: Project): Promise<void>;
+  /** Select a device and open the inspector's delete preview. */
+  remove(id: string): void;
   history: { canUndo: boolean; canRedo: boolean; undo(): void; redo(): void };
   go(tab: Tab): void;
 }
 
-const STATUS_LABEL = { pass: 'đạt', fail: 'không đạt', limited: 'bị giới hạn công suất', unknown: 'chưa đủ dữ liệu' } as const;
+export const STATUS_LABEL = { pass: 'đạt', fail: 'không đạt', limited: 'bị giới hạn công suất', unknown: 'chưa đủ dữ liệu' } as const;
 const offersFor = (offers: Offer[], c: Component) => offers.filter((o) => refKey(o.componentRef) === refKey(c));
 
 export function renderDesign(ctx: DesignCtx): Node[] {
@@ -34,8 +36,8 @@ export function renderDesign(ctx: DesignCtx): Node[] {
 
   const detail = () => {
     const f = findings.find((x) => x.objectIds[0] === ctx.selected) ?? findings.find((x) => ctx.selected && x.objectIds.includes(ctx.selected));
-    if (!f) return h('p', { id: 'finding-detail' }, ctx.selected ? 'Không có kiểm tra nào gắn với đối tượng đang chọn.' : 'Chọn một mục trong sơ đồ hoặc danh sách lỗi.');
-    return h('div', { id: 'finding-detail', 'aria-live': 'polite' },
+    if (!f) return h('p', { id: 'finding-detail', tabIndex: -1 }, ctx.selected ? 'Không có kiểm tra nào gắn với đối tượng đang chọn.' : 'Chọn một mục trong sơ đồ hoặc danh sách lỗi.');
+    return h('div', { id: 'finding-detail', 'aria-live': 'polite', tabIndex: -1 },
       h('h3', {}, f.code), h('p', {}, f.message),
       f.formula && h('p', {}, h('strong', {}, 'Công thức: '), f.formula),
       f.value !== null && h('p', {}, h('strong', {}, 'Giá trị / giới hạn: '), `${f.value} ${f.unit} / ${f.limit ?? '—'} ${f.unit}`),
@@ -61,7 +63,12 @@ export function renderDesign(ctx: DesignCtx): Node[] {
   ].filter(Boolean) as Node[];
 }
 
-const errText = (e: unknown) => ({ NOT_ENOUGH_PANELS: 'Không đủ tấm chưa gán để thêm vào chuỗi', NO_PANELS: 'Dự án chưa có tấm', NO_INVERTER: 'Cần có inverter trước', INVALID_SIZE: 'Số tấm phải là số nguyên không âm' } as Record<string, string>)[(e as Error).message] ?? (e as Error).message;
+/** Domain error codes as plain sentences; nothing is saved when one is shown. */
+export const errText = (e: unknown) => ({
+  NOT_ENOUGH_PANELS: 'Không đủ tấm chưa gán để thêm vào chuỗi', NO_PANELS: 'Dự án chưa có tấm', NO_INVERTER: 'Cần có inverter trước: thêm inverter rồi làm lại.', INVALID_SIZE: 'Số tấm phải là số nguyên không âm',
+  NO_FREE_MPPT: 'Inverter không còn MPPT trống cho chuỗi mới: bớt chuỗi hoặc đổi inverter có nhiều MPPT hơn.', KIND_MISMATCH: 'Chỉ đổi được sang model cùng loại thiết bị.', UNKNOWN_INSTANCE: 'Thiết bị này không còn trong dự án.',
+  DIMENSION_UNKNOWN: 'Tấm chưa có kích thước nên chưa đặt lên mái được.',
+} as Record<string, string>)[(e as Error).message] ?? (e as Error).message;
 
 /** Controls that fix a finding, most specific first. */
 const fixTargets = (f: Finding): string[] => [...(f.stringId ? [`str-target-${f.stringId}`] : []), `edge-del-${f.objectIds[0]}`, 'edge-from'];
@@ -153,6 +160,7 @@ function connections(ctx: DesignCtx, run: (f: () => Project) => Promise<void>, f
     h('form', { onSubmit: (e: Event) => { e.preventDefault(); const a = allPorts.find((x) => x.key === from.value), b = allPorts.find((x) => x.key === to.value); if (!a || !b) return fail('Chọn hai cổng'); run(() => addEdge(p, a.ref, b.ref)); }, 'aria-label': 'Thêm kết nối' },
       h('label', {}, 'Từ ', from), h('label', {}, ' tới ', to), h('button', { type: 'submit' }, 'Nối')),
     h('h4', {}, 'Thiết bị'),
-    h('ul', {}, ...[...ix.inst.values()].filter((d) => d.inst.kind !== 'panel').map((d) => h('li', {}, d.inst.label, ' ',
-      h('button', { 'aria-label': `Xóa ${d.inst.label}`, onClick: () => run(() => dropInstances(p, new Set([d.inst.instanceId]))) }, 'Xóa')))));
+    h('ul', { id: 'device-list' }, ...[...ix.inst.values()].filter((d) => d.inst.kind !== 'panel').map((d) => h('li', {},
+      h('button', { id: `dev-sel-${d.inst.instanceId}`, 'aria-label': `Chọn ${d.inst.label}`, 'aria-pressed': String(ctx.selected === d.inst.instanceId), onClick: () => ctx.select(d.inst.instanceId) }, d.inst.label), ' ',
+      h('button', { 'aria-label': `Xóa ${d.inst.label}`, onClick: () => ctx.remove(d.inst.instanceId) }, 'Xóa')))));
 }

@@ -74,9 +74,25 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 #coach p { margin: 0 0 var(--space-1); }
 #ws:has(#coach[data-at=view]) #ws-view, #ws:has(#coach[data-at=panel]) #ws-panel, #ws:has(#coach[data-at=health]) #ws-health { outline: 3px solid var(--accent); outline-offset: -3px; }
 @media print { #coach { display: none; } }
+/* ---- "Thêm" (a collapsed section above the tabs on phones, the left column from 720 px) and "Đang chọn" on top of the panel - */
+#ws-add summary { line-height: var(--touch); cursor: pointer; font-weight: 600; }
+#ws-add .add-items { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+#ws-add [aria-expanded=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
+#ws-add h3 { font-size: 1rem; margin: var(--space-2) 0 0; }
+#ws-add label { display: block; }
+#ws-add input, #ws-add select { max-width: 100%; box-sizing: border-box; }
+#add-preview p, #insp-preview p { margin: var(--space-1) 0; }
+#inspector { border: 1px solid var(--border); border-radius: var(--radius); padding: 0 var(--space-2); margin-block: var(--space-2); }
+#inspector h2 { font-size: 1rem; margin: var(--space-2) 0 0; }
+#inspector p { margin: var(--space-1) 0; }
+#inspector summary { line-height: var(--touch); cursor: pointer; }
+#inspector ul { margin: 0 0 var(--space-2); padding-left: 1.25rem; }
 @media screen and (min-width: 720px) {
-  #ws-main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "view tabs" "view panel"; gap: 0 var(--space-3); overflow: hidden; }
+  #ws-main { display: grid; grid-template-columns: minmax(7rem, 14vw) minmax(0, 3fr) minmax(16rem, 2fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "add view tabs" "add view panel"; gap: 0 var(--space-3); overflow: hidden; }
   #ws-view { grid-area: view; overflow-y: auto; } #ws-tabs { grid-area: tabs; } #ws-panel { grid-area: panel; overflow: auto; }
+  #ws-add { grid-area: add; overflow-y: auto; }
+  #ws-add .add-items { flex-direction: column; }
+  #ws-add .add-items button { text-align: left; }
   #ws-health { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); white-space: normal; overflow: visible; }
   /* a callout floats in the grid area it is about (the area is its containing block), so the layout does not move */
   #ws, #ws-main { position: relative; }
@@ -89,6 +105,6 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 /* ---- print: only the A4 report page of the panel ----------------------------------------------------------------- */
 @media print {
   #app>#ws { display: block !important; } /* the workspace holds the report page; the rc.2 rule above would hide it */
-  #ws-top, #ws-steps, #ws-view, #ws-tabs, #ws-health, #ws-panel > :not(.report-page) { display: none !important; }
+  #ws-top, #ws-steps, #ws-view, #ws-add, #ws-tabs, #ws-health, #ws-panel > :not(.report-page) { display: none !important; }
   #ws-panel { overflow: visible !important; } /* a scroll box would not break across pages */
 }

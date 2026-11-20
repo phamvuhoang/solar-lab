@@ -243,6 +243,7 @@ test('W06: xoay camera và dịch tấm trong cùng mặt mái không làm kết
   await expect(page.locator('#pv-result')).toContainText('nghiêng 10°, azimuth 180°');
 
   await tab(page, 'mai');
+  await page.locator('#view-mode-3d').click(); // "#to-design" above switched the view to the diagram
   await expect(canvas(page)).toBeVisible({ timeout: 20000 });
   await expect.poll(async () => canvas(page).getAttribute('data-panels')).toBe('8');
   const cam0 = await canvas(page).getAttribute('data-camera');

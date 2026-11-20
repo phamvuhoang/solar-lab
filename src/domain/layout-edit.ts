@@ -1,6 +1,6 @@
 import { newId } from './ids';
 import { fitsFace, layoutOf, panelDims, panelRing } from './placement';
-import { bbox, toWorld, type Pt } from './roof';
+import { bbox, toWorld, type Pt, type V3 } from './roof';
 import type { Obstacle, Placement, Project, RoofFace } from './types';
 
 // Pure layout edits. Each returns a new project; saving it is what makes the "layout revision".
@@ -55,6 +55,17 @@ export function moveObstacle(p: Project, id: string, dE: number, dN: number): Pr
   if (!o) throw new Error('UNKNOWN_OBSTACLE');
   const q = (x: number) => Math.round(x * 1e6) / 1e6; // micrometres: nudging out and back must give back exactly the same geometry
   o.center = { e: q(o.center.e + dE), n: q(o.center.n + dN) };
+  return next;
+}
+
+/** Nudge a device's illustrative position. Starts from its stored placement, else from `from` (where the scene draws it), and stores the result. */
+export function moveDevice(p: Project, instanceId: string, dE: number, dN: number, from: V3): Project {
+  if (!p.instances.some((i) => i.instanceId === instanceId)) throw new Error('UNKNOWN_INSTANCE');
+  const next = clone(p), list = (next.devicePlacements ??= []);
+  const q = (x: number) => Math.round(x * 1e6) / 1e6; // micrometres, as moveObstacle
+  const at = list.find((d) => d.instanceId === instanceId), base = at ?? from;
+  const moved = { instanceId, e: q(base.e + dE), n: q(base.n + dN), up: q(base.up) };
+  if (at) Object.assign(at, moved); else list.push(moved);
   return next;
 }
 

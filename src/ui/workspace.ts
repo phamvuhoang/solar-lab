@@ -1,5 +1,6 @@
 import { BUILTIN_COMPONENTS, BUILTIN_OFFERS } from '../catalog/catalog';
 import { diff } from '../domain/diff';
+import { unassignedPanels } from '../domain/graph';
 import { isSample } from '../domain/seed';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { buildQuote } from '../cost/quote';
@@ -18,6 +19,8 @@ import { renderDesign } from './design';
 import { download, h } from './dom';
 import { healthOf, renderHealth } from './health';
 import { freshImported, renderImported } from './imported';
+import { renderInspector } from './inspector';
+import { renderPalette } from './palette';
 import { renderPv } from './pv';
 import { renderQuote } from './quote';
 import { freshReport, renderReport } from './report';
@@ -26,6 +29,7 @@ import { formatRoute, STEPS, stepOfTab, type Step, type Tab, type Target } from 
 import { renderShade, stopShadePlayback, type ShadeState } from './shade';
 import { renderSim, type SimState } from './sim';
 import { createViewport } from './viewport';
+import { validateDesign } from '../validation/strings';
 
 export interface WorkspaceDeps {
   root: HTMLElement; repo: ProjectRepository;
@@ -36,7 +40,7 @@ export interface Workspace { readonly projectId: string; readonly stored: boolea
 
 const UNSAVED = 'Xem thử · chưa lưu';
 const vnd = (minor: string) => Number(minor).toLocaleString('vi-VN') + ' đ';
-/** Tabs whose screen draws the shared selection (roof, shade, diagram, BOM highlight). */
+/** Tabs whose screen draws the shared selection (roof, shade, diagram, BOM highlight); the inspector on top of the panel shows it on every tab. */
 const SHOWS_SELECTION: Tab[] = ['mai', 'bong', 'thiet-ke', 'du-toan'];
 
 /** Bundled datasets load from the app, imported ones from the store. */
@@ -57,9 +61,9 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   let userComponents: Component[] = [];
   let userOffers: Offer[] = [];
   const history = new History<Project>();
-  let selected: string | null = null;
+  let selected: string | null = null; // what the diagram and the finding detail show: a string, device, port or edge id
   let pendingFocus: string[] = [];
-  let selection: string[] = []; // selected panel instance ids, shared by the diagram, the roof views and the BOM
+  let selection: string[] = []; // instance and obstacle ids of every kind, shared by 3D, diagram, plan, lists, BOM and the inspector
   const roofState: RoofState = { faceId: null, angle: 0, stepCm: 5 };
   const shadeState: ShadeState = { date: null, step: 0, scenes: [], dayEnergy: null, stepLabel: '' };
   let lastPvResult: PvResult | null = null;
@@ -97,14 +101,26 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const mutate = async (next: Project) => { const prev = project!; if (await save(next)) history.record(prev); };
 
   const stringOfPanel = (id: string) => project?.strings?.find((x) => x.panelIds.includes(id))?.stringId ?? null;
-  /** Roof/plan/list selection → the diagram's selected object (a string if all chosen panels share one). */
-  const setSelection = (ids: string[]) => {
-    selection = [...new Set(ids)];
-    const owners = new Set(selection.map(stringOfPanel).filter(Boolean));
-    selected = owners.size === 1 ? [...owners][0]! : null;
+  const isPanel = (id: string) => project.instances.some((i) => i.instanceId === id && i.kind === 'panel');
+  /** Any picked id → the instance or obstacle ids it stands for: a string → its panels, "instance:port" → its device, an edge → nothing. */
+  const resolve = (id: string): string[] => {
+    const st = project.strings?.find((x) => x.stringId === id);
+    if (st) return [...st.panelIds];
+    if (id === 'unassigned') return unassignedPanels(project); // the diagram's "n tấm chưa gán" box
+    const base = id.split(':')[0];
+    return project.instances.some((i) => i.instanceId === base) || project.obstacles?.some((o) => o.obstacleId === base) ? [base] : [];
   };
-  /** Diagram pick: the object it shows as selected; a string also selects its panels. */
-  const select = (id: string | null) => { selected = id; const st = id ? project.strings?.find((x) => x.stringId === id) : undefined; if (st) selection = [...st.panelIds]; };
+  /**
+   * The one selection, from any view. The diagram's object: the id itself when one non-panel id is picked (string, device, port, edge),
+   * else the string all chosen panels share. Returns false when nothing changed.
+   */
+  const choose = (ids: string[]): boolean => {
+    const sel = [...new Set(ids.flatMap(resolve))], owners = new Set(sel.map(stringOfPanel).filter(Boolean));
+    const obj = ids.length === 1 && !isPanel(ids[0]) ? ids[0] : owners.size === 1 ? [...owners][0]! : null;
+    if (obj === selected && sel.join(',') === selection.join(',')) return false;
+    selection = sel; selected = obj;
+    return true;
+  };
   const historyFor = (refresh: () => Promise<void>) => ({
     canUndo: history.canUndo, canRedo: history.canRedo,
     undo: () => { const cur = project!; const prev = history.undo(cur); void (async () => { if (prev) { if (await save(prev)) say(`Đã lưu: revision ${project!.revision}`); else history.redo(prev); } await refresh(); })(); },
@@ -141,17 +157,44 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const panel = h('section', { id: 'ws-panel', role: 'tabpanel' });
   let health = h('footer', { id: 'ws-health' });
   // one 3D view for the whole workspace: it outlives step and tab changes; selecting or dragging in it works on every tab
-  // only tabs that show the selection repaint; any other tab keeps what is being typed into it
-  const selectionChanged = () => { if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else view.refresh(); };
+  // only tabs that show the selection repaint; any other tab keeps what is being typed into it and swaps just the inspector
+  const selectionChanged = () => { if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else { view.refresh(); paintInspector(); } };
+  const pick = (ids: string[]) => { if (choose(ids)) selectionChanged(); }; // equal selection (e.g. empty ground clicked twice): nothing repaints
   const view = createViewport({
     project: () => project, selection: () => selection, apply: (next) => saved(next), selected: () => selected,
-    setSelection: (ids) => {
-      if (ids.join(',') === selection.join(',')) return; // e.g. a click on empty ground with nothing selected
-      setSelection(ids); selectionChanged();
-    },
-    select: (id) => { if (id !== selected) { select(id); selectionChanged(); } },
+    setSelection: pick, select: (id) => pick([id]), remove: () => { if (selection.length) void requestDelete(selection); },
   });
-  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, view.el, tabs, panel), health);
+
+  // ---- "Đang chọn" on top of the panel; kept while project and selection stay, so an open preview survives other repaints ----
+  let insp: { el: HTMLElement; project: Project; key: string } | null = null, inspOpen: 'delete' | undefined;
+  const inspector = (): HTMLElement => {
+    const key = selection.join(',');
+    if (insp?.project !== project || insp.key !== key || inspOpen) {
+      insp = { project, key, el: renderInspector({
+        project, selection, findings: validateDesign(project), components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers],
+        apply: saved, select: pick, go: goTarget, open: inspOpen,
+      }) };
+      inspOpen = undefined;
+    }
+    return insp.el;
+  };
+  const paintInspector = () => panel.querySelector('#inspector')?.replaceWith(inspector());
+  /** Select `ids` and show what deleting them takes along, focus on its confirm button (the Delete key in 3D, "Xóa" in the device list). */
+  const requestDelete = async (ids: string[]) => {
+    choose(ids); inspOpen = 'delete';
+    if (tab && SHOWS_SELECTION.includes(tab)) await renderPanel(null); else { view.refresh(); paintInspector(); }
+    document.getElementById('insp-confirm')?.focus();
+  };
+  // the add palette: rebuilt only when the project changed, so its preview is never stale and an open block survives other repaints
+  let palette = h('aside', { id: 'ws-add' }), paletteOf: Project | null = null;
+  const paintPalette = () => {
+    if (paletteOf === project) return;
+    const next = renderPalette({ project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], apply: saved });
+    palette.replaceWith(next); palette = next; paletteOf = project;
+  };
+  /** The design's "Mái nhà 3D" and the roof's "Sơ đồ điện" also switch the view to what they name. */
+  const goView = (t: Tab) => { if (t === 'mai') view.setMode('3d'); else if (t === 'thiet-ke') view.setMode('diagram'); go(t); };
+  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, view.el, palette, tabs, panel), health);
   const help = h('details', { id: 'ws-help' }, h('summary', {}, 'Trợ giúp'),
     h('button', { id: 'lessons-btn', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'bai-hoc' }); } }, 'Bài học'),
     h('button', { id: 'ws-about', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'phien-ban' }); } }, 'Phiên bản và phạm vi kiểm chứng'),
@@ -183,7 +226,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   }
 
   /** Renders the current tab into the panel. Screens are async: only the latest render paints. */
-  async function renderPanel(keep = focusKey()): Promise<void> {
+  async function renderPanel(keep: string | null = focusKey()): Promise<void> {
     if (disposed) return; // a save that finishes after the project was closed repaints nothing
     const my = ++seq, t = tab!;
     // a screen's own re-render (selection, progress, results) is dropped once its tab is left: it must not wipe the open tab's input
@@ -191,9 +234,10 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     const nodes = await SCREENS[t](again);
     if (my !== seq) return;
     const items = progressOf(project, { simRan: simState.runs.some((r) => r.source.kind === 'current' && r.revision === project.revision) });
-    panel.replaceChildren(...(progressComplete(items) ? [] : [checklist(items)]), ...nodes);
+    panel.replaceChildren(inspector(), ...(progressComplete(items) ? [] : [checklist(items)]), ...nodes);
     view.refresh();
     paintChrome();
+    paintPalette();
     if (keep) root.querySelector<HTMLElement | SVGElement>(keep)?.focus({ preventScroll: true }); // synchronous: no key can arrive in between
     applyFocus();
   }
@@ -211,13 +255,13 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     mai: async (again) => renderRoof({
       project, selection, state: roofState,
       apply: saved,
-      setSelection: (ids) => { setSelection(ids); void again(); }, rerender: () => { void again(); },
-      history: historyFor(edited), go,
+      setSelection: (ids) => { choose(ids); void again(); }, rerender: () => { void again(); },
+      history: historyFor(edited), go: goView,
     }),
     bong: async (again) => renderShade({
       project, revisions: await repo.listRevisions(project.projectId), selection, state: shadeState, loadRevision: (n) => repo.loadRevision(project.projectId, n), loadWeather,
       apply: saved,
-      setSelection: (ids) => { setSelection(ids); void again(); }, rerender: () => { void again(); }, go,
+      setSelection: (ids) => { choose(ids); void again(); }, rerender: () => { void again(); }, go,
       setOverlay: (o) => { if (tab === 'bong') view.setOverlay(o); }, // a late shade render must not paint its sun over another tab
     }),
     'thiet-ke': async (again) => {
@@ -228,14 +272,15 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
       };
       return renderDesign({
         project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], selected,
-        select: (id, focusIds = []) => { select(id); pendingFocus = focusIds; void again(); },
+        select: (id, focusIds = []) => { choose(id ? [id] : []); pendingFocus = focusIds; void again(); },
+        remove: (id) => { void requestDelete([id]); },
         apply: saved,
         history: {
           canUndo: history.canUndo, canRedo: history.canRedo,
           undo: () => { const cur = project!; const prev = history.undo(cur); undoStep(prev, () => history.redo(prev!)); },
           redo: () => { const cur = project!; const nxt = history.redo(cur); undoStep(nxt, () => history.undo(nxt!)); },
         },
-        go,
+        go: goView,
       });
     },
     pv: async (again) => {
@@ -265,6 +310,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
         loadRevision: (n) => repo.loadRevision(p.projectId, n), saveOffer: (o) => repo.saveOffer(o),
         apply: async (next) => { await mutate(next); await edited(); },
         selectedKeys: selection.flatMap((id) => { const r = p.instances.find((i) => i.instanceId === id)?.componentRef; return r ? [`design:${refKey(r)}`] : []; }),
+        select: pick,
       });
     },
     'thiet-bi': async () => renderCatalog({ project, repo, mutate, rerender: () => { void edited(); }, say }),
@@ -308,11 +354,13 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     if (!ws.isConnected) root.replaceChildren(...(deps.reloadNeeded() ? [deps.reloadNote()] : []), ws);
     const keep = focusKey();
     if (t !== tab) {
+      insp = null; // user-made models may have changed: "Đổi model" lists them
       if (tab === 'bong') { stopShadePlayback(); view.setOverlay({ sun: null, heat: null }); }
       if (tab === 'du-an') recordedOpen = false;
       panel.replaceChildren(); // never show the previous tab's controls under the new tab
     }
     step = s; tab = t;
+    await reload();
     paintNav();
     if (coach) { coach = false; startCoach({ view: view.el, panel, health }); }
     await renderPanel(keep);

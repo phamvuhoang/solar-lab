@@ -17,8 +17,10 @@ export interface QuoteCtx {
   project: Project; offers: Offer[]; revisions: { revision: number }[];
   loadRevision(n: number): Promise<Project | undefined>; saveOffer(o: Offer): Promise<void>;
   apply(next: Project): Promise<void>;
-  /** Quote line keys (design:model@rev) of the panels selected elsewhere; their rows are highlighted. */
+  /** Quote line keys (design:model@rev) of the instances selected elsewhere; their rows are highlighted. */
   selectedKeys?: string[];
+  /** A device row's label selects every instance of that model in the shared selection. */
+  select?(ids: string[]): void;
 }
 
 const num = (v: string) => (v.trim() ? parseNumber(v.trim()) : null);
@@ -31,8 +33,13 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
   const fail = (m: string) => { errBox.textContent = m; };
 
   const picked = new Set(ctx.selectedKeys ?? []);
+  const instancesOf = (key: string) => p.instances.filter((i) => i.componentRef && `design:${refKey(i.componentRef)}` === key).map((i) => i.instanceId);
+  const label = (l: QuoteLine) => {
+    const ids = l.source === 'design' && ctx.select ? instancesOf(l.key.replace(/:kit$/, '')) : [];
+    return ids.length ? h('button', { type: 'button', className: 'bom-pick', 'aria-label': `Chọn ${ids.length} × ${l.label}`, onClick: () => ctx.select!(ids) }, l.label) : l.label;
+  };
   const row = (l: QuoteLine) => h('tr', { 'data-key': l.key, className: picked.has(l.key.replace(/:kit$/, '')) ? 'selected' : '', 'aria-selected': String(picked.has(l.key.replace(/:kit$/, ''))) },
-    h('td', {}, CAT[l.category]), h('td', {}, l.label),
+    h('td', {}, CAT[l.category]), h('td', {}, label(l)),
     h('td', {}, l.qtyUnit === 'mm' ? `${(l.qty / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m` : String(l.qty)),
     h('td', {}, l.status === 'missing' ? `chưa có giá (${REASON[l.reason!]})` : l.basis),
     h('td', { className: 'num' }, l.totalMinor === null ? '—' : (l.sign === -1 ? '−' : '') + vnd(l.totalMinor)),

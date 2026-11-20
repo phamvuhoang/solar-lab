@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import { BUILTIN_OFFERS, offersFor } from '../../src/catalog/catalog';
 import { buildQuote } from '../../src/cost/quote';
-import { fillFace } from '../../src/domain/layout-edit';
+import { describeChange } from '../../src/domain/change';
+import { fillFace, moveDevice } from '../../src/domain/layout-edit';
 import { addInstances } from '../../src/domain/project';
 import { addAcLoad, addPumpBranch, ALL_DAY, atHour, replaceComponent } from '../../src/domain/presets';
 import { buildSampleHouse, SAMPLE_WEATHER_ID } from '../../src/domain/seed';
 import { compileSim } from '../../src/engine/sim-compile';
+import { buildSceneModel } from '../../src/scene/model';
 import { validateDesign } from '../../src/validation/strings';
 import { loadBundledWeather } from '../../src/weather/bundled';
 import { catalog } from './helpers';
@@ -27,6 +29,7 @@ describe('replaceComponent', () => {
     expect(q.strings).toEqual(p.strings);
     expect(q.placements).toEqual(p.placements);
     expect(ids.map((id) => q.instances.find((i) => i.instanceId === id)!.label)).toEqual(ids.map((id) => `${hes.name} #${p.instances.find((i) => i.instanceId === id)!.label.split('#')[1]}`));
+    expect(describeChange(p, q)).toContain(`Đổi model: 4 × ${catalog('vsun-620').name} → ${hes.name}`); // one line for the swap, not one per panel
   });
   test('khác loại → KIND_MISMATCH; id lạ → UNKNOWN_INSTANCE', () => {
     const p = seed();
@@ -54,5 +57,25 @@ describe('lịch mặc định', () => {
     const w = await loadBundledWeather(SAMPLE_WEATHER_ID);
     if (!w?.ok) throw new Error('weather');
     expect((await compileSim(p, w.series)).issues).toEqual([]);
+  });
+});
+describe('moveDevice', () => {
+  test('moveDevice cộng dồn từ vị trí hiện tại', () => {
+    const p = seed(), id = p.instances.find((i) => i.kind === 'battery')!.instanceId;
+    const q = (x: number) => Math.round(x * 1e6) / 1e6;
+    const at = (x: typeof p) => buildSceneModel(x).devices.find((d) => d.instanceId === id)!;
+    const from = at(p).center;
+    const a = moveDevice(p, id, 0.1, 0, from);
+    expect(p.devicePlacements).toBeUndefined(); // pure
+    expect(a.devicePlacements).toEqual([{ instanceId: id, e: q(from.e + 0.1), n: q(from.n), up: q(from.up) }]);
+    expect(at(a).placed).toBe(true);
+    // a second nudge starts from the stored position, even when the caller passes the old one
+    const b = moveDevice(a, id, 0.1, -0.1, from);
+    expect(b.devicePlacements).toEqual([{ instanceId: id, e: q(from.e + 0.2), n: q(from.n - 0.1), up: q(from.up) }]);
+    // out and back gives exactly the same numbers; other devices stay where the wall puts them
+    const c = moveDevice(moveDevice(b, id, -0.1, 0.1, at(b).center), id, -0.1, 0, from);
+    expect(c.devicePlacements).toEqual(a.devicePlacements!.map((d) => ({ ...d, e: q(from.e) })));
+    expect(buildSceneModel(c).devices.filter((d) => d.instanceId !== id).every((d) => !d.placed)).toBe(true);
+    expect(() => moveDevice(p, 'nope', 0.1, 0, from)).toThrow('UNKNOWN_INSTANCE');
   });
 });

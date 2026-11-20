@@ -70,7 +70,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
     return h('form', { 'aria-label': 'Thêm mặt mái chữ nhật', onSubmit: (e: Event) => { e.preventDefault(); const v = [w, sl, t, a].map((x) => num(x.el.value)); if (v.some((x) => x === null || x < 0) || v[0]! <= 0 || v[1]! <= 0) return say(['Kích thước phải là số dương, nghiêng và hướng ≥ 0']); say([]); run(() => addRoofFace(p, faceRect(`Mái ${p.roofFaces.length + 1}`, v[0]!, v[1]!, v[2]!, v[3]!, { e: 0, n: 0, up: 3 }))); } },
       w.node, sl.node, t.node, a.node, h('button', { type: 'submit', id: 'add-rect' }, 'Thêm mặt mái chữ nhật'));
   })();
-  const obstacleList = (p.obstacles ?? []).map((o) => h('li', {}, `${o.label} · ${o.kind === 'box' ? 'hộp' : 'trụ'} ${dec(o.size.x)}×${dec(o.size.y)}×${dec(o.size.z)} m · tại (${dec(o.center.e)}, ${dec(o.center.n)}) ${o.roofFaceId ? '· trên mái' : '· đứng riêng'} `, btn('Xóa', () => run(() => removeObstacle(p, o.obstacleId)))));
+  const obstacleList = (p.obstacles ?? []).map((o) => h('li', {}, h('button', { type: 'button', 'aria-label': `Chọn ${o.label}`, onClick: () => ctx.setSelection([o.obstacleId]) }, o.label), ` · ${o.kind === 'box' ? 'hộp' : 'trụ'} ${dec(o.size.x)}×${dec(o.size.y)}×${dec(o.size.z)} m · tại (${dec(o.center.e)}, ${dec(o.center.n)}) ${o.roofFaceId ? '· trên mái' : '· đứng riêng'} `, btn('Xóa', () => run(() => removeObstacle(p, o.obstacleId)))));
 
   // ---- 2. placement tools -----------------------------------------------------------------------------------
   const faceSel = h('select', { id: 'place-face', 'aria-label': 'Mặt mái' }, ...p.roofFaces.map((f) => h('option', { value: f.roofFaceId }, f.label)));
