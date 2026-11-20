@@ -4,8 +4,8 @@ import { moveDevice, moveObstacle, removeObstacle } from '../domain/layout-edit'
 import { replaceComponent } from '../domain/presets';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { buildSceneModel } from '../scene/model';
-import type { Finding } from '../validation/strings';
-import { errText, findingTitle, STATUS_LABEL } from './design';
+import { displayStatus, STATUS_LABEL, type Finding } from '../validation/strings';
+import { errText, findingTitle } from './design';
 import { h } from './dom';
 import { previewer } from './palette';
 import type { Target } from './route';
@@ -67,7 +67,7 @@ export function renderInspector(ctx: InspectorCtx): HTMLElement {
   }
   // statuses in words, one line; the findings themselves fold underneath
   const bad = mine.filter((f) => f.status !== 'pass');
-  const counts = (['fail', 'limited', 'unknown'] as const).map((st) => [st, bad.filter((f) => f.status === st).length] as const).filter(([, n]) => n);
+  const counts = (['fail', 'limited', 'unknown'] as const).map((st) => [st, bad.filter((f) => displayStatus(f) === st).length] as const).filter(([, n]) => n);
   const status = live(bad.length ? `Kiểm tra: ${counts.map(([st, n]) => `${n} ${STATUS_LABEL[st]}`).join(', ')}` : mine.length ? `Kiểm tra: ${mine.length} mục đạt` : 'Chưa có kiểm tra điện nào gắn với món này.');
 
   // ---- edits: replace model, delete (both previewed), why, nudge --------------------------------------------------

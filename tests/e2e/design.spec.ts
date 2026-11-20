@@ -108,3 +108,21 @@ test('W13: sửa nhanh ISC có xem trước, xác nhận một revision, hoàn t
   await page.locator('#ws-undo').click();
   await expect(page.locator('#findings-summary')).toContainText('1 lỗi thiết kế');
 });
+
+test('một trạng thái ở mọi nơi: Lâm Hà vừa mở, thanh sức khỏe, tóm tắt, danh sách và "Đang chọn" cùng nói "chưa đủ dữ liệu"', async ({ page }) => {
+  await page.goto('/#/');
+  await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
+  await tab(page, 'thiet-ke');
+  // tấm chưa vào chuỗi, pin chưa nối: chưa kiểm được, không phải lỗi
+  const electric = page.locator('#health-electric');
+  await expect(electric).toHaveAttribute('data-state', 'unknown');
+  await expect(electric).toContainText('Điện: 0 lỗi · 0 giới hạn · 2 chưa đủ dữ liệu');
+  await expect(electric).toContainText(/chưa đủ dữ liệu$/);
+  await expect(page.locator('#findings-summary')).toHaveText('0 lỗi thiết kế · 0 giới hạn công suất · 2 chưa đủ dữ liệu · 0 đạt');
+  const items = page.locator('#findings button.finding');
+  await expect(items).toHaveCount(2);
+  await expect(page.locator('#findings button.finding.unknown')).toHaveCount(2);
+  for (const t of await items.allInnerTexts()) expect(t).toMatch(/^Chưa đủ dữ liệu: /);
+  await page.locator('button.finding[data-code="PANEL_UNASSIGNED"]').click();
+  await expect(page.locator('#insp-status')).toHaveText('Kiểm tra: 1 chưa đủ dữ liệu');
+});

@@ -1,5 +1,6 @@
 import { findComponent } from '../catalog/catalog';
 import { buildQuote } from '../cost/quote';
+import { isSample, SAMPLE_TAG } from '../domain/seed';
 import type { Project } from '../domain/types';
 import { deleteBackup, exportAll, listBackups, restoreBackup } from '../persistence/backup';
 import { isQuotaError, storageEstimate } from '../persistence/import';
@@ -7,17 +8,17 @@ import type { ProjectHead, ProjectRepository } from '../persistence/repository';
 import { download, h } from './dom';
 import { formatRoute } from './route';
 
-export interface HomeCard { projectId: string; name: string; panels: number; kWp: number; knownMinor: string; updatedAt: string }
+export interface HomeCard { projectId: string; name: string; sample: boolean; panels: number; kWp: number; knownMinor: string; updatedAt: string }
 interface HomeCtx { repo: ProjectRepository; say(m: string): void; message(): string; importFile(f: File): Promise<void>; openLamHa(): Promise<void> }
 
 export function cardOf(head: ProjectHead, p: Project): HomeCard {
   const panels = p.instances.filter((i) => i.kind === 'panel');
   const w = panels.reduce((a, i) => a + ((i.componentRef && findComponent(p.snapshots.components, i.componentRef)?.specs.pstcW?.v) || 0), 0);
-  return { projectId: head.projectId, name: head.name, panels: panels.length, kWp: w / 1000, knownMinor: buildQuote(p).knownSubtotalMinor, updatedAt: head.updatedAt };
+  return { projectId: head.projectId, name: head.name, sample: isSample(p), panels: panels.length, kWp: w / 1000, knownMinor: buildQuote(p).knownSubtotalMinor, updatedAt: head.updatedAt };
 }
 
 const cardLine = (c: HomeCard) =>
-  `${c.panels} tấm · ${c.kWp.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} kWp · ${Number(c.knownMinor).toLocaleString('vi-VN')} đ đã biết · sửa ${new Date(c.updatedAt).toLocaleDateString('vi-VN')}`;
+  `${c.sample ? `${SAMPLE_TAG} · ` : ''}${c.panels} tấm · ${c.kWp.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} kWp · ${Number(c.knownMinor).toLocaleString('vi-VN')} đ đã biết · sửa ${new Date(c.updatedAt).toLocaleDateString('vi-VN')}`;
 
 /** The home page: three entries of the same size, the saved projects as cards, the samples, help. One root, repainted in place. */
 export async function renderHome(ctx: HomeCtx): Promise<Node[]> {

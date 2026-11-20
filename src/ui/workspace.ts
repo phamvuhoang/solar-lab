@@ -1,7 +1,7 @@
 import { BUILTIN_COMPONENTS, BUILTIN_OFFERS } from '../catalog/catalog';
 import { diff } from '../domain/diff';
 import { unassignedPanels } from '../domain/graph';
-import { isSample } from '../domain/seed';
+import { isSample, SAMPLE_TAG } from '../domain/seed';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { buildQuote } from '../cost/quote';
 import { exportProject } from '../persistence/exchange';
@@ -21,7 +21,7 @@ import { startCoach } from './coach';
 import { renderDesign } from './design';
 import { applyDepth, currentDepth, DEPTH_LABEL, writeDepth, type Depth } from './depth';
 import { download, h } from './dom';
-import { healthOf, renderHealth } from './health';
+import { healthOf, paintHealthBar } from './health';
 import { freshImported, renderImported, workerRunner } from './imported';
 import { renderInspector } from './inspector';
 import { renderPalette } from './palette';
@@ -44,8 +44,11 @@ export interface Workspace { readonly projectId: string; readonly stored: boolea
 
 const UNSAVED = 'Xem thử · chưa lưu';
 const vnd = (minor: string) => Number(minor).toLocaleString('vi-VN') + ' đ';
-/** Tabs whose screen draws the shared selection (roof, shade, diagram, BOM highlight); the inspector on top of the panel shows it on every tab. */
-const SHOWS_SELECTION: Tab[] = ['mai', 'bong', 'thiet-ke', 'du-toan'];
+/**
+ * Tabs whose screen draws the shared selection (roof, shade, diagram); the inspector on top of the panel shows it on every tab.
+ * The quote only highlights rows, in place (markQuoteRows), so a pick never drops a half-typed offer or extra line.
+ */
+const SHOWS_SELECTION: Tab[] = ['mai', 'bong', 'thiet-ke'];
 
 /** Bundled datasets load from the app, imported ones from the store. */
 export const weatherLoader = (repo: ProjectRepository) => async (id: string) => {
@@ -199,10 +202,12 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const steps = h('nav', { id: 'ws-steps', 'aria-label': 'Các bước' });
   const tabs = h('div', { id: 'ws-tabs', role: 'tablist' });
   const panel = h('section', { id: 'ws-panel', role: 'tabpanel', tabIndex: -1 }); // "Tới bảng bước" focuses it
-  let health = h('footer', { id: 'ws-health' });
+  // the two live regions (status line, health bar) are built once and only their text changes: one inserted already filled is usually not read out
+  const status = h('p', { id: 'status', role: 'status' });
+  const health = h('footer', { id: 'ws-health', 'aria-live': 'polite' });
   // one 3D view for the whole workspace: it outlives step and tab changes; selecting or dragging in it works on every tab
   // only tabs that show the selection repaint; any other tab keeps what is being typed into it and swaps just the inspector
-  const selectionChanged = () => { if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else { view.refresh(); paintInspector(); } };
+  const selectionChanged = () => { if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else repaintSelection(); };
   const pick = (ids: string[]) => { if (choose(ids)) selectionChanged(); }; // equal selection (e.g. empty ground clicked twice): nothing repaints
   /** A pick in the view shows "Đang chọn" on top of the panel; on a phone the step panel opens over the view to show it, unless it came with a drag. */
   const viewPick = (ids: string[], shown = true) => {
@@ -240,10 +245,22 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     return insp.el;
   };
   const paintInspector = () => panel.querySelector('#inspector')?.replaceWith(inspector());
+  /** The quote's rows of the selected models, highlighted where they are (the same keys renderQuote gets as selectedKeys). */
+  const quoteKeys = () => selection.flatMap((id) => { const r = project.instances.find((i) => i.instanceId === id)?.componentRef; return r ? [`design:${refKey(r)}`] : []; });
+  const markQuoteRows = () => {
+    const keys = new Set(quoteKeys());
+    for (const tr of panel.querySelectorAll<HTMLElement>('#quote-table tr[data-key]')) {
+      const on = keys.has(tr.dataset.key!.replace(/:kit$/, ''));
+      tr.classList.toggle('selected', on);
+      tr.setAttribute('aria-selected', String(on));
+    }
+  };
+  /** A new selection on a tab that does not draw it: the view, the inspector and the quote's highlight; nothing being typed is touched. */
+  const repaintSelection = () => { view.refresh(); paintInspector(); markQuoteRows(); };
   /** Select `ids` and show what deleting them takes along, focus on its confirm button (the Delete key in 3D, "Xóa" in the device list). */
   const requestDelete = async (ids: string[]) => {
     choose(ids); inspOpen = 'delete'; setSheet('panel');
-    if (tab && SHOWS_SELECTION.includes(tab)) await renderPanel(null); else { view.refresh(); paintInspector(); }
+    if (tab && SHOWS_SELECTION.includes(tab)) await renderPanel(null); else repaintSelection();
     document.getElementById('insp-confirm')?.focus();
   };
   // the add palette: rebuilt only when the project changed, so its preview is never stale and an open block survives other repaints
@@ -267,6 +284,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   }
   // focus order: top bar, steps, Thêm, view, tabs, panel, health bar; the view starts with a way past its controls
   view.el.prepend(h('button', { id: 'skip-panel', type: 'button', className: 'skip', onClick: () => { setSheet('panel'); panel.focus(); } }, 'Tới bảng bước'));
+  top.append(status);
   const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, palette, view.el, tabs, panel), sheets, health, said);
   // phones: Esc in an open sheet (or on its button) closes it; focus goes back to the button
   ws.addEventListener('keydown', (e) => {
@@ -305,24 +323,27 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   function paintChrome() {
     const hist = historyFor(edited);
     const name = h('h2', { id: 'ws-name' }, project.name), rev = h('span', { id: 'ws-rev' }, stored ? `Đã lưu · r${project.revision}` : UNSAVED);
-    const badge = isSample(project) && h('span', { id: 'ws-badge' }, 'Mẫu minh họa · không phải báo giá');
+    const badge = isSample(project) && h('span', { id: 'ws-badge' }, SAMPLE_TAG);
     const tools = [home,
       h('button', { id: 'ws-undo', type: 'button', disabled: !hist.canUndo, onClick: hist.undo }, 'Hoàn tác'),
       h('button', { id: 'ws-redo', type: 'button', disabled: !hist.canRedo, onClick: hist.redo }, 'Làm lại'),
       depthSwitch(), help];
     moreItems.replaceChildren(...(narrow.matches ? tools : []));
-    top.replaceChildren(...[
+    // the other tab's revision: this tab's undo steps are older copies, and undoing one would quietly save it over that work
+    const latest = async () => { project = (await repo.loadRevision(project.projectId))!; history.clear(); say(''); await renderPanel(); };
+    for (const c of [...top.childNodes]) if (c !== status) c.remove(); // the status line stays the same node, last
+    status.before(...[
       h('h1', {}, 'Mekoniq Solar Lab'),
       ...(narrow.matches ? [name, rev, more, badge] : [home, name, badge, rev, ...tools.slice(1)]),
-      message().includes('Mở bản mới nhất') && h('button', { id: 'ws-latest', type: 'button', onClick: async () => { project = (await repo.loadRevision(project.projectId))!; say(''); await renderPanel(); } }, 'Mở bản mới nhất'),
-      h('p', { id: 'status', role: 'status' }, message())].filter(Boolean) as Node[]);
+      message().includes('Mở bản mới nhất') && h('button', { id: 'ws-latest', type: 'button', onClick: latest }, 'Mở bản mới nhất')].filter(Boolean) as Node[]);
+    if (status.textContent !== message()) status.textContent = message();
     paintHealth();
   }
   function paintHealth() {
-    const next = renderHealth(healthOf(project, auto), goTarget);
-    if (fresh) next.append(h('button', { id: 'ws-fresh', type: 'button', onClick: () => { void renderPanel(); } }, 'Có kết quả mới · Hiện'));
-    health.replaceWith(next);
-    health = next;
+    paintHealthBar(health, healthOf(project, auto), goTarget);
+    const shown = health.querySelector('#ws-fresh');
+    if (fresh && !shown) health.append(h('button', { id: 'ws-fresh', type: 'button', onClick: () => { void renderPanel(); } }, 'Có kết quả mới · Hiện'));
+    else if (!fresh) shown?.remove();
   }
 
   // ---- automatic run: shade + PV + dispatch about a second after the design stops changing ---------------------------
@@ -455,7 +476,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
         project: p, offers: [...BUILTIN_OFFERS, ...userOffers], revisions: await repo.listRevisions(p.projectId),
         loadRevision: (n) => repo.loadRevision(p.projectId, n), saveOffer: (o) => repo.saveOffer(o),
         apply: async (next) => { await mutate(next); await edited(); },
-        selectedKeys: selection.flatMap((id) => { const r = p.instances.find((i) => i.instanceId === id)?.componentRef; return r ? [`design:${refKey(r)}`] : []; }),
+        selectedKeys: quoteKeys(),
         select: pick,
       });
     },

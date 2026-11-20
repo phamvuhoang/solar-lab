@@ -67,9 +67,11 @@ test('dựng hai lần cho cùng nội dung (trừ id và thời điểm)', () =
 test('thẻ trang đầu: số tấm, kWp và tổng đã biết lấy từ dự án', () => {
   const head = (p: Project) => ({ projectId: p.projectId, name: p.name, headRevision: p.revision, updatedAt: p.updatedAt });
   const lamHa = openLamHa(T);
-  expect(cardOf(head(lamHa), lamHa)).toEqual({ projectId: lamHa.projectId, name: 'Lâm Hà', panels: 8, kWp: 4.96, knownMinor: '31872000', updatedAt: T });
+  expect(cardOf(head(lamHa), lamHa)).toEqual({ projectId: lamHa.projectId, name: 'Lâm Hà', sample: false, panels: 8, kWp: 4.96, knownMinor: '31872000', updatedAt: T });
   const sample = buildSampleHouse(T);
-  expect(cardOf(head(sample), sample)).toMatchObject({ panels: 8, kWp: 4.96, knownMinor: '15872000' });
+  expect(cardOf(head(sample), sample)).toMatchObject({ sample: true, panels: 8, kWp: 4.96, knownMinor: '15872000' });
+  const renamed = { ...sample, name: 'Nhà anh Ba' };
+  expect(cardOf(head(renamed), renamed).sample).toBe(true); // the card keeps the tag after a rename
 });
 test('cờ sample: đổi tên vẫn là mẫu; Lâm Hà thì không; schema nhận sample: true', () => {
   expect(isSample({ ...buildSampleHouse(T), name: 'Nhà của tôi' })).toBe(true);

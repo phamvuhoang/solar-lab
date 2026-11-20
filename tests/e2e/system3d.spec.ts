@@ -117,7 +117,7 @@ test('bấm dòng BOM chọn mọi instance của model; Vì sao? mở đúng ki
   await expect.poll(async () => (await view.getAttribute('data-selected'))?.split(',').length).toBe(8);
   await expect(page.locator('#inspector')).toContainText('8 món');
   await page.locator('tr[data-key="design:dyness-dl5-0c@1"] button.bom-pick').click();
-  await expect(page.locator('#inspector')).toContainText('2 bị giới hạn công suất');
+  await expect(page.locator('#inspector')).toContainText('2 bị giới hạn'); // the words of the health bar and the list
   await page.locator('#insp-why').click();
   await expect(page.locator('#design-btn')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#finding-detail')).toContainText('BATTERY_CHARGE_LIMIT');

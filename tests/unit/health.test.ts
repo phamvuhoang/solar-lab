@@ -1,10 +1,12 @@
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
+import { buildQuote } from '../../src/cost/quote';
 import { openLamHa, createProject } from '../../src/domain/project';
 import type { AutoState } from '../../src/app/auto-sim';
 import { buildSampleHouse } from '../../src/domain/seed';
 import { formatKWh } from '../../src/domain/units';
 import type { SimResult } from '../../src/engine/system';
-import { healthOf } from '../../src/ui/health';
+import type { Kit, Project } from '../../src/domain/types';
+import { healthOf, pvYear } from '../../src/ui/health';
 import { validateDesign } from '../../src/validation/strings';
 import { catalog, rig, withStrings } from './helpers';
 
@@ -13,12 +15,32 @@ const cell = (p: Parameters<typeof healthOf>[0], k: string) => healthOf(p).find(
 test('Lâm Hà vừa mở: chỉ có cảnh báo cấu trúc → Điện "chưa đủ dữ liệu", không bao giờ "đạt"', () => {
   const e = cell(openLamHa(), 'electric');
   expect(e.state).toBe('unknown');
-  expect(e.text).toContain('0 lỗi');
+  expect(e.text).toBe('Điện: 0 lỗi · 0 giới hạn · 2 chưa đủ dữ liệu'); // the design summary and the inspector count the same (tests/e2e/design.spec.ts)
   expect(e.missing).toContain('chưa thuộc chuỗi');
 });
 test('Lâm Hà: tiền đã biết 31.872.000 đ, thiếu 4 giá (khung, dây, bảo vệ, công)', () => {
   const m = cell(openLamHa(), 'money');
   expect(m.text).toContain('31.872.000'); expect(m.text).toContain('thiếu 4 giá'); expect(m.state).toBe('unknown');
+});
+
+describe('tiền chỉ "đạt" khi dự toán báo được tổng hoàn chỉnh', () => {
+  const lam = openLamHa();
+  // every price known and no category required: what used to read "đạt"
+  const priced = { ...lam, quote: { vatRateBp: 1000, requiredCategories: [], waived: [] } } as Project;
+  const vatKnown = { ...priced, snapshots: { ...lam.snapshots, offers: lam.snapshots.offers.map((o) => ({ ...o, vat: 'included' as const })) } } as Project;
+  const kit = (qty: number): Kit => ({ kitId: 'kit-1', label: 'Gói tấm', count: 2, parts: [{ componentRef: { modelId: 'vsun-620', revision: 1 }, qty }], priceMinor: '10000000', vat: 'included', seller: 'X', recordedAt: '2026-01-01', covers: [] });
+  test('mọi dòng có giá nhưng 2 báo giá chưa rõ VAT: chưa đủ dữ liệu, nói rõ lý do', () => {
+    expect(buildQuote(priced)).toMatchObject({ complete: false, missing: { lineKeys: [], scope: [] } });
+    expect(cell(priced, 'money')).toMatchObject({ state: 'unknown', text: '31.872.000 đ đã biết · 2 dòng chưa rõ VAT' });
+  });
+  test('kit ghi nhiều tấm hơn thiết kế: chưa đủ dữ liệu, nói rõ lý do', () => {
+    expect(cell({ ...vatKnown, kits: [kit(6)] }, 'money')).toMatchObject({ state: 'unknown', text: expect.stringContaining('kit ghi nhiều linh kiện hơn thiết kế có') });
+  });
+  test('đủ giá, rõ VAT, kit khớp: đạt; ở mọi trường hợp trên "đạt" ⇔ quote.complete', () => {
+    expect(cell(vatKnown, 'money')).toMatchObject({ state: 'pass', text: '31.872.000 đ đã biết' });
+    for (const p of [lam, priced, vatKnown, { ...vatKnown, kits: [kit(6)] }, { ...vatKnown, kits: [kit(4)] }, buildSampleHouse()] as Project[])
+      expect(cell(p, 'money').state === 'pass').toBe(buildQuote(p).complete);
+  });
 });
 test('chuỗi 12 tấm vượt Voc lạnh → Điện "có lỗi"', () => {
   const r = rig(catalog('vsun-620'), catalog('luxpower-sna6000wpv'), 12);
@@ -61,7 +83,8 @@ test('mỗi ô tới nguồn của số: điện mở lỗi nặng nhất (công
   const worst = validateDesign(p).find((f) => f.status !== 'pass')!;
   expect(worst.status).toBe('limited'); // Nhà mẫu: 2 giới hạn đứng đầu, đúng trạng thái của ô
   expect(e.target).toEqual({ step: 'dau-noi', tab: 'thiet-ke', focusId: 'finding-detail', select: worst.objectIds[0] });
-  expect(pv.target).toEqual({ step: 'chay-thu', tab: 'he-thong', focusId: 'sim-assumptions' });
+  expect(pv.target).toEqual({ step: 'chay-thu', tab: 'he-thong', focusId: 'sim-pv-total' }); // the same number on the system screen
+  expect(pv.text).toBe(`☀ ${pvYear(7_123_456)} (bóng: xem trước)`); // written by the one function the screen's row uses
   // a target hidden at this depth falls back to the next one shown: the ledger is for Kỹ sư, "Đủ điện …" and the total for everyone
   expect(supply.target).toEqual({ step: 'chay-thu', tab: 'he-thong', focusId: ['sim-ledger', 'sim-days'] });
   expect(money.target).toEqual({ step: 'chi-phi', tab: 'du-toan', focusId: ['quote-lines', 'quote-total'] });

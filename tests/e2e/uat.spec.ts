@@ -112,6 +112,9 @@ test('Đo thành công (b) thợ, Thợ, ≤ 10 phút: từ số 0 dựng 6 tấ
   await page.locator('#step-dau-noi').click();
   await expect(page.locator('#findings-summary')).toContainText('0 lỗi thiết kế');
   await expect(page.locator('#findings .finding.fail')).toHaveCount(0); // no red line anywhere in the list
+  // nothing left unwired either: a structural warning reads "chưa đủ dữ liệu" (not red), so it is caught by its code
+  const unwired = ['PANEL_UNASSIGNED', 'PANEL_DUPLICATE', 'STRING_EMPTY', 'STRING_UNCONNECTED', 'BATTERY_UNCONNECTED', 'LOAD_UNCONNECTED'];
+  await expect(page.locator(unwired.map((c) => `#findings [data-code="${c}"]`).join(', '))).toHaveCount(0);
 
   await page.evaluate(() => { (window as { printed?: number }).printed = 0; window.print = () => { (window as { printed?: number }).printed! += 1; }; });
   await page.locator('#step-bao-cao').click();

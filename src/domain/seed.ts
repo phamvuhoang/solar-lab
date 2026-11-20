@@ -35,3 +35,5 @@ export function buildSampleHouse(now?: string, id?: string): Project {
 }
 
 export const isSample = (p: Project) => p.sample === true || p.name.startsWith('Nhà mẫu'); // ponytail: the name fallback is for samples saved before the flag existed
+/** What a sample carries wherever it is shown: the top bar, its card on the home page, the A4 report's header. */
+export const SAMPLE_TAG = 'Mẫu minh họa · không phải báo giá';

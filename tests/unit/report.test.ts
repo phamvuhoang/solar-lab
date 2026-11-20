@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { BUILTIN_OFFERS, offersFor } from '../../src/catalog/catalog';
 import { compareQuotes, buildQuote } from '../../src/cost/quote';
 import { buildLamHaConfig } from '../../src/domain/presets';
+import { buildSampleHouse } from '../../src/domain/seed';
 import { openLamHa } from '../../src/domain/project';
 import type { Project } from '../../src/domain/types';
 import { compilePv, hashPvInput } from '../../src/engine/compile';
@@ -66,6 +67,10 @@ describe('dữ liệu báo cáo A4', () => {
     expect(f.levels[5].detail).toContain('người lắp xác nhận');
     expect(facts({ pv: null, runs: [] }).levels.slice(2, 4).map((l) => l.state)).toEqual(['not-run', 'not-run']);
     expect(f.checks.counts.pass + f.checks.counts.fail + f.checks.counts.limited + f.checks.counts.unknown).toBeGreaterThan(0);
+  });
+  test('nhà mẫu, kể cả khi đã đổi tên, mang nhãn mẫu ở đầu trang A4; dự án thật thì không', () => {
+    expect(facts().sample).toBe(false);
+    expect(facts({ project: { ...buildSampleHouse(), name: 'Nhà anh Ba' }, pv: null, runs: [], cost: null }).sample).toBe(true);
   });
   test('giả định gồm thiết lập người dùng và giả định của engine; nguồn thời tiết và phạm vi kết luận nêu tên dữ liệu', () => {
     const f = facts();

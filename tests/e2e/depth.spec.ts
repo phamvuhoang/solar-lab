@@ -154,7 +154,7 @@ test('Kỹ sư: mỗi số trên thanh sức khỏe tới nguồn và giả đ�
   await page.goto('/#/mau');
   await page.locator('#coach-skip').click();
   await expect(page.locator('#health-supply')).toContainText('giờ/năm', { timeout: 60_000 });
-  for (const [cell, anchor] of [['pv', 'sim-assumptions'], ['supply', 'sim-ledger'], ['money', 'quote-lines']]) {
+  for (const [cell, anchor] of [['pv', 'sim-pv-total'], ['supply', 'sim-ledger'], ['money', 'quote-lines']]) {
     await page.locator(`#health-${cell}`).click();
     await expect(page.locator(`#${anchor}`), cell).toBeFocused();
     await expect(page.locator(`#${anchor}`), cell).toBeVisible();

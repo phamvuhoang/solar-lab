@@ -15,6 +15,15 @@ export interface Finding {
 }
 export interface Badge { dataComplete: boolean; powerLimited: boolean; exceedsLimit: boolean }
 
+/**
+ * The one status a check shows on every screen (health bar, summary, list, inspector, wiring page). A structural warning
+ * (status fail, severity below error: panels outside every string, a battery not wired) has not been checked yet: it reads
+ * "chưa đủ dữ liệu", never "có lỗi".
+ */
+export const displayStatus = (f: Finding): Status => (f.status === 'fail' && f.severity !== 'error' ? 'unknown' : f.status);
+/** The one set of words for a status (docs/05-experience-v2.md: đạt · có lỗi · bị giới hạn · chưa đủ dữ liệu). */
+export const STATUS_LABEL: Record<Status, string> = { pass: 'đạt', fail: 'có lỗi', limited: 'bị giới hạn', unknown: 'chưa đủ dữ liệu' };
+
 export const DEFAULT_DESIGN: DesignSettings = { coldCellTempC: null, hotCellTempC: null, iscFactor: 1, betaVmpAssumption: null, source: '' };
 export const designOf = (p: Project): DesignSettings => ({ ...DEFAULT_DESIGN, ...p.design });
 

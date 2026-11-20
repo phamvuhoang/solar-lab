@@ -231,3 +231,14 @@ test.describe('điện thoại', () => {
     }
   });
 });
+
+test('thanh sức khỏe và dòng trạng thái là vùng live dựng một lần: một lần sửa chỉ đổi chữ, không thay phần tử', async ({ page }) => {
+  await openSample(page);
+  await expect(page.locator('#ws-health')).toHaveAttribute('aria-live', 'polite');
+  await expect(page.locator('#health-pv')).toHaveAttribute('data-state', 'pass', { timeout: 60_000 });
+  const nodes = { 'ws-health': await page.locator('#ws-health').elementHandle(), 'health-pv': await page.locator('#health-pv').elementHandle(), status: await page.locator('#status').elementHandle() };
+  await page.locator('#add-box').click(); // the first edit: the preview becomes a project, the run starts again
+  await expect(page.locator('#status')).toContainText('Đã lưu: revision 1');
+  await expect(page.locator('#health-pv')).toHaveAttribute('data-state', 'pass', { timeout: 60_000 });
+  for (const [id, el] of Object.entries(nodes)) expect(await el!.evaluate((e, id) => e.isConnected && e === document.getElementById(id), id), id).toBe(true);
+});

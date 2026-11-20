@@ -1,6 +1,6 @@
 import type { Project } from '../domain/types';
 import { parseNumber } from '../domain/units';
-import { NEAR_KM, nearestBundled } from '../weather/nearest';
+import { farText, farWeather, NEAR_KM, nearestBundled } from '../weather/nearest';
 import { h } from './dom';
 
 export function parseLocation(lat: string, lon: string): { ok: true; latitude: number; longitude: number } | { ok: false; message: string } {
@@ -14,21 +14,22 @@ export function renderLocationForm(p: Project, apply: (next: Project) => Promise
   const lat = h('input', { id: 'loc-lat', type: 'text', inputmode: 'decimal', 'aria-label': 'Vĩ độ (độ)' });
   const lon = h('input', { id: 'loc-lon', type: 'text', inputmode: 'decimal', 'aria-label': 'Kinh độ (độ)' });
   if (p.location) { lat.value = String(p.location.latitude); lon.value = String(p.location.longitude); }
-  const note = h('p', { id: 'loc-note', role: 'status' });
+  const note = h('p', { id: 'loc-note', role: 'status' }); // what the last save did; empty on every paint
+  const far = farWeather(p); // on every paint while it holds, not only right after a save
   const save = h('button', { id: 'loc-save', type: 'button' }, 'Lưu nơi lắp');
   save.addEventListener('click', async () => {
     const r = parseLocation(lat.value, lon.value);
     if (!r.ok) { note.textContent = r.message; return; }
-    const n = await nearestBundled(r.latitude, r.longitude);
+    const n = nearestBundled(r.latitude, r.longitude);
     const next = structuredClone(p);
     next.location = { latitude: r.latitude, longitude: r.longitude, timezone: p.location?.timezone ?? 'Asia/Ho_Chi_Minh' };
     if (n && !p.pv?.weatherId) next.pv = { ...next.pv, weatherId: n.id };
     await apply(next);
-    const km = Math.round(n?.km ?? 0);
-    const msg = !n ? '' : n.km <= NEAR_KM ? `Dùng bộ thời tiết đóng gói "${n.label}" (cách ${km} km).`
-      : `Bộ thời tiết đóng gói gần nhất cách ${km} km ("${n.label}"): kết quả sẽ lệch so với nơi lắp; nên nhập CSV thời tiết của nơi lắp ở mục Thời tiết.`;
+    const f = farWeather(next);
+    const msg = f ? `Đã lưu nơi lắp; bộ thời tiết đang dùng cách ${Math.round(f.km).toLocaleString('vi-VN')} km (xem ghi chú bên dưới).`
+      : n && n.km <= NEAR_KM && next.pv?.weatherId === n.id ? `Dùng bộ thời tiết đóng gói "${n.label}" (cách ${Math.round(n.km)} km).` : 'Đã lưu nơi lắp.';
     note.textContent = msg;
     const live = document.getElementById('loc-note'); if (live) live.textContent = msg; // apply re-renders the tab, so the visible note is the new one
   });
-  return h('div', {}, h('label', {}, 'Vĩ độ ', lat), ' ', h('label', {}, 'Kinh độ ', lon), ' ', save, note);
+  return h('div', {}, h('label', {}, 'Vĩ độ ', lat), ' ', h('label', {}, 'Kinh độ ', lon), ' ', save, note, far && h('p', { id: 'loc-far' }, farText(far)));
 }

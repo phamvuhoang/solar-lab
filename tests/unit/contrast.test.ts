@@ -40,3 +40,10 @@ it('đọc đủ token cả hai nền', () => {
   expect(dark.bg).not.toBe(light.bg);
   expect(contrast('#ffffff', '#000000')).toBeCloseTo(21, 5);
 });
+
+it('in: mọi token màu về giá trị sáng, cả khi hệ thống đang tối (giấy luôn trắng)', () => {
+  const print = css.match(/@media print\s*{[^{}]*?:root\s*{([^}]*)}/);
+  expect(print, '@media print { :root { … } }').not.toBeNull();
+  expect(print![1]).toMatch(/color-scheme:\s*light/);
+  expect(tokens(print![1]!)).toEqual(light);
+});

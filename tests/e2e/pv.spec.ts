@@ -77,3 +77,21 @@ test('W04: nhập CSV sai báo đúng dòng và giữ nguyên lựa chọn; nh�
   await expect(page.locator('#wx-info')).toContainText('24 bước × 60 phút');
   await expect(page.locator('#wx-select option', { hasText: 'đã nhập' })).toHaveCount(1);
 });
+
+test('nơi lắp xa bộ thời tiết đóng gói: ghi chú ở lại sau mỗi lần vẽ lại và có trong "Giả định đang dùng"', async ({ page }) => {
+  // a stored project: in a preview (#/mau) a click on the tab already open paints it again and drops what was typed
+  await page.goto('/#/');
+  await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
+  await tab(page, 'pv');
+  await expect(page.locator('#loc-lat')).toHaveValue('11.87');
+  await expect(page.locator('#loc-far')).toHaveCount(0); // Lâm Hà, no dataset chosen yet
+  await page.locator('#loc-lat').fill('21,03'); // Hà Nội
+  await page.locator('#loc-lon').fill('105,85');
+  await page.locator('#loc-save').click(); // picks the nearest bundled dataset: Lâm Hà, ~1.000 km away
+  await expect(page.locator('#loc-note')).toContainText('km');
+  await expect(page.locator('#loc-far')).toContainText('cách nơi lắp');
+  await tab(page, 'thiet-ke');
+  await expect(page.locator('#assumptions')).toContainText('cách nơi lắp');
+  await tab(page, 'pv');
+  await expect(page.locator('#loc-far')).toContainText('cách nơi lắp'); // a new paint, not the save's one-time note
+});

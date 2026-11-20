@@ -71,6 +71,20 @@ test('hai tab cùng sửa: tab sau báo xung đột và mở được bản mớ
   await other.locator('#ws-latest').click();
   await expect(other.locator('#ws-rev')).toHaveText(`Đã lưu · r${first}`);
   await expect(other.locator('#ws-latest')).toHaveCount(0);
+
+  // the tab that had edits loads the other tab's revision: its undo steps are gone, else "Hoàn tác" would put its older copy back on top
+  await expect(page.locator('#ws-undo')).toBeEnabled();
+  await tab(other, 'du-an');
+  await other.locator('#p-name').fill('Lâm Hà (tab 2)');
+  await other.locator('#p-name-save').click();
+  await expect(other.locator('#ws-rev')).toHaveText(`Đã lưu · r${first + 1}`);
+  await tab(page, 'du-an');
+  await page.locator('#p-name').fill('Lâm Hà (tab 1)');
+  await page.locator('#p-name-save').click();
+  await expect(page.locator('#status')).toContainText('đã được sửa ở tab khác');
+  await page.locator('#ws-latest').click();
+  await expect(page.locator('#ws-name')).toHaveText('Lâm Hà (tab 2)');
+  await expect(page.locator('#ws-undo')).toBeDisabled();
 });
 
 test('thanh sức khỏe: Lâm Hà chưa đủ dữ liệu, bấm ô tiền tới Dự toán', async ({ page }) => {

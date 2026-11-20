@@ -1,6 +1,7 @@
 import { barChart, lineChart } from '../diagrams/charts';
 import { compareQuotes, buildQuote } from '../cost/quote';
 import { hashOf } from '../domain/hash';
+import { SAMPLE_TAG } from '../domain/seed';
 import { nowIso } from '../domain/ids';
 import type { Project } from '../domain/types';
 import { compilePv, hashPvInput } from '../engine/compile';
@@ -54,6 +55,7 @@ export function buildReportPage(f: ReportFacts): HTMLElement {
   const costText = !cost ? null : cost.totalDeltaMinor !== null ? `Chênh chi phí B − A (toàn hệ): ${money(cost.totalDeltaMinor)}` : cost.knownDeltaMinor !== null ? `Chênh chi phí B − A (phần đã biết): ${money(cost.knownDeltaMinor)}; chưa đủ giá để công bố chênh toàn hệ.` : 'Chênh chi phí B − A: không công bố vì hai phương án thiếu giá hoặc hạng mục khác nhau.';
   return h('article', { className: 'report-page', id: 'report', 'aria-label': 'Báo cáo' },
     h('header', {}, h('h2', {}, `Báo cáo thiết kế: ${f.title}`), h('p', {}, `Bản nháp revision ${f.revision} · lập ${f.generatedAt.slice(0, 10)}`),
+      f.sample && h('p', { id: 'rp-sample' }, SAMPLE_TAG),
       f.owner ? h('p', { id: 'rp-owner' }, `Khách hàng/liên hệ: ${[f.owner.name, f.owner.phone, f.owner.email, f.owner.address].filter(Boolean).join(' · ')}`) : h('p', { id: 'rp-owner' }, 'Thông tin liên hệ: đã bỏ khỏi báo cáo này.')),
     h('section', {}, h('h3', {}, 'Phạm vi và giới hạn'), h('ul', { id: 'rp-scope' }, ...f.scope.map((x) => h('li', {}, x)))),
     h('section', {}, h('h3', {}, 'Chi phí'),

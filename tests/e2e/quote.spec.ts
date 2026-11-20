@@ -60,3 +60,23 @@ test('W02: Dự án → Dự toán → đổi số lượng/báo giá → xem ph
   expect(csv).toContain('225000');
   expect(csv).toContain('Chưa đủ để báo tổng');
 });
+
+test('chọn một thiết bị khi đang gõ dở báo giá hay dòng bổ sung: chữ đã gõ còn nguyên, chỉ dòng được tô đổi', async ({ page }) => {
+  await page.goto('/#/');
+  await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
+  await tab(page, 'du-toan');
+  await page.locator('[data-device="used-battery@1"]').getByRole('button', { name: 'Thêm báo giá' }).click();
+  await page.locator('#o-seller').fill('Cửa hàng đang gõ');
+  await page.locator('#x-label').fill('Khung nhôm');
+  const panels = page.locator('tr[data-key="design:vsun-620@1"]'), battery = page.locator('tr[data-key="design:used-battery@1"]');
+  await panels.locator('button.bom-pick').click();
+  await expect(page.locator('#inspector')).toContainText('8 món');
+  await expect(panels).toHaveAttribute('aria-selected', 'true');
+  await expect(battery).toHaveAttribute('aria-selected', 'false');
+  await battery.locator('button.bom-pick').click();
+  await expect(battery).toHaveAttribute('aria-selected', 'true');
+  await expect(battery).toHaveClass(/selected/);
+  await expect(panels).toHaveAttribute('aria-selected', 'false');
+  await expect(page.locator('#o-seller')).toHaveValue('Cửa hàng đang gõ');
+  await expect(page.locator('#x-label')).toHaveValue('Khung nhôm');
+});

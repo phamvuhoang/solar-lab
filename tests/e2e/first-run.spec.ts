@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { routeOf } from './nav';
+import { routeOf, tab } from './nav';
 
 // every Playwright test gets a new browser context, so IndexedDB starts empty: this is a first visit
 const idOf = (page: Page) => { const r = routeOf(page); if (r?.kind !== 'project') throw new Error(`not a project address: ${page.url()}`); return r.projectId; };
@@ -31,7 +31,7 @@ test('sửa lần đầu thì mới lưu', async ({ page }) => {
   await expect(page.locator('#ws-rev')).toHaveText('Đã lưu · r2');
   await page.goto('/#/');
   await expect(page.locator('#saved li')).toHaveCount(1);
-  await expect(page.locator('#saved li')).toContainText('8 tấm · 4,96 kWp · 15.872.000 đ đã biết · sửa ');
+  await expect(page.locator('#saved li')).toContainText('Mẫu minh họa · không phải báo giá · 8 tấm · 4,96 kWp · 15.872.000 đ đã biết · sửa ');
 });
 
 test('tải lại #/mau vẫn là xem thử', async ({ page }) => {
@@ -132,4 +132,33 @@ test('ba chú thích lần đầu, bỏ qua được, không hiện lại', asyn
   await page.reload();
   await expect(page.locator('#ws-name')).toContainText('Nhà mẫu');
   await expect(coach).toHaveCount(0);
+});
+
+test('Nhà mẫu đổi tên vẫn mang nhãn mẫu: trên thẻ trang đầu và ở đầu trang A4 khi in, chữ đậm trên giấy trắng cả khi máy để giao diện tối', async ({ page }) => {
+  await page.goto('/#/mau');
+  await page.locator('#coach-skip').click();
+  await tab(page, 'du-an');
+  await page.locator('#p-name').fill('Nhà anh Ba');
+  await page.locator('#p-name-save').click();
+  await expect(page.locator('#ws-name')).toHaveText('Nhà anh Ba');
+  await tab(page, 'bao-cao');
+  await page.emulateMedia({ media: 'print', colorScheme: 'dark' });
+  await expect(page.locator('#ws-badge')).toBeHidden(); // the top bar is not printed
+  await expect(page.locator('#rp-sample')).toBeVisible();
+  await expect(page.locator('#rp-sample')).toHaveText('Mẫu minh họa · không phải báo giá');
+  const ink = await page.locator('#report').evaluate((e) => [getComputedStyle(e).color, getComputedStyle(document.body).backgroundColor]);
+  expect(ink).toEqual(['rgb(27, 27, 27)', 'rgb(255, 255, 255)']); // --fg and --bg of the light theme
+  await page.emulateMedia({ media: 'screen', colorScheme: 'light' });
+  await page.locator('#ws-home').click();
+  await expect(page.locator('#saved li')).toContainText('Mẫu minh họa · không phải báo giá');
+});
+
+test('trang Bài học hay Phiên bản mở thẳng bằng địa chỉ trong tab mới: "Quay lại" về trang đầu', async ({ context }) => {
+  for (const [hash, back] of [['#/bai-hoc', '#ls-back'], ['#/phien-ban', '#about-back']]) {
+    const page = await context.newPage(); // a fresh tab: nothing of the app behind it in its history
+    await page.goto(`/${hash}`);
+    await page.locator(back).click();
+    await expect(page).toHaveURL(/#\/$/);
+    await expect(page.locator('#entries')).toBeVisible();
+  }
 });

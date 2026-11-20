@@ -1,6 +1,6 @@
 import { indexProject, stringsOf, type PortRef } from '../domain/graph';
 import type { Project } from '../domain/types';
-import { validateDesign } from '../validation/strings';
+import { displayStatus, STATUS_LABEL, validateDesign } from '../validation/strings';
 
 export interface WiringRow { from: string; to: string; detail: string }
 export const WIRING_NOTE = 'Tiết diện dây và thiết bị bảo vệ do người lắp xác nhận.';
@@ -16,7 +16,9 @@ export function wiringTable(p: Project): WiringRow[] {
   const rows: WiringRow[] = stringsOf(p).map((s) => {
     const voc = findings.find((f) => f.code === 'VOC_COLD_ABS' && f.stringId === s.stringId);
     const order = s.panelIds.map((id) => ix.inst.get(id)?.inst.label.match(/#\d+$/)?.[0] ?? '?').join(' → ');
-    return { from: `${s.label} (${s.panelIds.length} tấm: ${order})`, to: s.target ? at(s.target) : 'chưa nối', detail: voc && voc.value !== null && voc.limit !== null ? `Voc lạnh ${num(voc.value)}/${num(voc.limit)} V` : 'chưa đủ dữ liệu' };
+    return { from: `${s.label} (${s.panelIds.length} tấm: ${order})`, to: s.target ? at(s.target) : 'chưa nối', detail: voc && voc.value !== null && voc.limit !== null
+      // a printed page has no colour to lean on: a check that did not pass says so in words
+      ? `Voc lạnh ${num(voc.value)}/${num(voc.limit)} V${voc.status === 'pass' ? '' : ` · ${STATUS_LABEL[displayStatus(voc)]}`}` : 'chưa đủ dữ liệu' };
   });
   for (const e of p.edges) {
     const [a, b] = [e.from, e.to], ta = type(a), tb = type(b);

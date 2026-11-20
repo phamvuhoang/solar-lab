@@ -101,3 +101,22 @@ test('tự chạy xong giữa lúc đang so A/B: thanh tiến độ và Hủy v�
   await expect(page.locator('#ws-fresh')).toHaveCount(0);
   await expect(page.locator('#sim-cancel')).toBeHidden();
 });
+
+test('nhánh bơm bằng tấm riêng: số ☀ của thanh có trên màn Hệ thống, ở mọi độ sâu', async ({ page }) => {
+  test.setTimeout(150_000);
+  await openSample(page);
+  await page.locator('#add-pump-pv').click();
+  await page.locator('#add-confirm').click();
+  const pv = page.locator('#health-pv');
+  await expect(pv).toContainText('đang tính lại…');
+  await expect(pv).toHaveAttribute('data-state', 'pass', RUN);
+  const sun = /☀ ([\d.,]+ MWh\/năm)/.exec((await pv.textContent()) ?? '')![1];
+  await tab(page, 'he-thong');
+  await expect(page.locator('#sim-pv-total')).toContainText(sun, RUN);
+  // the bus row is another number here: the branch's PV never reaches the inverter
+  await expect(page.locator('#sim-table tbody tr', { hasText: 'Điện PV tới inverter' })).not.toContainText(sun);
+  await page.locator('#depth-co-ban').click();
+  await expect(page.locator('#sim-pv-total')).toBeVisible();
+  await pv.click(); // one click from the bar to the same number
+  await expect(page.locator('#sim-pv-total')).toBeFocused();
+});

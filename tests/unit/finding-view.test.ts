@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'vitest';
+import { openLamHa } from '../../src/domain/project';
 import { buildSampleHouse } from '../../src/domain/seed';
 import { GLOSSARY } from '../../src/lessons/glossary';
 import type { Depth } from '../../src/ui/depth';
 import { FINDING_TERMS, findingLines } from '../../src/validation/finding-view';
 import { quickFixFor } from '../../src/validation/quick-fix';
-import { validateDesign, type Finding } from '../../src/validation/strings';
+import { displayStatus, validateDesign, type Finding } from '../../src/validation/strings';
 import { catalog, rig, withSpecs, withStrings } from './helpers';
 
 const OLD = ['kw-kwh', 'mppt', 'soc', 'bms', 'series-parallel', 'shade'];
@@ -123,5 +124,23 @@ describe('findingLines: tiêu đề nêu tên món nó nói tới (Ruling 15)', 
     const inv = house.instances.find((i) => i.kind === 'inverter')!.label;
     const charge = findingLines(fs.find((f) => f.code === 'BATTERY_CHARGE_LIMIT')!, 'co-ban', null, house).title;
     expect(charge.startsWith(`Bị giới hạn: ${inv} · Pin — `), charge).toBe(true);
+  });
+});
+
+describe('một trạng thái cho mỗi kiểm tra (Ruling 19)', () => {
+  test('displayStatus: lỗi nặng là "có lỗi"; cảnh báo cấu trúc là "chưa đủ dữ liệu"; giới hạn, chưa đủ, đạt giữ nguyên', () => {
+    const f = (status: Finding['status'], severity: Finding['severity']) => ({ status, severity }) as Finding;
+    expect([f('fail', 'error'), f('fail', 'warning'), f('fail', 'info'), f('limited', 'warning'), f('unknown', 'info'), f('pass', 'info')].map(displayStatus))
+      .toEqual(['fail', 'unknown', 'unknown', 'limited', 'unknown', 'pass']);
+  });
+  test('Lâm Hà vừa mở: tấm chưa vào chuỗi và pin chưa nối là "Chưa đủ dữ liệu: …", không phải "Có lỗi"', () => {
+    const p = openLamHa(), fs = validateDesign(p);
+    expect(fs.map((x) => x.code).sort()).toEqual(['BATTERY_UNCONNECTED', 'PANEL_UNASSIGNED']);
+    for (const x of fs) {
+      const { title, lines } = findingLines(x, 'ky-su', null, p);
+      expect(title, x.code).toMatch(/^Chưa đủ dữ liệu: /);
+      expect(title, x.code).toContain(x.consequence); // what not wiring it does, not "chưa kiểm được"
+      expect(lines.join('\n'), x.code).not.toContain('Còn thiếu'); // nothing to measure is missing: the fix is the wiring
+    }
   });
 });

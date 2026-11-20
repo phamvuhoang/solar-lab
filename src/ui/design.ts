@@ -2,7 +2,7 @@ import { addEdge, indexProject, isStringTarget, portKey, removeEdge, removeStrin
 import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset, proposeStrings, PRESET_LABEL, type PresetKind } from '../domain/presets';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { parseNumber, parseQuantity } from '../domain/units';
-import { designOf, validateDesign, type Finding } from '../validation/strings';
+import { designOf, displayStatus, validateDesign, type Finding, type Status } from '../validation/strings';
 import { FINDING_TERMS, findingLines } from '../validation/finding-view';
 import { quickFixFor, type QuickFix } from '../validation/quick-fix';
 import { assumptionsOf } from './assumptions';
@@ -22,7 +22,6 @@ export interface DesignCtx {
   go(tab: Tab): void;
 }
 
-export const STATUS_LABEL = { pass: 'đạt', fail: 'không đạt', limited: 'bị giới hạn công suất', unknown: 'chưa đủ dữ liệu' } as const;
 const offersFor = (offers: Offer[], c: Component) => offers.filter((o) => refKey(o.componentRef) === refKey(c));
 
 export function renderDesign(ctx: DesignCtx): Node[] {
@@ -35,10 +34,11 @@ export function renderDesign(ctx: DesignCtx): Node[] {
 
   const bad = findings.filter((f) => f.status !== 'pass');
   const good = findings.filter((f) => f.status === 'pass');
+  const count = (st: Status) => findings.filter((f) => displayStatus(f) === st).length; // the health bar's counts
   const invComp = [...ix.inst.values()].find((d) => d.inst.kind === 'inverter')?.comp;
 
   const pv = previewer(p, { preview: 'fix-preview', confirm: 'fix-confirm', cancel: 'fix-cancel' }, (next) => { void ctx.apply(next); }, () => {});
-  const finding = (f: Finding) => { const qf = quickFixFor(p, f); return h('li', {}, h('button', { className: `finding ${f.status}`, 'data-code': f.code, onClick: () => ctx.select(f.objectIds[0], fixTargets(f), f.code) },
+  const finding = (f: Finding) => { const qf = quickFixFor(p, f); return h('li', {}, h('button', { className: `finding ${displayStatus(f)}`, 'data-code': f.code, onClick: () => ctx.select(f.objectIds[0], fixTargets(f), f.code) },
     ...findingTitle(f, p)),
     qf && h('button', { className: 'quick-fix', type: 'button', onClick: () => pv.show(() => qf.apply(p)) }, qf.label)); };
 
@@ -59,7 +59,7 @@ export function renderDesign(ctx: DesignCtx): Node[] {
     msg,
     h('p', {}, 'Sơ đồ điện ở khung nhìn, nút "Sơ đồ". Bấm một hộp trong sơ đồ hoặc một mục bên dưới để xem chi tiết.'),
     h('h3', {}, 'Kiểm tra điện'),
-    h('p', { id: 'findings-summary' }, `${findings.filter((f) => f.status === 'fail' && f.severity === 'error').length} lỗi thiết kế · ${findings.filter((f) => f.status === 'limited').length} giới hạn công suất · ${findings.filter((f) => f.status === 'unknown').length} chưa đủ dữ liệu · ${good.length} đạt`),
+    h('p', { id: 'findings-summary' }, `${count('fail')} lỗi thiết kế · ${count('limited')} giới hạn công suất · ${count('unknown')} chưa đủ dữ liệu · ${good.length} đạt`),
     h('ul', { id: 'findings' }, ...bad.map(finding)),
     h('div', {}, ...pv.nodes),
     good.length ? h('details', {}, h('summary', {}, `${good.length} kiểm tra đạt`), h('ul', {}, ...good.map(finding))) : null,

@@ -58,7 +58,10 @@ export async function startApp(root: HTMLElement) {
     if (!p) { say('Không tìm thấy dự án này trong trình duyệt (có thể đã bị xóa hoặc đang mở trên máy khác).'); location.replace('#/'); return; }
     await open(p, true).show(r.step, r.tab);
   }
-  window.addEventListener('hashchange', () => { void route(); });
+  let moved = false; // the app has changed the address at least once: Back from a help page stays in the app
+  window.addEventListener('hashchange', () => { moved = true; void route(); });
+  /** Back from a help page: to where it was opened from; opened by its address in a fresh tab, there is nothing behind it: home. */
+  const back = () => { if (moved) history.back(); else location.hash = formatRoute({ kind: 'home' }); };
 
   // ---- home ---------------------------------------------------------------------------------
   async function home(my = ++routing) {
@@ -129,10 +132,10 @@ export async function startApp(root: HTMLElement) {
 
   // ---- help: full screen, Back returns to wherever it was opened from ---------------------------------------------------
   async function lessonsScreen() {
-    show(...renderLessons({ state: lessonState, rerender: () => { if (location.hash === formatRoute({ kind: 'help', page: 'bai-hoc' })) void lessonsScreen(); }, back: () => history.back(), backLabel: 'Quay lại' }));
+    show(...renderLessons({ state: lessonState, rerender: () => { if (location.hash === formatRoute({ kind: 'help', page: 'bai-hoc' })) void lessonsScreen(); }, back, backLabel: 'Quay lại' }));
   }
   async function aboutScreen(my = ++routing) {
-    const nodes = await renderAbout(() => history.back());
+    const nodes = await renderAbout(back);
     if (my === routing) show(...nodes);
   }
 

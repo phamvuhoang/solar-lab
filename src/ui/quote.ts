@@ -47,11 +47,12 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
     h('td', {}, STATUS[l.status]), h('td', {}, VAT[l.vat]), h('td', { 'data-min-depth': 'ky-su' }, [l.seller, l.recordedAt].filter(Boolean).join(' · ')),
     l.source === 'extra' && h('td', {}, h('button', { 'aria-label': `Xóa ${l.label}`, onClick: () => ctx.apply(removeCostLine(p, l.key.slice('extra:'.length))) }, 'Xóa')));
 
+  // named, not only counted: in Cơ bản the line table is hidden and this sentence is "còn thiếu gì"
+  const names = (keys: string[]) => keys.map((k) => q.lines.find((l) => l.key === k)?.label ?? k).join(', ');
   const reasons = [
-    // named, not only counted: in Cơ bản the line table is hidden and this sentence is "còn thiếu gì"
-    q.missing.lineKeys.length && `${q.missing.lineKeys.length} dòng chưa có giá (${q.missing.lineKeys.map((k) => q.lines.find((l) => l.key === k)?.label ?? k).join(', ')})`,
+    q.missing.lineKeys.length && `${q.missing.lineKeys.length} dòng chưa có giá (${names(q.missing.lineKeys)})`,
     q.missing.scope.length && `thiếu hạng mục: ${q.missing.scope.map((c) => CAT[c]).join(', ')}`,
-    q.missing.unknownVatKeys.length && `${q.missing.unknownVatKeys.length} dòng chưa rõ VAT`,
+    q.missing.unknownVatKeys.length && `${q.missing.unknownVatKeys.length} dòng chưa rõ VAT (${names(q.missing.unknownVatKeys)})`,
     q.issues.some((i) => i.code === 'KIT_PART_NOT_IN_DESIGN') && 'kit ghi nhiều linh kiện hơn thiết kế có',
   ].filter(Boolean).join('; ');
 

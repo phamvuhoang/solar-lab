@@ -39,7 +39,9 @@ export function flowsAt(model: SceneModel, r: SimResult, step: number, p: Projec
   const text = [
     `PV vào inverter ${kw(at(s.pvBusWh[step]))}`,
     ...(has('dc-bat') ? [`Pin: ${net >= 0 ? 'sạc' : 'xả'} ${kw(Math.abs(net))}`] : []),
-    `Tải: ${kw(at(s.loadServedWh[step]))}`, `Lưới nhập ${kw(at(s.gridImportWh[step]))}`,
+    `Tải: ${kw(at(s.loadServedWh[step]))}`,
+    ...(s.unservedWh[step] > 0 ? [`Thiếu ${kw(at(s.unservedWh[step]))}`] : []), // "Tải" is what was served: a shortage is said, never left out
+    `Lưới nhập ${kw(at(s.gridImportWh[step]))}`,
     ...(s.exportWh[step] > 0.5 ? [`Lưới xuất ${kw(at(s.exportWh[step]))}`] : []),
     // the PV arrows show what the strings can give; what the bus had to cut is said, so the numbers add up (a limit is never hidden)
     ...(s.curtailedWh[step] - s.clipWh[step] > 0.5 ? [`PV dư bị cắt ${kw(at(s.curtailedWh[step] - s.clipWh[step]))}`] : []),

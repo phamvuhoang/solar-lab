@@ -1,4 +1,5 @@
 import { buildQuote, type Comparison, type Quote } from '../cost/quote';
+import { isSample } from '../domain/seed';
 import type { Project } from '../domain/types';
 import type { PvResult } from '../engine/pv';
 import { pvSettingsOf } from '../engine/compile';
@@ -18,6 +19,8 @@ export type LevelState = 'done' | 'gaps' | 'not-run' | 'off' | 'out-of-scope';
 export interface Level { name: string; state: LevelState; detail: string }
 export interface ReportFacts {
   title: string; revision: number; generatedAt: string; owner: Project['owner'] | null; scope: string[];
+  /** The sample house, renamed or not: the page says "mẫu minh họa" in its header. */
+  sample: boolean;
   quote: { quote: Quote; date: string | null; validUntil: string | null; totalText: string; missingText: string[] };
   checks: { counts: Record<Status, number>; notable: Finding[] };
   levels: Level[]; assumptions: string[];
@@ -93,7 +96,7 @@ export function reportFacts(i: ReportInput): ReportFacts {
     'Giá là giá trong báo giá đã nhập, theo ngày ghi; giá thiếu được giữ là thiếu, không ước lượng.',
   ];
   return {
-    title: p.name, revision: p.revision, generatedAt: i.generatedAt, owner: i.includeContact ? (p.owner ?? null) : null, scope,
+    title: p.name, revision: p.revision, generatedAt: i.generatedAt, owner: i.includeContact ? (p.owner ?? null) : null, scope, sample: isSample(p),
     quote: { quote, date: dateOnly(qDate), validUntil: dateOnly(qUntil), totalText: quote.totalMinor !== null ? money(quote.totalMinor) : `chưa đủ để báo tổng (${missingText.join('; ') || 'thiếu dữ liệu'})`, missingText },
     checks: { counts, notable }, levels, assumptions,
     weather: w ? { name: w.name, source: `${w.source.name}${w.source.version ? ' ' + w.source.version : ''}`, method: w.source.method, period: w.source.period ?? 'không rõ', license: w.source.license ?? 'chưa xác nhận', retrieved: w.source.retrieved ?? 'không rõ', steps: w.n, attached: i.weatherAttached } : null,

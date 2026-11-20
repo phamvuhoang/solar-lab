@@ -1,9 +1,8 @@
 import { indexProject, stringsOf } from '../domain/graph';
 import type { Project } from '../domain/types';
 import type { Depth } from '../ui/depth';
-import { STATE_LABEL } from '../ui/health';
 import type { QuickFix } from './quick-fix';
-import type { Finding } from './strings';
+import { displayStatus, STATUS_LABEL, type Finding } from './strings';
 
 /** Glossary ids that explain a check (src/lessons/glossary.ts). */
 export const FINDING_TERMS: Record<string, string[]> = {
@@ -48,7 +47,7 @@ export function findingLines(f: Finding, depth: Depth, fix: QuickFix | null, p?:
   // port), else its string; a set of panels or a check read without its project fall back to the sentence's subject
   const name = p && namesIn(p, f);
   const item = (name && [...f.objectIds, f.stringId ?? ''].map(name).find(Boolean)) || subject(f);
-  const title = `${cap(STATE_LABEL[f.status])}: ${item} — ${what}`;
+  const title = `${cap(STATUS_LABEL[displayStatus(f)])}: ${item} — ${what}`;
   const lines = f.status !== 'pass' && !fix ? [ASK_INSTALLER] : [];
   if (depth === 'co-ban') return { title, lines };
 
@@ -62,6 +61,6 @@ export function findingLines(f: Finding, depth: Depth, fix: QuickFix | null, p?:
   lines.push(`Mã: ${f.code}`);
   if (f.formula) lines.push(`Công thức: ${f.formula}`);
   for (const s of f.sources) lines.push(`${s.where} · ${s.field} = ${s.value ?? 'chưa có'} ${s.unit} (${s.provenance})`);
-  if (f.assumed) lines.push('Kết quả này có giả định: ít nhất một đầu vào chưa phải số của hãng hay số đo');
+  if (f.assumed) lines.push('Kết quả này có giả định: có đầu vào mang nguồn "assumption" (số giả định, chưa phải số của hãng hay số đo), hoặc kiểm tra này dùng βVmp giả định trong Thiết lập thiết kế');
   return { title, lines };
 }
