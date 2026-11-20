@@ -67,3 +67,17 @@ test('thanh sức khỏe: Lâm Hà chưa đủ dữ liệu, bấm ô tiền tớ
   await money.click();
   await expect(page.locator('#quote-known')).toBeVisible();
 });
+
+test('nền tối: chữ trong hộp của sơ đồ điện vẫn đọc được', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await openLamHa(page);
+  await tab(page, 'thiet-ke');
+  const node = page.locator('svg.diagram g.node').first();
+  await expect(node).toBeVisible();
+  const ratio = await node.evaluate((g) => {
+    const lum = (c: string) => { const [r, gr, b] = c.match(/[\d.]+/g)!.slice(0, 3).map((v) => { const x = Number(v) / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * gr + 0.0722 * b; };
+    const [a, b] = [lum(getComputedStyle(g.querySelector('rect')!).fill), lum(getComputedStyle(g.querySelector('text')!).fill)];
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  expect(ratio).toBeGreaterThanOrEqual(4.5); // WCAG AA cho chữ thường
+});

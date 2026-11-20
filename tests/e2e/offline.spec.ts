@@ -85,9 +85,11 @@ test('W08: bản cập nhật đủ file chờ người dùng bấm Cập nhật
   await expect(page.locator('#offline-status')).toHaveAttribute('data-state', 'update-available', { timeout: 30000 });
   await expect(page.locator('#devices')).toBeVisible(); // không tự tải lại trang giữa chừng
   expect(await cacheKeys(page)).toEqual([old, 'mekoniq-shell-ban-moi'].sort()); // cả hai cùng có khi đang chờ
+  const reloaded = page.waitForEvent('load'); // armed before the click: only the new document fires it
   await page.locator('#offline-update').click();
   await expect.poll(() => cacheKeys(page).catch(() => []), { timeout: 30000 }).toEqual(['mekoniq-shell-ban-moi']); // trang tải lại ngay sau khi bản mới nhận quyền
-  await page.waitForLoadState('load');
+  await reloaded;
+  await expect(page.locator('#offline-status')).toHaveAttribute('data-state', 'ready'); // trang cũ đang hiện "update-available"
   await expect(page.locator('#devices')).toBeVisible(); // bản nháp vẫn còn sau khi cập nhật (địa chỉ giữ dự án đang mở)
   d.server.close();
 });
