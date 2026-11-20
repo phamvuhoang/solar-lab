@@ -1,12 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 import { asEngineer, tab } from './nav';
 
-test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
-
 // A fresh browser context per test, so this starts with no saved project.
 const item = (page: Page, id: string) => page.locator(`#checklist li[data-progress="${id}"]`);
 const done = (page: Page, id: string) => expect(item(page, id)).toHaveAttribute('data-status', 'done');
 const rev = async (page: Page) => Number(/r(\d+)/.exec((await page.locator('#ws-rev').textContent()) ?? '')?.[1] ?? 0);
+
+/** A block of the Thêm column, previewed then confirmed: one revision. */
+async function add(page: Page, id: string) {
+  const r = await rev(page);
+  await page.locator(`#${id}`).click();
+  await page.locator('#add-confirm').click();
+  await expect.poll(() => rev(page)).toBeGreaterThan(r);
+}
 
 /** The step's own button in the checklist; the list folds once the project has a device, so open it first. */
 async function doStep(page: Page, id: string) {
@@ -15,6 +21,7 @@ async function doStep(page: Page, id: string) {
   await page.locator(`#do-${id}`).click();
 }
 
+// at the default depth, Cơ bản: every step's button leads to a control shown there (steps 3–6: the Thêm blocks)
 test('đi hết 9 bước từ số 0', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/#/');
@@ -41,37 +48,29 @@ test('đi hết 9 bước từ số 0', async ({ page }) => {
   await page.locator('#add-rect').click();
   await done(page, 'mai');
 
-  // ③ tấm: thêm 8 tấm theo lô (chưa có chỗ), rồi điền lên mái
+  // ③ tấm: khối "Tấm pin" thêm 2 tấm mỗi lần và tự đặt lên mái; bốn lần là 8 tấm
   await doStep(page, 'dat-tam');
-  await expect(page.locator('#b-count')).toBeFocused();
-  await page.locator('#b-count').fill('8');
-  await page.getByRole('button', { name: 'Xác nhận thêm' }).click();
-  await expect(page.locator('#do-dat-tam')).toHaveText('Đặt tấm');
-  await doStep(page, 'dat-tam');
-  await page.locator('#fill-face').click();
+  await expect(page.locator('#add-panel')).toBeFocused();
+  for (let i = 0; i < 4; i++) await add(page, 'add-panel');
   await done(page, 'dat-tam');
 
-  // ④ inverter qua preset: hai chuỗi vào hai MPPT, nên bước ⑦ (nối chuỗi, không lỗi đỏ) cũng xong
+  // ④ inverter: chia 8 tấm thành hai chuỗi vào hai MPPT, nên bước ⑦ (nối chuỗi, không lỗi đỏ) cũng xong
   await doStep(page, 'inverter');
-  await page.locator('#preset').selectOption('two-trackers');
-  await page.locator('#apply-preset').click();
+  await expect(page.locator('#add-inverter')).toBeFocused();
+  await add(page, 'add-inverter');
   await done(page, 'inverter');
   await done(page, 'loi-do');
 
   // ⑤ pin
   await doStep(page, 'pin');
-  await page.getByRole('button', { name: 'Thêm pin vào inverter' }).click();
+  await expect(page.locator('#add-battery')).toBeFocused();
+  await add(page, 'add-battery');
   await done(page, 'pin');
 
-  // ⑥ tải, rồi lịch chạy của nó
+  // ⑥ tải: khối "Tải" có sẵn lịch chạy cả ngày
   await doStep(page, 'tai');
-  await page.locator('#p-load').selectOption('sample-home-load@1');
-  await page.getByRole('button', { name: 'Thêm tải AC' }).click();
-  await expect(page.locator('#do-tai')).toHaveText('Đặt lịch tải');
-  await doStep(page, 'tai');
-  const load = page.locator('.card[data-load]');
-  await load.locator('input[id^="lp-hours-"]').fill('6-22');
-  await load.getByRole('button', { name: 'Lưu lịch' }).click();
+  await expect(page.locator('#add-load')).toBeFocused();
+  await add(page, 'add-load');
   await done(page, 'tai');
 
   // ⑨ giá; ⑧ chạy thử tự chạy sau mỗi lần sửa, nên không cần bấm "Chạy"
@@ -101,6 +100,7 @@ test('đi hết 9 bước từ số 0', async ({ page }) => {
 
 test('chạy thử chỉ được tính cho đúng bản thiết kế hiện tại: sửa thì thành chưa chạy tới khi lần tự chạy của bản mới xong', async ({ page }) => {
   test.setTimeout(150_000);
+  await asEngineer(page); // the dispatch policy (#s-min) is shown at Kỹ sư
   await page.goto('/#/mau');
   await page.locator('#coach-skip').click();
   await expect(item(page, 'chay-thu')).toHaveAttribute('data-status', 'done', { timeout: 60_000 }); // shade preview + PV + dispatch, no click

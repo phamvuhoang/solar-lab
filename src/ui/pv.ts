@@ -113,7 +113,8 @@ function settingsForm(ctx: PvCtx, st: Partial<PvSettings>, say: (l: string[]) =>
     const v = vals as Record<keyof typeof vals, number | null>;
     ctx.apply({ ...structuredClone(ctx.project), pv: { ...ctx.project.pv, ...(v.tiltDeg === null ? {} : { tiltDeg: v.tiltDeg }), ...(v.azimuthDeg === null ? {} : { azimuthDeg: v.azimuthDeg }), albedo: v.albedo!, lossRatio: v.loss! / 100, cellModel: cell.value as PvSettings['cellModel'],
       fixedCellTempC: v.fixed, faimanU0: v.u0!, faimanU1: v.u1!, windFallbackMs: v.wind, irradianceInput: irr.value as PvSettings['irradianceInput'] } });
-  } }, tilt.node, az.node, alb.node, loss.node, h('label', {}, 'Nhiệt độ cell ', cell), fixed.node, u0.node, u1.node, wind.node, h('label', {}, 'Nguồn bức xạ ', irr),
+  } }, tilt.node, az.node, // the array's orientation stays at every depth (needed for strings not on a roof); the model's parameters are for Kỹ sư
+  h('span', { 'data-min-depth': 'ky-su' }, alb.node, loss.node, h('label', {}, 'Nhiệt độ cell ', cell), fixed.node, u0.node, u1.node, wind.node, h('label', {}, 'Nguồn bức xạ ', irr)),
   h('button', { type: 'submit', id: 'pv-save' }, 'Lưu thiết lập'),
   h('p', {}, `Mặc định chỉ cho tham số mô hình (albedo ${PV_DEFAULTS.albedo}, Faiman u0=${PV_DEFAULTS.faimanU0}, u1=${PV_DEFAULTS.faimanU1}, tổn hao 0 %). Độ nghiêng và hướng bắt buộc với chuỗi chưa đặt lên mái; chuỗi đã đặt lên mặt mái lấy hướng từ mái.`));
 }
@@ -179,5 +180,5 @@ function resultSection(r: PvResult, w: WeatherSeries, tz: string, unplaced = 0):
     h('h4', {}, 'Theo ngày'), h('label', {}, 'Ngày ', date), out,
     h('h4', {}, 'Theo tháng (giờ địa phương; chuỗi UTC cả năm tràn sang đầu năm sau)'), barChart([...months.keys()].map((k) => `${k.slice(2, 4)}-${k.slice(5)}`), [...months.values()].map((x) => x / 1000), { yLabel: 'kWh DC sau giới hạn', label: 'Điện năng theo tháng' }),
     h('p', {}, `Chạy bởi ${r.engineVersion}, mã đầu vào ${r.inputHash.slice(0, 12)}…; dữ liệu: ${w.source.name}.`),
-    h('button', { id: 'pv-csv', onClick: () => download(`pv-${r.inputHash.slice(0, 8)}.csv`, pvResultToCsv(r, { weatherName: w.name, source: w.source.name, timeZone: tz }), 'text/csv;charset=utf-8') }, 'Xuất CSV theo giờ'));
+    h('button', { id: 'pv-csv', 'data-min-depth': 'ky-su', onClick: () => download(`pv-${r.inputHash.slice(0, 8)}.csv`, pvResultToCsv(r, { weatherName: w.name, source: w.source.name, timeZone: tz }), 'text/csv;charset=utf-8') }, 'Xuất CSV theo giờ'));
 }

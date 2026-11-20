@@ -6,8 +6,6 @@ import { SHADE_MODEL_VERSION } from '../../src/shade/geometry';
 import { readFileSync } from 'node:fs';
 import { asEngineer, tab } from './nav';
 
-test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
-
 /**
  * Role journeys written as scripts a person can also follow (docs/uat/). These run the SAME steps by machine, which proves the flow
  * works end to end; it is not the user testing the plan asks for (a homeowner, a tradesperson, a newcomer, an electrical engineer).
@@ -16,7 +14,9 @@ const pick = async (select: Locator, text: RegExp) => select.selectOption((await
 const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đã lưu: revision');
 const BAD = /NaN|undefined|Infinity|\[object|(^|[^\p{L}])null([^\p{L}]|$)/u;
 
+/** Lâm Hà, configuration A, reserve 25 %: set up at Kỹ sư (dispatch policy). */
 async function toSim(page: Page) {
+  await asEngineer(page);
   await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'pv');
@@ -34,8 +34,10 @@ async function toSim(page: Page) {
   await saved(page);
 }
 
+// the homeowner works at the default depth, Cơ bản; only building the electrical system is a thợ's job, done at Thợ
 test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và còn thiếu gì, rồi chỉ ra giờ thiếu điện', async ({ page }) => {
   await page.goto('/#/');
+  await expect(page.locator('html')).toHaveAttribute('data-depth', 'co-ban');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'du-toan');
   await expect(page.locator('#quote-known')).toContainText('31.872.000');
@@ -45,9 +47,10 @@ test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và cò
   await page.locator('#o-price').fill('15.500.000');
   await page.locator('#o-vat').selectOption('included');
   await page.getByRole('button', { name: 'Lưu báo giá' }).click();
-  await expect(page.locator('tr[data-key="design:used-battery@1"]')).toContainText('15.500.000');
+  await expect(battery.locator('select[aria-label^="Báo giá"] option:checked')).toContainText('15.500.000'); // the card shows the price in use
   await expect(page.locator('#quote-known')).toContainText('31.372.000'); // 15.872.000 + 15.500.000
   await expect(page.locator('#quote-total')).toContainText('chưa đủ để báo'); // vẫn thiếu khung, dây, bảo vệ, công
+  await expect(page.locator('#quote-total')).toContainText('Khung, Dây, Thiết bị bảo vệ, Công lắp');
 
   await tab(page, 'pv');
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);
@@ -57,11 +60,11 @@ test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và cò
   await page.locator('#pv-save').click();
   await saved(page);
   await tab(page, 'he-thong');
+  await page.locator('#depth-tho').click(); // the thợ builds configuration A
   await page.locator('#cfg-shared8').click();
   await saved(page);
-  await page.locator('#s-min').fill('25');
-  await page.locator('#s-save').click();
-  await saved(page);
+  await page.locator('#depth-co-ban').click(); // back to the homeowner
+  await expect(page.locator('#cfg-shared8')).toBeHidden();
   await page.locator('#sim-run').click();
   await expect(page.locator('#sim-result')).toBeVisible({ timeout: 30000 });
   await page.locator('#jump-short').click();
@@ -72,6 +75,7 @@ test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và cò
 });
 
 test('UAT thợ: tạo một SKU, đọc giải thích lỗi MPPT (công thức, nguồn, hậu quả) rồi sửa', async ({ page }) => {
+  await asEngineer(page); // the formula and sources of a finding are shown at Kỹ sư
   await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'thiet-bi');

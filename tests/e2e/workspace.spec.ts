@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { STEPS } from '../../src/ui/route';
-import { tab } from './nav';
+import { asEngineer, tab } from './nav';
+
+test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
 
 const openLamHa = async (page: Page) => {
   await page.goto('/#/');

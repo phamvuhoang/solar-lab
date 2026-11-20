@@ -20,11 +20,15 @@ describe('progressOf', () => {
   });
   test('bước 3 đổi nút theo trạng thái: chưa có tấm → Thêm tấm; có tấm chưa đặt → Đặt tấm', () => {
     const a = step(createProject('x'), 3).action;
-    expect([a.focusId, a.label]).toEqual(['b-count', 'Thêm tấm']);
+    expect([a.focusId, a.label]).toEqual(['add-panel', 'Thêm tấm']);
     const full = buildSampleHouse();
     const unplaced = { ...full, placements: [] } as Project;
     const b = step(unplaced, 3).action;
     expect([b.step, b.tab, b.focusId, b.label]).toEqual(['bo-tri', 'mai', 'fill-face', 'Đặt tấm']);
+  });
+  test('bước 3–6 trên dự án trống trỏ tới khối của cột Thêm (có ở mọi độ sâu), không tới form của ②', () => {
+    const p = createProject('x');
+    expect([3, 4, 5, 6].map((n) => step(p, n).action.focusId)).toEqual(['add-panel', 'add-inverter', 'add-battery', 'add-load']);
   });
   test('bước 6: có tải chưa lịch → Đặt lịch tải ③ he-thong; progressComplete bỏ qua optional', () => {
     const s = buildSampleHouse();

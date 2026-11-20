@@ -263,10 +263,10 @@ export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
           row('Vật cản (vị trí ENU, m)', (s) => s.obstacles.map((o) => `${o.label} (${o.center.map((x) => x.toFixed(1)).join(', ')})`).join('; ') || 'không có'),
           row('Tính bóng', (s) => `${(s.shadeComputeMs / 1000).toFixed(1)} s · ${s.stepsComputed} bước mới, ${s.stepsReused} dùng lại từ cache`))),
       h('p', { id: 'sh-bypass' }, `${cols[0].bypassNote}. Cận trên giả định diode bypass lý tưởng; cận dưới giả định không có bypass. Giá trị thật nằm giữa hai cận, nhưng chưa có dữ liệu IV để thu hẹp.`),
-      h('button', { id: 'sh-csv-year', onClick: () => { const s = cols[cols.length - 1], f = shadeCache.get(s.key); if (f) download(`bong-che-nam-${s.label}.csv`, shadeYearCsv(f, s.panels, { project: p.name, scene: s.title, stringBounds: `string bounds: ${s.strings.map((x) => `${x.label} loss ${((x.free - x.upper) / 1000).toFixed(1)}-${((x.free - x.lower) / 1000).toFixed(1)} kWh`).join('; ')}` }), 'text/csv;charset=utf-8'); } }, 'Xuất CSV cả năm (theo tấm)'));
+      h('button', { id: 'sh-csv-year', 'data-min-depth': 'ky-su', onClick: () => { const s = cols[cols.length - 1], f = shadeCache.get(s.key); if (f) download(`bong-che-nam-${s.label}.csv`, shadeYearCsv(f, s.panels, { project: p.name, scene: s.title, stringBounds: `string bounds: ${s.strings.map((x) => `${x.label} loss ${((x.free - x.upper) / 1000).toFixed(1)}-${((x.free - x.lower) / 1000).toFixed(1)} kWh`).join('; ')}` }), 'text/csv;charset=utf-8'); } }, 'Xuất CSV cả năm (theo tấm)'));
   })();
 
-  const csvDay = h('button', { id: 'sh-csv-day', disabled: !dayDone, onClick: () => {
+  const csvDay = h('button', { id: 'sh-csv-day', 'data-min-depth': 'ky-su', disabled: !dayDone, onClick: () => {
     if (!field) return;
     const sun = new Map(upIdx.map((i) => { const s = sunAt(i); return [i, { az: s.azimuthDeg, el: s.apparentElevationDeg }] as [number, { az: number; el: number }]; }));
     download(`bong-che-${st.date}.csv`, shadeDayCsv(field, upIdx, { timeZone: tz, project: p.name, sun, panels: model.panels.map((x) => ({ id: x.instanceId, label: x.label, stringIndex: x.stringIndex })) }), 'text/csv;charset=utf-8');

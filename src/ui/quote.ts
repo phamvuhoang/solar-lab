@@ -54,7 +54,7 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
     q.issues.some((i) => i.code === 'KIT_PART_NOT_IN_DESIGN') && 'kit ghi nhiều linh kiện hơn thiết kế có',
   ].filter(Boolean).join('; ');
 
-  const waive = h('div', { 'data-min-depth': 'tho' }, h('strong', {}, 'Phạm vi cần có: '), ...st.requiredCategories.map((c) => {
+  const waive = h('div', {}, h('strong', {}, 'Phạm vi cần có: '), ...st.requiredCategories.map((c) => {
     const box = h('input', { type: 'checkbox', checked: st.waived.includes(c), id: `waive-${c}` });
     box.addEventListener('change', () => ctx.apply(setQuoteSettings(p, { waived: box.checked ? [...st.waived, c] : st.waived.filter((x) => x !== c) })));
     return h('label', {}, box, ` ${CAT[c]}: không áp dụng `);
@@ -78,7 +78,7 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
     waive,
     q.issues.length ? h('ul', {}, ...q.issues.map((i) => h('li', {}, `Cảnh báo ${i.code}: ${i.message}`))) : null,
     errBox,
-    h('h3', { 'data-min-depth': 'tho' }, 'Thiết bị trong thiết kế'), ...devices(ctx, q, fail),
+    h('h3', {}, 'Thiết bị trong thiết kế'), ...devices(ctx, q, fail),
     h('h3', { 'data-min-depth': 'tho' }, 'Thêm dòng bổ sung'), extraForm(ctx, fail),
     h('h3', { 'data-min-depth': 'ky-su' }, 'So sánh A/B với revision cũ'), compare(ctx, q),
     h('button', { id: 'export-csv', 'data-min-depth': 'tho', onClick: () => download(`${p.name}-du-toan.csv`, quoteToCsv(q, p.name), 'text/csv;charset=utf-8') }, 'Xuất CSV'),
@@ -98,13 +98,13 @@ function devices(ctx: QuoteCtx, q: Quote, fail: (m: string) => void): Node[] {
       ...[...avail.values()].map((o) => h('option', { value: o.offerId }, `${o.seller} · ${o.priceMinor ? vnd(o.priceMinor) + '/' + o.unit : 'liên hệ'}${o.recordedAt ? ' · ' + o.recordedAt : ''}`)));
     pick.value = sel ?? '';
     const formHost = h('div', {});
-    return h('div', { className: 'card', 'data-device': key, 'data-min-depth': 'tho' },
+    return h('div', { className: 'card', 'data-device': key },
       h('strong', {}, comp.name), ' ',
-      h('label', {}, 'SL ', qty), h('button', { onClick: () => {
+      h('span', { 'data-min-depth': 'tho' }, h('label', {}, 'SL ', qty), h('button', { onClick: () => {
         const n = Number(qty.value);
         if (!Number.isInteger(n) || n < 0) return fail('Số lượng phải là số nguyên không âm');
         ctx.apply(setQuantity(p, ref, n));
-      } }, 'Cập nhật SL'), ' ',
+      } }, 'Cập nhật SL')), ' ',
       pick, h('button', { onClick: () => { const o = avail.get(pick.value); if (o) ctx.apply(selectOffer(p, o)); else fail('Chọn một báo giá'); } }, 'Dùng báo giá'), ' ',
       h('button', { onClick: () => formHost.replaceChildren(offerForm(ref, comp.condition, async (o) => { await ctx.saveOffer(o); await ctx.apply(selectOffer(p, o)); }, () => formHost.replaceChildren())) }, 'Thêm báo giá'),
       formHost);

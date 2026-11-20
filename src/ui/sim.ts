@@ -72,7 +72,7 @@ export async function renderSim(ctx: SimCtx): Promise<Node[]> {
     h('p', { id: 'sim-weather' }, weather ? `Dữ liệu: ${weather.name} (${weather.source.period ?? 'không rõ năm'}) · ${weather.source.name}` : 'Chưa chọn dữ liệu thời tiết: vào "Thời tiết và PV" để chọn và khai độ nghiêng/hướng.'),
     sh.enabled && sh.mode === 'preview' ? h('p', { id: 'sim-shade' }, 'Bóng che đang ở mức xem trước (1 điểm giữa mỗi tấm); số đưa vào báo cáo nên dùng bóng chuẩn. ',
       h('button', { id: 'shade-standard', type: 'button', onClick: () => ctx.apply({ ...structuredClone(p), shade: { ...sh, mode: 'standard' } }) }, 'Tính bóng chuẩn (cho báo cáo)')) : null,
-    h('h3', {}, '1. Cấu hình mẫu Lâm Hà'), configButtons(ctx, say),
+    h('h3', { 'data-min-depth': 'tho' }, '1. Cấu hình mẫu Lâm Hà'), configButtons(ctx, say),
     h('h3', { 'data-min-depth': 'ky-su' }, '2. Chính sách điều phối'), policyForm(ctx, say),
     h('h3', { 'data-min-depth': 'tho' }, '3. Lịch tải và bơm'), loadPlans(ctx, say),
     h('h3', {}, '4. Chạy'), runControls(ctx, weather, say),
@@ -96,7 +96,7 @@ function configButtons(ctx: SimCtx, say: (l: string[]) => void): HTMLElement {
     try { ctx.apply(buildLamHaConfig(ctx.project, k, { inverter: c('luxpower-sna6000wpv'), battery: c('used-battery'), home: c('sample-home-load'), pump: c('sample-pump-load'), controller: c('sample-pump-controller') }, off)); }
     catch (e) { say([(e as Error).message === 'NO_PANELS' ? 'Cần ít nhất 3 tấm trong dự án' : (e as Error).message]); }
   } }, `Dựng ${LAMHA_CONFIG_LABEL[k]}`);
-  return h('div', {}, build('shared8'), build('split6+2'), h('p', {}, 'Dựng lại phần điện (inverter, pin, tải, chuỗi) từ các tấm và pin hiện có; mỗi lần dựng là một revision để so A/B. Lịch mặc định: tải nhà cả ngày, bơm 1 giờ lúc 18h (giả định, sửa bên dưới).'));
+  return h('div', { 'data-min-depth': 'tho' }, build('shared8'), build('split6+2'), h('p', {}, 'Dựng lại phần điện (inverter, pin, tải, chuỗi) từ các tấm và pin hiện có; mỗi lần dựng là một revision để so A/B. Lịch mặc định: tải nhà cả ngày, bơm 1 giờ lúc 18h (giả định, sửa bên dưới).'));
 }
 
 function policyForm(ctx: SimCtx, say: (l: string[]) => void): HTMLElement {
@@ -132,7 +132,7 @@ function policyForm(ctx: SimCtx, say: (l: string[]) => void): HTMLElement {
 function loadPlans(ctx: SimCtx, say: (l: string[]) => void): HTMLElement {
   const p = ctx.project;
   const loads = p.instances.filter((i) => i.kind === 'load');
-  if (!loads.length) return h('p', {}, 'Chưa có tải. Dựng cấu hình mẫu hoặc thêm tải ở màn Thiết kế.');
+  if (!loads.length) return h('p', {}, 'Chưa có tải. Thêm tải bằng khối "Tải" ở cột Thêm.');
   const plans = new Map((p.loadPlans ?? []).map((l) => [l.instanceId, l]));
   return h('div', { 'data-min-depth': 'tho' }, ...loads.map((inst) => {
     const plan = plans.get(inst.instanceId), comp = p.snapshots.components.find((c) => refKey(c) === (inst.componentRef ? refKey(inst.componentRef) : ''));

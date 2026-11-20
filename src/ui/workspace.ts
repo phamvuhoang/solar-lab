@@ -150,7 +150,14 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const go = (t: Tab) => navigate(stepOfTab(t), t);
   const goTarget = (t: Target) => { pendingFocus = t.focusId ? [t.focusId] : []; if (t.tab === tab) applyFocus(); else navigate(t.step, t.tab); };
   const applyFocus = () => {
-    const target = pendingFocus.map((id) => document.getElementById(id)).find((el) => el?.checkVisibility()); // skips detail hidden at this depth
+    // the first target shown at this depth; one in a closed <details> (the Thêm column on phones) opens it
+    const target = pendingFocus.map((id) => document.getElementById(id)).find((el) => {
+      const fold = el?.closest('details:not([open])') as HTMLDetailsElement | null;
+      if (fold) fold.open = true;
+      if (el?.checkVisibility()) return true;
+      if (fold) fold.open = false;
+      return false;
+    });
     pendingFocus = [];
     target?.focus();
     target?.scrollIntoView({ block: 'nearest' });
