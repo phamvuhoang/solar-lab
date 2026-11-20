@@ -1,6 +1,9 @@
 export const AUTORUN_DELAY_MS = 1000; // tune on dev machine + mid-range Android
 
-export function createScheduler(delayMs: number): {
+export function createScheduler(
+  delayMs: number,
+  onError: (e: unknown) => void = (e) => console.error(e),
+): {
   schedule(task: (signal: AbortSignal) => Promise<void>): void;
   cancel(): void;
 } {
@@ -19,7 +22,12 @@ export function createScheduler(delayMs: number): {
       const mine = (ctl = new AbortController());
       timer = setTimeout(() => {
         timer = undefined;
-        task(mine.signal).catch(() => {}); // aborted/failed runs are the caller's concern
+        // Promise.resolve().then also catches synchronous throws; aborts are expected, not errors.
+        Promise.resolve()
+          .then(() => task(mine.signal))
+          .catch((e) => {
+            if (!mine.signal.aborted) onError(e);
+          });
       }, delayMs);
     },
   };

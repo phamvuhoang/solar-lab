@@ -39,6 +39,34 @@ describe('autorun', () => {
     expect(task).not.toHaveBeenCalled();
   });
 
+  it('task lỗi gọi onError một lần', async () => {
+    const onError = vi.fn();
+    const s = createScheduler(10, onError);
+    const err = new Error('boom');
+    s.schedule(async () => { throw err; });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(err);
+  });
+
+  it('task bị hủy rồi reject không gọi onError', async () => {
+    const onError = vi.fn();
+    const s = createScheduler(10, onError);
+    s.schedule((signal) => new Promise<void>((_, rej) => signal.addEventListener('abort', () => rej(new Error('aborted')))));
+    await vi.advanceTimersByTimeAsync(10);
+    s.cancel();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('task ném đồng bộ gọi onError và không thoát ra ngoài', async () => {
+    const onError = vi.fn();
+    const s = createScheduler(10, onError);
+    s.schedule((() => { throw new Error('sync'); }) as () => Promise<void>);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
   it('Lru bỏ mục cũ nhất, get làm mới thứ tự', () => {
     const c = new Lru<number>(2);
     c.set('a', 1); c.set('b', 2);
