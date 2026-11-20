@@ -81,6 +81,13 @@ test('lời một kiểm tra và "… là gì?" theo độ sâu; đổi độ s�
   await page.goto('/#/mau');
   await page.locator('#coach-skip').click();
   await page.locator('#step-dau-noi').click();
+  await expect(page.locator('#findings button.finding.unknown')).toHaveCount(4); // Nhà mẫu: 2 giới hạn, 4 chưa đủ dữ liệu; wait for the panel
+  const names = await page.locator('#findings button.finding').allInnerTexts(); // hidden detail is not in innerText: what Cơ bản shows
+  expect(names.length).toBeGreaterThan(2);
+  expect(new Set(names).size, names.join('\n')).toBe(names.length); // cùng một kiểm tra trên hai chuỗi vẫn đọc khác nhau
+  expect(names.filter((n) => /^Chưa đủ dữ liệu: Chuỗi 1 — /.test(n)).length).toBeGreaterThan(0);
+  expect(names.filter((n) => /^Chưa đủ dữ liệu: Chuỗi 2 — /.test(n)).length).toBeGreaterThan(0);
+  await expect(page.getByRole('button', { name: names[0], exact: true })).toHaveCount(1); // tên nút (trình đọc màn hình) cũng khác nhau
   await page.locator('#ws-panel .finding.limited').first().click();
   const detail = page.locator('#finding-detail');
   await expect(detail.locator('h3')).toHaveText(/^Bị giới hạn: /); // trạng thái mở đầu, cả ở Cơ bản

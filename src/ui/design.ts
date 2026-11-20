@@ -38,9 +38,8 @@ export function renderDesign(ctx: DesignCtx): Node[] {
 
   const pv = previewer(p, { preview: 'fix-preview', confirm: 'fix-confirm', cancel: 'fix-cancel' }, (next) => { void ctx.apply(next); }, () => {});
   const finding = (f: Finding) => { const qf = quickFixFor(p, f); return h('li', {}, h('button', { className: `finding ${f.status}`, 'data-code': f.code, onClick: () => ctx.select(f.objectIds[0], fixTargets(f)) },
-    ...findingTitle(f)),
+    ...findingTitle(f, p)),
     qf && h('button', { className: 'quick-fix', type: 'button', onClick: () => pv.show(() => qf.apply(p)) }, qf.label)); };
-  const portName = (f: Finding) => f.port && `${ix.inst.get(f.port.instanceId)?.inst.label ?? 'thiết bị đã xóa'} · ${ix.port(f.port)?.label ?? f.port.port}`;
 
   const detail = () => {
     const f = findings.find((x) => x.objectIds[0] === ctx.selected) ?? findings.find((x) => ctx.selected && x.objectIds.includes(ctx.selected));
@@ -48,7 +47,7 @@ export function renderDesign(ctx: DesignCtx): Node[] {
     const qf = quickFixFor(p, f), assumed = f.assumed ? term('gia-dinh') : null;
     assumed?.setAttribute('data-min-depth', 'ky-su'); // with its "có giả định" line
     return h('div', { id: 'finding-detail', 'aria-live': 'polite', tabIndex: -1 },
-      h('h3', {}, ...findingTitle(f)), findingList(f, qf, portName(f)), ...(FINDING_TERMS[f.code] ?? []).map(term), assumed);
+      h('h3', {}, ...findingTitle(f, p)), findingList(f, qf, p), ...(FINDING_TERMS[f.code] ?? []).map(term), assumed);
   };
 
   return [
@@ -77,13 +76,13 @@ export const errText = (e: unknown) => ({
   DIMENSION_UNKNOWN: 'Tấm chưa có kích thước nên chưa đặt lên mái được.',
 } as Record<string, string>)[(e as Error).message] ?? (e as Error).message;
 
-/** A check's title (the same at every depth) and, from Thợ, its measured sentence ("Voc lạnh Chuỗi 1: 645 V > 500 V"). */
-const findingTitle = (f: Finding): Node[] => [document.createTextNode(findingLines(f, 'co-ban', null).title),
-  ...(f.status === 'pass' ? [] : [h('span', { 'data-min-depth': 'tho' }, ` · ${f.message}`)])];
+/** A check's title (the same at every depth, naming its item) and, from Thợ, its measured sentence ("Voc lạnh Chuỗi 1: 645 V > 500 V"). */
+export const findingTitle = (f: Finding, p: Project): Node[] => [document.createTextNode(findingLines(f, 'co-ban', null, p).title),
+  h('span', { 'data-min-depth': 'tho' }, ` · ${f.message}`)];
 
 /** A check's lines for every depth in one list; the stylesheet hides what is deeper than the current depth (switching repaints nothing). */
-export function findingList(f: Finding, fix: QuickFix | null, port?: string): HTMLElement {
-  const [basic, tho, kySu] = (['co-ban', 'tho', 'ky-su'] as const).map((d) => findingLines(f, d, fix, port).lines);
+export function findingList(f: Finding, fix: QuickFix | null, p: Project): HTMLElement {
+  const [basic, tho, kySu] = (['co-ban', 'tho', 'ky-su'] as const).map((d) => findingLines(f, d, fix, p).lines);
   const li = (min?: Depth) => (x: string) => h('li', { 'data-min-depth': min }, x);
   return h('ul', { className: 'finding-lines' }, ...basic.map(li()), ...tho.slice(basic.length).map(li('tho')), ...kySu.slice(tho.length).map(li('ky-su')));
 }

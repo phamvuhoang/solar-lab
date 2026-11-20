@@ -4,9 +4,8 @@ import { moveDevice, moveObstacle, removeObstacle } from '../domain/layout-edit'
 import { replaceComponent } from '../domain/presets';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { buildSceneModel } from '../scene/model';
-import { findingLines } from '../validation/finding-view';
 import type { Finding } from '../validation/strings';
-import { errText, STATUS_LABEL } from './design';
+import { errText, findingTitle, STATUS_LABEL } from './design';
 import { h } from './dom';
 import { previewer } from './palette';
 import type { Target } from './route';
@@ -107,7 +106,7 @@ export function renderInspector(ctx: InspectorCtx): HTMLElement {
       center ? h('span', {}, ' Vị trí thiết bị là minh họa, không vào phép tính nào.') : '') : '',
     modelBox, ...pv.nodes,
     ...terms.map(term),
-    bad.length ? h('details', {}, h('summary', {}, 'Các kiểm tra chưa đạt'), h('ul', {}, ...bad.map((f) => h('li', {}, findingLines(f, 'co-ban', null).title, h('span', { 'data-min-depth': 'tho' }, ` · ${f.message}`))))) : '');
+    bad.length ? h('details', {}, h('summary', {}, 'Các kiểm tra chưa đạt'), h('ul', {}, ...bad.map((f) => h('li', {}, ...findingTitle(f, p))))) : '');
   if (ctx.open === 'delete') remove();
   return box;
 }
