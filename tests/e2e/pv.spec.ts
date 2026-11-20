@@ -1,7 +1,9 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { ENGINE_VERSION } from '../../src/engine/pv';
-import { tab } from './nav';
+import { asEngineer, tab } from './nav';
+
+test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
 
 const pick = async (select: Locator, text: RegExp) => select.selectOption((await select.locator('option', { hasText: text }).first().getAttribute('value')) as string);
 

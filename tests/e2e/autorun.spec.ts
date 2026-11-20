@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { tab } from './nav';
+import { asEngineer, tab } from './nav';
+
+test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
 
 const RUN = { timeout: 60_000 }; // shade preview + a year of dispatch in the worker, with other tests sharing the CPU
 /** "1.234,5" → 1234.5 */

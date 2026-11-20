@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { tab } from './nav';
+import { asEngineer, tab } from './nav';
+
+test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
 
 /** Turns the app's live v3 database into a v2 one (what the previous release would have left on disk), then reloads. */
 async function downgradeToV2(page: Page) {

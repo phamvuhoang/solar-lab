@@ -52,8 +52,9 @@ export function renderRoof(ctx: RoofCtx): Node[] {
     const outline = h('textarea', { id: `rf-outline-${f.roofFaceId}`, rows: 2, cols: 40, value: ringText(f.outline), 'aria-label': 'Đường biên mặt mái' });
     const holes = h('textarea', { id: `rf-holes-${f.roofFaceId}`, rows: 2, cols: 40, value: f.holes.map(ringText).join('\n'), placeholder: 'mỗi dòng một vùng loại trừ: a b; a b; a b', 'aria-label': 'Vùng loại trừ' });
     return h('details', { className: 'card', 'data-face': f.roofFaceId, open: p.roofFaces.length === 1 }, h('summary', {}, `${f.label} · ${f.tiltDeg}° · hướng ${f.azimuthDeg}°`),
-      lab.node, tilt.node, az.node, sb.node, h('br'), oe.node, on.node, ou.node, h('br'),
-      h('label', {}, 'Biên (a b; a b; … mét trong khung mặt mái) ', outline), h('br'), h('label', {}, 'Vùng loại trừ ', holes), h('br'),
+      lab.node, tilt.node, az.node, h('span', { 'data-min-depth': 'tho' }, sb.node),
+      h('div', { 'data-min-depth': 'tho' }, oe.node, on.node, ou.node, h('br'),
+        h('label', {}, 'Biên (a b; a b; … mét trong khung mặt mái) ', outline), h('br'), h('label', {}, 'Vùng loại trừ ', holes)), h('br'),
       btn('Lưu mặt mái', () => {
         const o = parsePolygon(outline.value);
         if (!o.ok) return say([`${f.label}: ${o.message}`]);
@@ -62,7 +63,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
         const v = [num(tilt.el.value), num(az.el.value), num(sb.el.value), num(oe.el.value), num(on.el.value), num(ou.el.value)];
         if (v.some((x) => x === null) || v[0]! < 0 || v[0]! > 89 || v[1]! < 0 || v[1]! >= 360 || v[2]! < 0) return say([`${f.label}: nghiêng 0–89°, hướng 0–359,9°, khoảng cách ≥ 0, gốc là số`]);
         say([]);
-        run(() => updateFace(p, f.roofFaceId, { label: lab.el.value.trim() || f.label, outline: o.ring, holes: hs, tiltDeg: v[0]!, azimuthDeg: v[1]!, setbackM: v[2]!, setbackSource: 'user', origin: { e: v[3]!, n: v[4]!, up: v[5]! } }));
+        run(() => updateFace(p, f.roofFaceId, { label: lab.el.value.trim() || f.label, outline: o.ring, holes: hs, tiltDeg: v[0]!, azimuthDeg: v[1]!, setbackM: v[2]!, setbackSource: v[2] === f.setbackM ? f.setbackSource : 'user', /* an unchanged (or, in Cơ bản, hidden) setback stays what it was */ origin: { e: v[3]!, n: v[4]!, up: v[5]! } }));
       }, `save-face-${f.roofFaceId}`), btn('Xóa mặt mái', () => run(() => removeFace(p, f.roofFaceId))),
       h('p', {}, `Khoảng cách tối thiểu ${f.setbackM} m là ${f.setbackSource === 'assumption' ? 'giả định thiết kế, chưa phải số đo' : 'số người dùng khai'}.`));
   });
@@ -147,7 +148,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
     p.roofFaces.length ? null : h('p', {}, 'Chưa có mặt mái.'),
     btn('Thêm mái minh họa (hai mái dốc 10×3,25 m)', () => run(() => demoGableRoof(p)), 'add-demo-roof'),
     ...faceEditors, rectForm,
-    h('div', {}, btn('Thêm mặt mái chữ L (lõm) minh họa', () => run(() => { let n = addRoofFace(p, { ...faceRect(`Mái chữ L ${p.roofFaces.length + 1}`, 8, 6, 10, 180, { e: 0, n: 0, up: 3 }), outline: [[0, 0], [8, 0], [8, 2.9], [3, 2.9], [3, 6], [0, 6]] }); return n; }), 'add-l-roof'),
+    h('div', { 'data-min-depth': 'tho' }, btn('Thêm mặt mái chữ L (lõm) minh họa', () => run(() => { let n = addRoofFace(p, { ...faceRect(`Mái chữ L ${p.roofFaces.length + 1}`, 8, 6, 10, 180, { e: 0, n: 0, up: 3 }), outline: [[0, 0], [8, 0], [8, 2.9], [3, 2.9], [3, 6], [0, 6]] }); return n; }), 'add-l-roof'),
       btn('Thêm vùng loại trừ 1×1 m vào mặt mái đầu', () => (p.roofFaces[0] ? run(() => addHole(p, p.roofFaces[0].roofFaceId, [[4, 1], [5, 1], [5, 2], [4, 2]])) : say(['Thêm mặt mái trước'])), 'add-hole')),
     h('div', {}, btn('Thêm bồn nước (trụ Ø1,2 × 1,8 m) cạnh nhà', () => run(() => addObstacle(p, { label: 'Bồn nước', kind: 'cylinder', roofFaceId: null, center: { e: 12.5, n: 3.2 }, baseUp: 0, angleDeg: 0, size: { x: 1.2, y: 1.2, z: 1.8 } })), 'add-tank'),
       btn('Thêm hộp 0,6×0,6×0,8 m trên mái', () => (p.roofFaces[0] ? run(() => addObstacle(p, { label: 'Ống thông hơi', kind: 'box', roofFaceId: p.roofFaces[0].roofFaceId, center: { e: 5, n: 1.2 }, baseUp: 3.2, angleDeg: 0, size: { x: 0.6, y: 0.6, z: 0.8 } })) : say(['Thêm mặt mái trước'])), 'add-box')),

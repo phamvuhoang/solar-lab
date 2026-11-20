@@ -4,7 +4,9 @@ import { ENGINE_VERSION } from '../../src/engine/pv';
 import { DISPATCH_VERSION } from '../../src/engine/dispatch';
 import { SHADE_MODEL_VERSION } from '../../src/shade/geometry';
 import { readFileSync } from 'node:fs';
-import { tab } from './nav';
+import { asEngineer, tab } from './nav';
+
+test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
 
 /**
  * Role journeys written as scripts a person can also follow (docs/uat/). These run the SAME steps by machine, which proves the flow

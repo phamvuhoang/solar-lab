@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { tab } from './nav';
+import { asEngineer, tab } from './nav';
+
+test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
 
 test('W02: Dự án → Dự toán → đổi số lượng/báo giá → xem phần chênh → xuất CSV', async ({ page }) => {
   await page.goto('/#/');

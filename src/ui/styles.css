@@ -44,6 +44,7 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 #ws-rev { color: var(--muted); }
 #ws-badge { border: 1px dashed var(--lim); border-radius: var(--radius); padding: 0 var(--space-1); font-size: .9rem; }
 #ws-help summary { line-height: var(--touch); cursor: pointer; }
+#ws-depth [aria-pressed=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
 #ws-top #status { flex-basis: 100%; margin: 0; }
 #ws-top #status:empty { display: none; }
 #ws-steps { display: flex; gap: var(--space-1); overflow-x: auto; margin-top: var(--space-2); }
@@ -101,6 +102,10 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
   #coach[data-at=panel] { grid-area: panel; }
   #coach[data-at=health] { grid-row: 3 / 4; top: auto; bottom: var(--space-2); }
 }
+
+/* ---- depth (src/ui/depth.ts): Cơ bản hides every [data-min-depth], Thợ hides what is for Kỹ sư. Only detail carries the
+        attribute, never a status. !important: an id rule such as #ws-add label { display: block } must not show it again -- */
+:root[data-depth="co-ban"] [data-min-depth], :root[data-depth="tho"] [data-min-depth="ky-su"] { display: none !important; }
 
 /* ---- print: only the A4 report page of the panel ----------------------------------------------------------------- */
 @media print {

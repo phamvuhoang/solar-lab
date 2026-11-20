@@ -66,7 +66,7 @@ export function renderPalette(ctx: PaletteCtx): HTMLElement {
 
   const nPanels = field('add-panel-n', 'Số tấm', '2', { type: 'number', min: 1, step: 1, style: 'width:4.5rem' });
   const invs = ctx.components.filter((c) => c.kind === 'inverter');
-  const invModel = h('select', { id: 'add-inverter-model', 'aria-label': 'Model inverter' }, ...invs.map((c) => h('option', { value: refKey(c) }, c.name)));
+  const invModel = h('select', { id: 'add-inverter-model', 'aria-label': 'Model inverter', 'data-min-depth': 'tho' }, ...invs.map((c) => h('option', { value: refKey(c) }, c.name)));
   const other = invs.find((c) => !inverter?.componentRef || refKey(c) !== refKey(inverter.componentRef));
   if (other) invModel.value = refKey(other);
   const fw = field('add-face-w', 'Rộng (m)', '10'), fs = field('add-face-s', 'Dài theo dốc (m)', '3,25'), ft = field('add-face-t', 'Nghiêng (°)', '10'), fa = field('add-face-a', 'Hướng (°, Bắc = 0)', '180');
@@ -75,7 +75,7 @@ export function renderPalette(ctx: PaletteCtx): HTMLElement {
   const note = (t: string) => h('p', {}, t);
 
   const items: { id: string; label: string; fields: Node[]; make: () => Project }[] = [
-    { id: 'add-panel', label: 'Tấm pin', fields: [note(panel ? `Model ${panel.name}; chuỗi trên inverter được chia lại, tấm mới đặt lên mặt mái còn chỗ.` : ''), nPanels.node], make: () => {
+    { id: 'add-panel', label: 'Tấm pin', fields: [note(panel ? `Model ${panel.name}; chuỗi trên inverter được chia lại, tấm mới đặt lên mặt mái còn chỗ.` : ''), h('div', { 'data-min-depth': 'tho' }, nPanels.node)], make: () => {
       const n = nPanels.get();
       if (n === null || !Number.isInteger(n) || n < 1) throw new Error('Số tấm phải là số nguyên dương.');
       return addPanels(p, need(panel, 'tấm pin'), n, of(panel!)).project;

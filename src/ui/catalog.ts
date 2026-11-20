@@ -53,16 +53,16 @@ export async function renderCatalog(ctx: CatalogCtx): Promise<Node[]> {
         (c.review === 'unreviewed' ? ' · chưa kiểm datasheet' : '')),
       missing.length ? h('p', { className: 'missing' }, 'Chưa kiểm được: ' + missing.map((s) => `${s.label} (thiếu ${s.missing.map((k) => SPEC_DEFS[c.kind][k].label).join(', ')})`).join('; '))
         : h('p', {}, 'Đủ thông số cho mọi kiểm tra hiện có.'),
-      h('label', {}, 'Số lượng ', qty),
-      h('button', { onClick: async () => {
+      h('label', { 'data-min-depth': 'tho' }, 'Số lượng ', qty),
+      h('button', { 'data-min-depth': 'tho', onClick: async () => {
         await mutate(addInstances(project, c, Math.max(1, Number(qty.value) | 0), [...BUILTIN_OFFERS, ...userOffers].filter((o) => refKey(o.componentRef) === refKey(c))));
         ctx.rerender();
       } }, 'Thêm vào dự án'),
-      h('button', { onClick: () => formScreen(cloneForEdit(c, newId('mdl'), AUTHOR, nowIso())) }, 'Nhân bản'),
-      mine && h('button', { onClick: () => formScreen({ ...c, derivedFrom: c.derivedFrom, editedAt: nowIso() }) }, 'Sửa'));
+      h('button', { 'data-min-depth': 'tho', onClick: () => formScreen(cloneForEdit(c, newId('mdl'), AUTHOR, nowIso())) }, 'Nhân bản'),
+      mine && h('button', { 'data-min-depth': 'tho', onClick: () => formScreen({ ...c, derivedFrom: c.derivedFrom, editedAt: nowIso() }) }, 'Sửa'));
   };
   return [h('h2', {}, 'Thiết bị'), h('div', {}, kindSel, text),
-    h('div', {}, newKind, h('button', { onClick: () => {
+    h('div', { 'data-min-depth': 'tho' }, newKind, h('button', { onClick: () => {
       const kind = newKind.value as Kind;
       formScreen({ schemaVersion: 1, modelId: newId('mdl'), sku: null, brand: '', name: '', kind, condition: 'new', specs: blankSpecs(kind), attrs: {},
         datasheet: null, review: 'unreviewed', author: AUTHOR, editedAt: nowIso(), derivedFrom: null });

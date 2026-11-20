@@ -2,9 +2,11 @@ import './ui/styles.css';
 import { registerOffline } from './offline/register';
 import { explainStartupError, exportUnopenable } from './persistence/backup';
 import { startApp } from './ui/app';
+import { applyDepth, readDepth } from './ui/depth';
 import { download, h } from './ui/dom';
 
 document.getElementById('build-id')!.textContent = __BUILD_ID__;
+applyDepth(readDepth()); // before anything is drawn, so detail hidden at this depth never flashes
 startApp(document.getElementById('app')!).catch((e) => {
   const app = document.getElementById('app')!;
   app.replaceChildren(h('p', {}, explainStartupError(e)));

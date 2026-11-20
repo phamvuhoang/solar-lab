@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { tab } from './nav';
+import { asEngineer, tab } from './nav';
+
+test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
 
 // A fresh browser context per test, so this starts with no saved project.
 const item = (page: Page, id: string) => page.locator(`#checklist li[data-progress="${id}"]`);

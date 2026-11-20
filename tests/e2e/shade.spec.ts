@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { tab } from './nav';
+import { asEngineer, tab } from './nav';
+
+test.beforeEach(async ({ page }) => { await asEngineer(page); }); // these use controls shown from Thợ or Kỹ sư up
 
 const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đã lưu: revision');
 const rev = async (page: Page) => Number(((await page.locator('#status').textContent()) ?? '').match(/revision (\d+)/)?.[1] ?? 0);

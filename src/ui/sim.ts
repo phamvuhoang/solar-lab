@@ -12,6 +12,7 @@ import { localDate, localHour, type WeatherSeries } from '../weather/series';
 import { runSimInWorker } from '../worker/client';
 import { shadeSettingsOf } from '../shade/sampler';
 import { shadeFor } from '../shade/usage';
+import type { Depth } from './depth';
 import { download, h } from './dom';
 import type { Tab } from './route';
 
@@ -72,8 +73,8 @@ export async function renderSim(ctx: SimCtx): Promise<Node[]> {
     sh.enabled && sh.mode === 'preview' ? h('p', { id: 'sim-shade' }, 'Bóng che đang ở mức xem trước (1 điểm giữa mỗi tấm); số đưa vào báo cáo nên dùng bóng chuẩn. ',
       h('button', { id: 'shade-standard', type: 'button', onClick: () => ctx.apply({ ...structuredClone(p), shade: { ...sh, mode: 'standard' } }) }, 'Tính bóng chuẩn (cho báo cáo)')) : null,
     h('h3', {}, '1. Cấu hình mẫu Lâm Hà'), configButtons(ctx, say),
-    h('h3', {}, '2. Chính sách điều phối'), policyForm(ctx, say),
-    h('h3', {}, '3. Lịch tải và bơm'), loadPlans(ctx, say),
+    h('h3', { 'data-min-depth': 'ky-su' }, '2. Chính sách điều phối'), policyForm(ctx, say),
+    h('h3', { 'data-min-depth': 'tho' }, '3. Lịch tải và bơm'), loadPlans(ctx, say),
     h('h3', {}, '4. Chạy'), runControls(ctx, weather, say),
     stale ? h('p', { id: 'sim-stale' }, 'Có kết quả đã chạy trước đó không còn khớp thiết kế, lịch tải, chính sách hoặc dữ liệu hiện tại; đã ẩn. Chạy lại để cập nhật.') : null,
     runs.length && weather ? results(ctx, runs, weather, tz, cost) : null,
@@ -105,7 +106,7 @@ function policyForm(ctx: SimCtx, say: (l: string[]) => void): HTMLElement {
   const ei = f('s-ei', 'Hiệu suất inverter (%)', dec(sp.inverterEfficiency === null ? null : sp.inverterEfficiency * 100), 'trống = theo datasheet'), sb = f('s-sb', 'Tự tiêu thụ (W)', dec(sp.standbyW));
   const grid = h('input', { type: 'checkbox', id: 's-grid', checked: sp.gridAvailable }), imp = h('input', { type: 'checkbox', id: 's-imp', checked: sp.importAllowed }), exp = h('input', { type: 'checkbox', id: 's-exp', checked: sp.exportAllowed });
   const out = f('s-out', 'Giờ mất lưới mỗi ngày', formatHours(sp.outageLocalHours.reduce((a, x) => { a[x] = 1; return a; }, new Array<number>(24).fill(0))), 'ví dụ 18-21');
-  return h('form', { 'aria-label': 'Chính sách điều phối', onSubmit: (e: Event) => {
+  return h('form', { 'aria-label': 'Chính sách điều phối', 'data-min-depth': 'ky-su', onSubmit: (e: Event) => {
     e.preventDefault();
     const n = (x: { el: HTMLInputElement }, name: string, lo: number, hi: number, req = true): number | null | 'bad' => {
       const t = x.el.value.trim();
@@ -133,7 +134,7 @@ function loadPlans(ctx: SimCtx, say: (l: string[]) => void): HTMLElement {
   const loads = p.instances.filter((i) => i.kind === 'load');
   if (!loads.length) return h('p', {}, 'Chưa có tải. Dựng cấu hình mẫu hoặc thêm tải ở màn Thiết kế.');
   const plans = new Map((p.loadPlans ?? []).map((l) => [l.instanceId, l]));
-  return h('div', {}, ...loads.map((inst) => {
+  return h('div', { 'data-min-depth': 'tho' }, ...loads.map((inst) => {
     const plan = plans.get(inst.instanceId), comp = p.snapshots.components.find((c) => refKey(c) === (inst.componentRef ? refKey(inst.componentRef) : ''));
     const hours = h('input', { id: `lp-hours-${inst.instanceId}`, value: plan ? formatHours(plan.fractions) : '', placeholder: 'ví dụ 11 hoặc 6-8,18-22@0,5', 'aria-label': `Giờ chạy ${inst.label}`, size: 22 });
     const prio = h('input', { id: `lp-prio-${inst.instanceId}`, type: 'number', min: 1, max: 99, value: plan?.priority ?? 1, style: 'width:4rem', 'aria-label': `Ưu tiên ${inst.label}` });
@@ -224,15 +225,15 @@ function runControls(ctx: SimCtx, weather: WeatherSeries | undefined, say: (l: s
     go([{ label: 'A', source: { kind: 'revision', n }, base: a, title: `A · revision ${n}` }, { label: 'B', source: { kind: 'current' }, base: p, title: `B · hiện tại (revision ${p.revision})` }]);
   });
   const buttons = [runOne, runAB];
-  return h('div', {}, runOne, ' ', h('label', {}, 'A = ', optA), ' B = cấu hình hiện tại ', runAB, cancel, progress,
-    h('p', {}, `A và B dùng cùng dữ liệu thời tiết (${weather?.name ?? 'chưa chọn'}), cùng SoC đầu và chính sách; mỗi bên giữ thiết kế và lịch tải của revision riêng.`));
+  return h('div', {}, runOne, ' ', h('span', { 'data-min-depth': 'tho' }, h('label', {}, 'A = ', optA), ' B = cấu hình hiện tại ', runAB), cancel, progress,
+    h('p', { 'data-min-depth': 'tho' }, `A và B dùng cùng dữ liệu thời tiết (${weather?.name ?? 'chưa chọn'}), cùng SoC đầu và chính sách; mỗi bên giữ thiết kế và lịch tải của revision riêng.`));
 }
 
 function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, costCmp: Comparison | null): HTMLElement {
   const [a, b] = runs.length === 2 ? runs : [null, runs[0]];
   const cols = a ? [a, b] : [b];
   const m = (r: Run) => ({ d: r.result.dispatch, t: r.result.dispatch.totals, mm: r.result.dispatch.metrics });
-  const rows: [string, (r: Run) => string, ((x: Run, y: Run) => string) | null][] = [
+  const rows: [string, (r: Run) => string, ((x: Run, y: Run) => string) | null, Depth?][] = [
     ['Điện PV tới inverter (sau giới hạn)', (r) => `${formatKWh(m(r).t.pvBusWh)} kWh`, (x, y) => `${formatKWh(m(y).t.pvBusWh - m(x).t.pvBusWh)} kWh`],
     ['Tải yêu cầu', (r) => `${formatKWh(m(r).t.loadRequestedWh)} kWh`, null],
     ['Tải được cấp', (r) => `${formatKWh(m(r).t.loadServedWh)} kWh`, (x, y) => `${formatKWh(m(y).t.loadServedWh - m(x).t.loadServedWh)} kWh`],
@@ -249,7 +250,7 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
     ['Tháng ít nắng nhất (đủ dữ liệu)', (r) => (m(r).mm.lowestSunMonth ? `${m(r).mm.lowestSunMonth!.month}: ${m(r).mm.lowestSunMonth!.pvKWh.toLocaleString('vi-VN', { maximumFractionDigits: 0 })} kWh` : '—'), null],
     ['Bơm: thể tích', (r) => m(r).d.loads.filter((l) => l.volumeM3 !== null || l.volumeNote).map((l) => `${l.label}: ${l.volumeM3 === null ? l.volumeNote : l.volumeM3.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + ' m³'}`).join('; ') || '—', null],
     ['Khởi động bị chặn', (r) => `${m(r).d.loads.reduce((s, l) => s + l.startsBlocked, 0)} / ${m(r).d.startCheckCount}`, null],
-    ['Sổ năng lượng: sai số lớn nhất / bước', (r) => `${m(r).d.ledger.maxResidualWh.toExponential(1)} Wh (ngưỡng đạt)`, null],
+    ['Sổ năng lượng: sai số lớn nhất / bước', (r) => `${m(r).d.ledger.maxResidualWh.toExponential(1)} Wh (ngưỡng đạt)`, null, 'ky-su'],
   ];
   const energyNote = a && Math.abs(m(a).t.eEndWh - m(b).t.eEndWh) > 1
     ? `Hai phương án kết thúc với năng lượng trong pin khác nhau: B ${m(b).t.eEndWh > m(a).t.eEndWh ? 'còn nhiều hơn' : 'còn ít hơn'} A ${formatKWh(Math.abs(m(b).t.eEndWh - m(a).t.eEndWh))} kWh. Phần này chưa được tính như điện đã cấp; khi so điện đã cấp cần xét riêng.` : null;
@@ -261,12 +262,12 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
     h('h3', {}, '5. Kết quả'),
     h('p', { id: 'sim-scope' }, `Kết luận chỉ đúng cho dữ liệu đã chọn: ${weather.name} (${weather.source.period ?? '?'}), SoC đầu ${pct(simPolicyOf(ctx.project).soc0)}, chính sách và lịch tải như trên. Không suy ra cho năm hay địa điểm khác.`),
     h('table', { id: 'sim-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Chỉ số'), ...cols.map((r) => h('th', {}, r.title)), a ? h('th', {}, 'Chênh B − A') : null)),
-      h('tbody', {}, ...rows.map(([label, f, d]) => h('tr', {}, h('th', { scope: 'row' }, label), ...cols.map((r) => h('td', {}, f(r))), a ? h('td', {}, d ? d(a, b) : '—') : null)))),
+      h('tbody', {}, ...rows.map(([label, f, d, depth]) => h('tr', { 'data-min-depth': depth }, h('th', { scope: 'row' }, label), ...cols.map((r) => h('td', {}, f(r))), a ? h('td', {}, d ? d(a, b) : '—') : null)))),
     energyNote ? h('p', { id: 'sim-energy-note' }, energyNote) : null, cost,
     h('h4', {}, 'Lý do giới hạn (số bước)'), reasonTable(cols), h('h4', {}, 'Giả định đã áp dụng'),
     h('ul', {}, ...[...new Set(cols.flatMap((r) => [...r.result.pv.assumptions, ...r.result.dispatch.assumptions, ...r.result.dispatch.skipped.map((x) => 'Không áp: ' + x)]))].map((x) => h('li', {}, x))),
     replay(ctx, cols, step, tz),
-    h('button', { id: 'sim-csv', onClick: () => { const r = cols[ctx.state.side] ?? cols[0]; download(`he-thong-${r.label}-${r.hash.slice(0, 8)}.csv`, simResultToCsv(r.result, { projectName: r.projectName, weatherName: weather.name, timeZone: tz, label: r.title }), 'text/csv;charset=utf-8'); } }, 'Xuất CSV theo giờ (phương án đang xem)'));
+    h('button', { id: 'sim-csv', 'data-min-depth': 'ky-su', onClick: () => { const r = cols[ctx.state.side] ?? cols[0]; download(`he-thong-${r.label}-${r.hash.slice(0, 8)}.csv`, simResultToCsv(r.result, { projectName: r.projectName, weatherName: weather.name, timeZone: tz, label: r.title }), 'text/csv;charset=utf-8'); } }, 'Xuất CSV theo giờ (phương án đang xem)'));
 }
 
 const fmtT = (epoch: number, tz: string) => new Intl.DateTimeFormat('vi-VN', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' }).format(new Date(epoch * 1000));
@@ -303,7 +304,7 @@ function replay(ctx: SimCtx, cols: Run[], step: number, tz: string): HTMLElement
     h('div', {}, h('button', { onClick: () => go(step - 1) }, '← bước trước'), h('button', { onClick: () => go(step + 1) }, 'bước sau →'),
       jump('jump-short', 'Lần thiếu điện kế tiếp', (i) => s.unservedWh[i] > 1e-6), jump('jump-full', 'Pin đầy kế tiếp', (i) => (s.reasons[i] & bit('BATTERY_FULL')) !== 0),
       jump('jump-reserve', 'Chạm dự phòng kế tiếp', (i) => (s.reasons[i] & bit('RESERVE_REACHED')) !== 0), jump('jump-start', 'Khởi động bị chặn kế tiếp', (i) => (s.reasons[i] & bit('START_BLOCKED')) !== 0), note),
-    h('table', { id: 'replay-step' },
+    h('table', { id: 'replay-step', 'data-min-depth': 'ky-su' },
       row('PV tới inverter (trước / sau giới hạn)', `${(s.pvPotentialWh[step] / dt).toFixed(0)} → ${(s.pvBusWh[step] / dt).toFixed(0)} W`), row('Tải yêu cầu / được cấp / thiếu', `${s.loadRequestedWh[step].toFixed(0)} / ${s.loadServedWh[step].toFixed(0)} / ${s.unservedWh[step].toFixed(0)} Wh`),
       row('Pin: sạc / xả (tại bus)', `${s.chargeBusWh[step].toFixed(0)} / ${s.dischargeBusWh[step].toFixed(0)} Wh`), row('SoC cuối bước', pct(s.socEnd[step])),
       row('Lưới nhập / xuất · PV bị cắt', `${s.gridImportWh[step].toFixed(0)} / ${s.exportWh[step].toFixed(0)} Wh · ${s.curtailedWh[step].toFixed(0)} Wh`), row('Sai số sổ năng lượng', `${s.residualWh[step].toExponential(1)} Wh`)),

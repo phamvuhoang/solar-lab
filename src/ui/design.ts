@@ -43,9 +43,9 @@ export function renderDesign(ctx: DesignCtx): Node[] {
     if (!f) return h('p', { id: 'finding-detail', tabIndex: -1 }, ctx.selected ? 'Không có kiểm tra nào gắn với đối tượng đang chọn.' : 'Chọn một mục trong sơ đồ hoặc danh sách lỗi.');
     return h('div', { id: 'finding-detail', 'aria-live': 'polite', tabIndex: -1 },
       h('h3', {}, f.code), h('p', {}, f.message),
-      f.formula && h('p', {}, h('strong', {}, 'Công thức: '), f.formula),
+      f.formula && h('p', { 'data-min-depth': 'ky-su' }, h('strong', {}, 'Công thức: '), f.formula),
       f.value !== null && h('p', {}, h('strong', {}, 'Giá trị / giới hạn: '), `${f.value} ${f.unit} / ${f.limit ?? '—'} ${f.unit}`),
-      f.sources.length ? h('ul', {}, ...f.sources.map((x) => h('li', {}, `${x.where} · ${x.field} = ${x.value ?? 'chưa có'} ${x.unit} (${x.provenance})`))) : null,
+      f.sources.length ? h('ul', { 'data-min-depth': 'ky-su' }, ...f.sources.map((x) => h('li', {}, `${x.where} · ${x.field} = ${x.value ?? 'chưa có'} ${x.unit} (${x.provenance})`))) : null,
       h('p', {}, h('strong', {}, 'Hậu quả: '), f.consequence), h('p', {}, h('strong', {}, 'Cách sửa: '), f.fix));
   };
 
@@ -61,10 +61,10 @@ export function renderDesign(ctx: DesignCtx): Node[] {
     h('div', {}, ...pv.nodes),
     good.length ? h('details', {}, h('summary', {}, `${good.length} kiểm tra đạt`), h('ul', {}, ...good.map(finding))) : null,
     detail(),
-    h('h3', {}, 'Thiết lập thiết kế'), settingsForm(ctx, fail),
-    h('h3', {}, 'Thêm theo lô'), batchForm(ctx, invComp, fail, run),
-    h('h3', {}, 'Preset và nhánh'), presetForm(ctx, run, fail),
-    h('h3', {}, 'Kết nối (thay cho kéo thả)'), connections(ctx, run, fail),
+    h('h3', { 'data-min-depth': 'tho' }, 'Thiết lập thiết kế'), settingsForm(ctx, fail),
+    h('h3', { 'data-min-depth': 'tho' }, 'Thêm theo lô'), batchForm(ctx, invComp, fail, run),
+    h('h3', { 'data-min-depth': 'tho' }, 'Preset và nhánh'), presetForm(ctx, run, fail),
+    h('h3', { 'data-min-depth': 'tho' }, 'Kết nối (thay cho kéo thả)'), connections(ctx, run, fail),
   ].filter(Boolean) as Node[];
 }
 
@@ -75,8 +75,8 @@ export const errText = (e: unknown) => ({
   DIMENSION_UNKNOWN: 'Tấm chưa có kích thước nên chưa đặt lên mái được.',
 } as Record<string, string>)[(e as Error).message] ?? (e as Error).message;
 
-/** Controls that fix a finding, most specific first. */
-const fixTargets = (f: Finding): string[] => [...(f.stringId ? [`str-target-${f.stringId}`] : []), `edge-del-${f.objectIds[0]}`, 'edge-from'];
+/** Controls that fix a finding, most specific first; the first one shown at this depth gets the focus. */
+const fixTargets = (f: Finding): string[] => [...(f.stringId ? [`str-target-${f.stringId}`] : []), `edge-del-${f.objectIds[0]}`, 'edge-from', 'finding-detail'];
 
 function settingsForm(ctx: DesignCtx, fail: (m: string) => void): HTMLElement {
   const d = designOf(ctx.project);
@@ -94,8 +94,9 @@ function settingsForm(ctx: DesignCtx, fail: (m: string) => void): HTMLElement {
     if (beta.value.trim()) { const r = parseQuantity(beta.value, 'coef', { allowNegative: true }); if (!r.ok) return fail(`βVmp: ${r.message}`); b = r.value; }
     fail('');
     ctx.apply({ ...structuredClone(ctx.project), design: { coldCellTempC: c, hotCellTempC: ho, iscFactor: f, betaVmpAssumption: b, source: src.value.trim() } }).catch((x) => fail(errText(x)));
-  }, 'aria-label': 'Thiết lập thiết kế' },
-  h('label', {}, 'Tcell thấp nhất (°C) ', cold), h('label', {}, ' Tcell cao nhất (°C) ', hot), h('label', {}, ' Hệ số Isc ', isc), h('label', {}, ' Giả định βVmp (%/°C) ', beta), h('label', {}, ' Nguồn ', src),
+  }, 'aria-label': 'Thiết lập thiết kế', 'data-min-depth': 'tho' },
+  h('label', {}, 'Tcell thấp nhất (°C) ', cold), h('label', {}, ' Tcell cao nhất (°C) ', hot),
+  h('label', { 'data-min-depth': 'ky-su' }, ' Hệ số Isc ', isc), h('label', { 'data-min-depth': 'ky-su' }, ' Giả định βVmp (%/°C) ', beta), h('label', { 'data-min-depth': 'ky-su' }, ' Nguồn ', src),
   h('button', { type: 'submit' }, 'Lưu thiết lập'),
   h('p', {}, 'Để trống thì các kiểm tra phụ thuộc trả "chưa đủ dữ liệu". βVmp không được suy từ βPmax.'));
 }
@@ -118,7 +119,7 @@ function batchForm(ctx: DesignCtx, invComp: Component | undefined, fail: (m: str
     const n = Number(count.value), c = panels.find((x) => refKey(x) === model.value);
     if (!c || !Number.isInteger(n) || n < 1) return fail('Số tấm phải là số nguyên dương');
     run(() => addPanelBatch(ctx.project, c, n, invComp, offersFor(ctx.offers, c)));
-  }, 'aria-label': 'Thêm tấm theo lô' }, h('label', {}, 'Model ', model), h('label', {}, ' Số tấm ', count), preview, h('button', { type: 'submit' }, 'Xác nhận thêm'));
+  }, 'aria-label': 'Thêm tấm theo lô', 'data-min-depth': 'tho' }, h('label', {}, 'Model ', model), h('label', {}, ' Số tấm ', count), preview, h('button', { type: 'submit' }, 'Xác nhận thêm'));
 }
 
 function presetForm(ctx: DesignCtx, run: (f: () => Project) => Promise<void>, fail: (m: string) => void): HTMLElement {
@@ -132,7 +133,7 @@ function presetForm(ctx: DesignCtx, run: (f: () => Project) => Promise<void>, fa
   const free = unassignedPanels(ctx.project);
   const pumpN = h('input', { id: 'p-pump-n', type: 'number', min: 1, value: 2, style: 'width:4rem', 'aria-label': 'Số tấm cho bơm' });
   const o = (c: Component) => offersFor(ctx.offers, c);
-  return h('div', {},
+  return h('div', { 'data-min-depth': 'tho' },
     h('div', {}, preset, inv.sel, h('button', { id: 'apply-preset', onClick: () => run(() => applyPreset(ctx.project, preset.value as PresetKind, inv.get(), o(inv.get()))) }, 'Áp dụng preset (thay mọi chuỗi)')),
     h('div', {}, bat.sel, h('button', { onClick: () => run(() => addBatteryBranch(ctx.project, bat.get(), o(bat.get()))) }, 'Thêm pin vào inverter')),
     h('div', {}, load.sel, h('button', { onClick: () => run(() => addAcLoad(ctx.project, load.get(), o(load.get()))) }, 'Thêm tải AC')),
@@ -160,9 +161,9 @@ function connections(ctx: DesignCtx, run: (f: () => Project) => Promise<void>, f
   const from = mk('edge-from', 'Từ cổng (nguồn)'), to = mk('edge-to', 'Tới cổng (tải)');
   const label = (r: { instanceId: string; port: string }) => allPorts.find((x) => x.key === portKey(r))?.label ?? portKey(r);
   return h('div', {},
-    h('table', { id: 'strings-table' }, h('thead', {}, h('tr', {}, ...['Chuỗi', 'Số tấm', 'Nối vào', ''].map((t) => h('th', {}, t)))), h('tbody', {}, ...strRows)),
-    h('ul', { id: 'edges' }, ...p.edges.map((e) => h('li', {}, `${label(e.from)} → ${label(e.to)} `, h('button', { id: `edge-del-${e.edgeId}`, onClick: () => run(() => removeEdge(p, e.edgeId)) }, 'Xóa kết nối')))),
-    h('form', { onSubmit: (e: Event) => { e.preventDefault(); const a = allPorts.find((x) => x.key === from.value), b = allPorts.find((x) => x.key === to.value); if (!a || !b) return fail('Chọn hai cổng'); run(() => addEdge(p, a.ref, b.ref)); }, 'aria-label': 'Thêm kết nối' },
+    h('table', { id: 'strings-table', 'data-min-depth': 'tho' }, h('thead', {}, h('tr', {}, ...['Chuỗi', 'Số tấm', 'Nối vào', ''].map((t) => h('th', {}, t)))), h('tbody', {}, ...strRows)),
+    h('ul', { id: 'edges', 'data-min-depth': 'tho' }, ...p.edges.map((e) => h('li', {}, `${label(e.from)} → ${label(e.to)} `, h('button', { id: `edge-del-${e.edgeId}`, onClick: () => run(() => removeEdge(p, e.edgeId)) }, 'Xóa kết nối')))),
+    h('form', { onSubmit: (e: Event) => { e.preventDefault(); const a = allPorts.find((x) => x.key === from.value), b = allPorts.find((x) => x.key === to.value); if (!a || !b) return fail('Chọn hai cổng'); run(() => addEdge(p, a.ref, b.ref)); }, 'aria-label': 'Thêm kết nối', 'data-min-depth': 'tho' },
       h('label', {}, 'Từ ', from), h('label', {}, ' tới ', to), h('button', { type: 'submit' }, 'Nối')),
     h('h4', {}, 'Thiết bị'),
     h('ul', { id: 'device-list' }, ...[...ix.inst.values()].filter((d) => d.inst.kind !== 'panel').map((d) => h('li', {},

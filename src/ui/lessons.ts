@@ -1,14 +1,19 @@
 import { lineChart } from '../diagrams/charts';
 import { LESSONS, lessonById, termsOf, type Lesson, type LessonId, type Measure, type Mode, type Verdict } from '../lessons/lessons';
 import type { Project } from '../domain/types';
+import { currentDepth, type Depth } from './depth';
 import { h } from './dom';
 
-/** Everything a lesson remembers lives here, in memory. A lesson works on its own copy and never writes a project. */
+/**
+ * Everything a lesson remembers lives here, in memory. A lesson works on its own copy and never writes a project.
+ * `mode` starts from the workspace depth (Cơ bản → basic, Thợ/Kỹ sư → engineer) and the lessons' own toggle overrides it until
+ * the depth is changed again; `modeFrom` is the depth it was last taken from.
+ */
 export interface LessonState {
-  mode: Mode; id: LessonId | null; work: Project | null; before: Measure | null; after: Measure | null;
+  mode: Mode; modeFrom: Depth | null; id: LessonId | null; work: Project | null; before: Measure | null; after: Measure | null;
   answer: string | null; verdict: Verdict | null; busy: boolean; error: string | null; showTables: boolean;
 }
-export const freshLessons = (): LessonState => ({ mode: 'basic', id: null, work: null, before: null, after: null, answer: null, verdict: null, busy: false, error: null, showTables: false });
+export const freshLessons = (): LessonState => ({ mode: 'basic', modeFrom: null, id: null, work: null, before: null, after: null, answer: null, verdict: null, busy: false, error: null, showTables: false });
 export interface LessonCtx { state: LessonState; rerender(): void; back(): void; backLabel: string }
 
 const table = (head: string[], rows: string[][], id?: string) =>
@@ -24,7 +29,8 @@ async function start(ctx: LessonCtx, l: Lesson) {
 }
 
 export function renderLessons(ctx: LessonCtx): Node[] {
-  const s = ctx.state, lesson = s.id ? lessonById(s.id) : undefined;
+  const s = ctx.state, lesson = s.id ? lessonById(s.id) : undefined, depth = currentDepth();
+  if (s.modeFrom !== depth) { s.modeFrom = depth; s.mode = depth === 'co-ban' ? 'basic' : 'engineer'; }
   const head = [
     h('h2', {}, 'Bài học'), h('button', { id: 'ls-back', onClick: ctx.back }, ctx.backLabel),
     h('p', {}, 'Mỗi bài dùng một bản sao riêng của dự án mẫu; làm hỏng gì cũng không ảnh hưởng dự án đã lưu. Bài không dùng chuyển động: mọi số liệu đều có trong bảng.'),

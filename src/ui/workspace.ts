@@ -19,6 +19,7 @@ import { renderCatalog } from './catalog';
 import { renderChecklist } from './checklist';
 import { startCoach } from './coach';
 import { renderDesign } from './design';
+import { applyDepth, currentDepth, DEPTH_LABEL, writeDepth, type Depth } from './depth';
 import { download, h } from './dom';
 import { healthOf, renderHealth } from './health';
 import { freshImported, renderImported, workerRunner } from './imported';
@@ -149,7 +150,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const go = (t: Tab) => navigate(stepOfTab(t), t);
   const goTarget = (t: Target) => { pendingFocus = t.focusId ? [t.focusId] : []; if (t.tab === tab) applyFocus(); else navigate(t.step, t.tab); };
   const applyFocus = () => {
-    const target = pendingFocus.map((id) => document.getElementById(id)).find(Boolean);
+    const target = pendingFocus.map((id) => document.getElementById(id)).find((el) => el?.checkVisibility()); // skips detail hidden at this depth
     pendingFocus = [];
     target?.focus();
     target?.scrollIntoView({ block: 'nearest' });
@@ -207,6 +208,15 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     h('button', { id: 'ws-export-all', type: 'button', onClick: async () => { download('mekoniq-tat-ca-du-an.json', await exportAll(repo)); } }, 'Xuất tất cả dự án (sao lưu)'));
   help.addEventListener('click', (e) => { if ((e.target as Element).closest('button')) help.open = false; }); // a picked item closes the menu
   const home = h('button', { id: 'ws-home', type: 'button', onClick: () => { say(''); location.hash = formatRoute({ kind: 'home' }); } }, 'Danh sách dự án');
+  /** Cơ bản · Thợ · Kỹ sư: the stylesheet hides detail by depth, so nothing repaints; only the pressed button changes. */
+  const depthSwitch = () => {
+    const group = h('div', { id: 'ws-depth', role: 'group', 'aria-label': 'Mức chi tiết' });
+    group.append(...(Object.keys(DEPTH_LABEL) as Depth[]).map((d) => h('button', { id: `depth-${d}`, type: 'button', 'aria-pressed': String(d === currentDepth()), onClick: () => {
+      applyDepth(d); writeDepth(d);
+      for (const b of group.children) b.setAttribute('aria-pressed', String(b.id === `depth-${d}`));
+    } }, DEPTH_LABEL[d])));
+    return group;
+  };
 
   function paintChrome() {
     const hist = historyFor(edited);
@@ -216,7 +226,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
       h('span', { id: 'ws-rev' }, stored ? `Đã lưu · r${project.revision}` : UNSAVED),
       h('button', { id: 'ws-undo', type: 'button', disabled: !hist.canUndo, onClick: hist.undo }, 'Hoàn tác'),
       h('button', { id: 'ws-redo', type: 'button', disabled: !hist.canRedo, onClick: hist.redo }, 'Làm lại'),
-      help,
+      depthSwitch(), help,
       message().includes('Mở bản mới nhất') && h('button', { id: 'ws-latest', type: 'button', onClick: async () => { project = (await repo.loadRevision(project.projectId))!; say(''); await renderPanel(); } }, 'Mở bản mới nhất'),
       h('p', { id: 'status', role: 'status' }, message())].filter(Boolean) as Node[]);
     paintHealth();

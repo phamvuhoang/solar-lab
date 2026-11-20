@@ -43,17 +43,18 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
     h('td', {}, l.qtyUnit === 'mm' ? `${(l.qty / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} m` : String(l.qty)),
     h('td', {}, l.status === 'missing' ? `chưa có giá (${REASON[l.reason!]})` : l.basis),
     h('td', { className: 'num' }, l.totalMinor === null ? '—' : (l.sign === -1 ? '−' : '') + vnd(l.totalMinor)),
-    h('td', {}, STATUS[l.status]), h('td', {}, VAT[l.vat]), h('td', {}, [l.seller, l.recordedAt].filter(Boolean).join(' · ')),
+    h('td', {}, STATUS[l.status]), h('td', {}, VAT[l.vat]), h('td', { 'data-min-depth': 'ky-su' }, [l.seller, l.recordedAt].filter(Boolean).join(' · ')),
     l.source === 'extra' && h('td', {}, h('button', { 'aria-label': `Xóa ${l.label}`, onClick: () => ctx.apply(removeCostLine(p, l.key.slice('extra:'.length))) }, 'Xóa')));
 
   const reasons = [
-    q.missing.lineKeys.length && `${q.missing.lineKeys.length} dòng chưa có giá`,
+    // named, not only counted: in Cơ bản the line table is hidden and this sentence is "còn thiếu gì"
+    q.missing.lineKeys.length && `${q.missing.lineKeys.length} dòng chưa có giá (${q.missing.lineKeys.map((k) => q.lines.find((l) => l.key === k)?.label ?? k).join(', ')})`,
     q.missing.scope.length && `thiếu hạng mục: ${q.missing.scope.map((c) => CAT[c]).join(', ')}`,
     q.missing.unknownVatKeys.length && `${q.missing.unknownVatKeys.length} dòng chưa rõ VAT`,
     q.issues.some((i) => i.code === 'KIT_PART_NOT_IN_DESIGN') && 'kit ghi nhiều linh kiện hơn thiết kế có',
   ].filter(Boolean).join('; ');
 
-  const waive = h('div', {}, h('strong', {}, 'Phạm vi cần có: '), ...st.requiredCategories.map((c) => {
+  const waive = h('div', { 'data-min-depth': 'tho' }, h('strong', {}, 'Phạm vi cần có: '), ...st.requiredCategories.map((c) => {
     const box = h('input', { type: 'checkbox', checked: st.waived.includes(c), id: `waive-${c}` });
     box.addEventListener('change', () => ctx.apply(setQuoteSettings(p, { waived: box.checked ? [...st.waived, c] : st.waived.filter((x) => x !== c) })));
     return h('label', {}, box, ` ${CAT[c]}: không áp dụng `);
@@ -67,20 +68,20 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
 
   return [
     h('h2', {}, `Dự toán · ${p.name}`),
-    h('p', {}, `revision ${p.revision} · làm tròn nửa lên từng dòng · VAT ${st.vatRateBp / 100}% (giả định, sửa được) `, h('label', {}, 'VAT % ', vatInput)),
-    h('table', { id: 'quote-table' },
-      h('thead', {}, h('tr', {}, ...['Nhóm', 'Mô tả', 'SL', 'Quy đổi', 'Thành tiền', 'Trạng thái', 'VAT', 'Nhà bán · ngày', ''].map((t) => h('th', {}, t)))),
+    h('p', {}, `revision ${p.revision} · làm tròn nửa lên từng dòng · VAT ${st.vatRateBp / 100}% (giả định, sửa được) `, h('label', { 'data-min-depth': 'tho' }, 'VAT % ', vatInput)),
+    h('table', { id: 'quote-table', 'data-min-depth': 'tho' },
+      h('thead', {}, h('tr', {}, ...['Nhóm', 'Mô tả', 'SL', 'Quy đổi', 'Thành tiền', 'Trạng thái', 'VAT', 'Nhà bán · ngày', ''].map((t) => h('th', { 'data-min-depth': t === 'Nhà bán · ngày' ? 'ky-su' : undefined }, t)))),
       h('tbody', {}, ...q.lines.map(row))),
     h('p', { id: 'quote-known' }, `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}`),
-    h('p', { id: 'quote-vat' }, `VAT trên dòng chưa gồm VAT: ${vnd(q.vatMinor)} · giao hàng: ${vnd(q.shippingMinor)}`),
+    h('p', { id: 'quote-vat', 'data-min-depth': 'tho' }, `VAT trên dòng chưa gồm VAT: ${vnd(q.vatMinor)} · giao hàng: ${vnd(q.shippingMinor)}`),
     h('p', { id: 'quote-total' }, q.complete ? `Tổng hoàn chỉnh: ${vnd(q.totalMinor)}` : `Tổng hoàn chỉnh: chưa đủ để báo (${reasons || 'chưa có dòng nào'})`),
     waive,
     q.issues.length ? h('ul', {}, ...q.issues.map((i) => h('li', {}, `Cảnh báo ${i.code}: ${i.message}`))) : null,
     errBox,
-    h('h3', {}, 'Thiết bị trong thiết kế'), ...devices(ctx, q, fail),
-    h('h3', {}, 'Thêm dòng bổ sung'), extraForm(ctx, fail),
-    h('h3', {}, 'So sánh A/B với revision cũ'), compare(ctx, q),
-    h('button', { id: 'export-csv', onClick: () => download(`${p.name}-du-toan.csv`, quoteToCsv(q, p.name), 'text/csv;charset=utf-8') }, 'Xuất CSV'),
+    h('h3', { 'data-min-depth': 'tho' }, 'Thiết bị trong thiết kế'), ...devices(ctx, q, fail),
+    h('h3', { 'data-min-depth': 'tho' }, 'Thêm dòng bổ sung'), extraForm(ctx, fail),
+    h('h3', { 'data-min-depth': 'ky-su' }, 'So sánh A/B với revision cũ'), compare(ctx, q),
+    h('button', { id: 'export-csv', 'data-min-depth': 'tho', onClick: () => download(`${p.name}-du-toan.csv`, quoteToCsv(q, p.name), 'text/csv;charset=utf-8') }, 'Xuất CSV'),
   ].filter(Boolean) as Node[];
 }
 
@@ -97,7 +98,7 @@ function devices(ctx: QuoteCtx, q: Quote, fail: (m: string) => void): Node[] {
       ...[...avail.values()].map((o) => h('option', { value: o.offerId }, `${o.seller} · ${o.priceMinor ? vnd(o.priceMinor) + '/' + o.unit : 'liên hệ'}${o.recordedAt ? ' · ' + o.recordedAt : ''}`)));
     pick.value = sel ?? '';
     const formHost = h('div', {});
-    return h('div', { className: 'card', 'data-device': key },
+    return h('div', { className: 'card', 'data-device': key, 'data-min-depth': 'tho' },
       h('strong', {}, comp.name), ' ',
       h('label', {}, 'SL ', qty), h('button', { onClick: () => {
         const n = Number(qty.value);
@@ -144,7 +145,7 @@ function offerForm(ref: Ref, condition: 'new' | 'used', onSave: (o: Offer) => Pr
     if (!issues.length) await onSave(offer);
   };
   return h('form', { onSubmit: submit, 'aria-label': 'Báo giá mới' }, f('o-seller', 'Nhà bán', seller), f('o-unit', 'Đơn vị giá', unit), f('o-price', 'Đơn giá', price),
-    f('o-vat', 'VAT', vat), f('o-date', 'Ngày báo giá', date), f('o-valid', 'Hết hiệu lực', valid), f('o-region', 'Khu vực/kho', region), f('o-ship', 'Phí giao (đ)', ship),
+    f('o-vat', 'VAT', vat), f('o-date', 'Ngày báo giá', date), h('div', { 'data-min-depth': 'ky-su' }, h('label', { htmlFor: 'o-valid' }, 'Hết hiệu lực '), valid), f('o-region', 'Khu vực/kho', region), f('o-ship', 'Phí giao (đ)', ship),
     f('o-tiers', 'Bậc giá', tiers), err, h('button', { type: 'submit' }, 'Lưu báo giá'), h('button', { type: 'button', onClick: onCancel }, 'Hủy'));
 }
 
@@ -176,13 +177,13 @@ function extraForm(ctx: QuoteCtx, fail: (m: string) => void): HTMLElement {
     if (price.value.trim()) { const r = parseMoney(price.value); if (!r.ok) return fail(`Đơn giá: ${r.message}`); unitPriceMinor = r.minor; }
     ctx.apply(addCostLine(ctx.project, { category: cat.value as Category, label: label.value.trim(), qty: qtyN, qtyUnit: unit, unitPriceMinor,
       vat: vat.value as VatMode, seller: seller.value.trim() || null, recordedAt: today() }));
-  }, 'aria-label': 'Dòng bổ sung' }, cat, label, qty, price, vat, seller, h('button', { type: 'submit' }, 'Thêm dòng'));
+  }, 'aria-label': 'Dòng bổ sung', 'data-min-depth': 'tho' }, cat, label, qty, price, vat, seller, h('button', { type: 'submit' }, 'Thêm dòng'));
 }
 
 function compare(ctx: QuoteCtx, current: Quote): HTMLElement {
   const others = ctx.revisions.filter((r) => r.revision !== ctx.project.revision);
   const out = h('div', { id: 'compare-out' });
-  if (!others.length) return h('p', {}, 'Chưa có revision cũ để so sánh. Mỗi lần đổi số lượng, báo giá hay dòng bổ sung sẽ tạo revision mới.');
+  if (!others.length) return h('p', { 'data-min-depth': 'ky-su' }, 'Chưa có revision cũ để so sánh. Mỗi lần đổi số lượng, báo giá hay dòng bổ sung sẽ tạo revision mới.');
   const sel = h('select', { id: 'cmp-rev', 'aria-label': 'Revision A' }, ...others.map((r) => h('option', { value: String(r.revision) }, `revision ${r.revision}`)));
   sel.value = String(others[others.length - 1].revision);
   const run = async () => {
@@ -198,5 +199,5 @@ function compare(ctx: QuoteCtx, current: Quote): HTMLElement {
       h('p', { id: 'cmp-total' }, `Chênh toàn hệ: ${c.totalDeltaMinor === null ? 'không công bố vì chưa đủ giá ở một hoặc cả hai phương án' : d(c.totalDeltaMinor)}`),
       h('p', {}, `Phụ: giao hàng A ${vnd(c.summary.shipping.a)} → B ${vnd(c.summary.shipping.b)}; VAT A ${vnd(c.summary.vat.a)} → B ${vnd(c.summary.vat.b)}; dòng chưa giá A ${c.missingCount.a} → B ${c.missingCount.b}.`));
   };
-  return h('div', {}, h('label', {}, 'A = ', sel), h('button', { id: 'cmp-run', onClick: run }, 'So sánh'), out);
+  return h('div', { 'data-min-depth': 'ky-su' }, h('label', {}, 'A = ', sel), h('button', { id: 'cmp-run', onClick: run }, 'So sánh'), out);
 }
