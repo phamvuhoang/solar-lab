@@ -31,7 +31,9 @@ export function renderInspector(ctx: InspectorCtx): HTMLElement {
   const p = ctx.project, ix = indexProject(p), sel = new Set(ctx.selection);
   const insts = p.instances.filter((i) => sel.has(i.instanceId)), obs = (p.obstacles ?? []).filter((o) => sel.has(o.obstacleId));
   const box = h('section', { id: 'inspector', 'aria-label': 'Đang chọn', tabIndex: -1 }, h('h2', {}, 'Đang chọn'));
-  if (!insts.length && !obs.length) { box.append(h('p', {}, 'Chưa chọn gì. Bấm một món trên hình hoặc trong danh sách.')); return box; }
+  // the status line is the part read out when it changes (aria-live), with nothing selected too; never the whole section
+  const live = (text: string) => h('p', { id: 'insp-status', 'aria-live': 'polite' }, text);
+  if (!insts.length && !obs.length) { box.append(live('Chưa chọn gì. Bấm một món trên hình hoặc trong danh sách.')); return box; }
 
   // ---- what it is -----------------------------------------------------------------------------------------------
   const strs = stringsOf(p).filter((s) => s.panelIds.some((id) => sel.has(id)));
@@ -66,7 +68,7 @@ export function renderInspector(ctx: InspectorCtx): HTMLElement {
   // statuses in words, one line; the findings themselves fold underneath
   const bad = mine.filter((f) => f.status !== 'pass');
   const counts = (['fail', 'limited', 'unknown'] as const).map((st) => [st, bad.filter((f) => f.status === st).length] as const).filter(([, n]) => n);
-  const status = h('p', { id: 'insp-status' }, bad.length ? `Kiểm tra: ${counts.map(([st, n]) => `${n} ${STATUS_LABEL[st]}`).join(', ')}` : mine.length ? `Kiểm tra: ${mine.length} mục đạt` : 'Chưa có kiểm tra điện nào gắn với món này.');
+  const status = live(bad.length ? `Kiểm tra: ${counts.map(([st, n]) => `${n} ${STATUS_LABEL[st]}`).join(', ')}` : mine.length ? `Kiểm tra: ${mine.length} mục đạt` : 'Chưa có kiểm tra điện nào gắn với món này.');
 
   // ---- edits: replace model, delete (both previewed), why, nudge --------------------------------------------------
   const modelBox = h('div', {});

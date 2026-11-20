@@ -1,11 +1,11 @@
 /* rc.2 rules, moved verbatim from index.html (the A4 report layout depends on them) */
-body{font:16px system-ui,sans-serif;margin:0 auto;max-width:48rem;padding:1rem 16px}button,input,select,textarea{font:inherit;margin:.25rem}.finding{display:block;text-align:left;width:100%}.finding.fail{border-left:6px solid #c0392b}.finding.limited{border-left:6px dashed #d68910}.finding.unknown{border-left:6px dotted #777}.node:focus,.port:focus{outline:3px solid #2874a6}.node,.port{cursor:pointer}tr.selected,tr[aria-selected=true]{background:#fef08a}table{border-collapse:collapse}.panel:focus{outline:3px solid #2874a6}td,th{padding:.2rem .5rem;text-align:left}.num{text-align:right}.report-page{border:1px solid #8886;padding:12px;margin-top:8px}.report-page table{width:100%;font-size:.9rem}.report-page th,.report-page td{border-bottom:1px solid #8884;vertical-align:top}@page{size:A4;margin:14mm}@media print{body{max-width:none;padding:0;font-size:11pt}#app>*:not(.report-page),footer{display:none!important}.report-page{border:0;padding:0;margin:0}.report-page section,.report-page table{break-inside:avoid}.report-page svg{max-width:100%}}
+body{font:16px system-ui,sans-serif;margin:0 auto;max-width:48rem;padding:1rem 16px}button,input,select,textarea{font:inherit;margin:.25rem}.finding{display:block;text-align:left;width:100%}.finding.fail{border-left:6px solid var(--err)}.finding.limited{border-left:6px dashed var(--lim)}.finding.unknown{border-left:6px dotted var(--unk)}.node:focus,.port:focus{outline:3px solid #2874a6}.node,.port{cursor:pointer}tr.selected,tr[aria-selected=true]{background:#fef08a}table{border-collapse:collapse}.panel:focus{outline:3px solid #2874a6}td,th{padding:.2rem .5rem;text-align:left}.num{text-align:right}.report-page{border:1px solid #8886;padding:12px;margin-top:8px}.report-page table{width:100%;font-size:.9rem}.report-page th,.report-page td{border-bottom:1px solid #8884;vertical-align:top}@page{size:A4;margin:14mm}@media print{body{max-width:none;padding:0;font-size:11pt}#app>*:not(.report-page),footer{display:none!important}.report-page{border:0;padding:0;margin:0}.report-page section,.report-page table{break-inside:avoid}.report-page svg{max-width:100%}}
 
 /* ---- tokens: light by default, dark when the system asks ------------------------------------------------------- */
 :root {
   color-scheme: light dark;
   --bg: #ffffff; --fg: #1b1b1b; --muted: #5c5c5c; --accent: #2874a6;
-  --ok: #1e8449; --err: #c0392b; --lim: #d68910; --unk: #777777;
+  --ok: #1e8449; --err: #c0392b; --lim: #b9770e; --unk: #777777; /* status colours ≥ 3:1 on --bg (tests/unit/contrast.test.ts) */
   --border: #8886; --radius: 6px;
   --space-1: .25rem; --space-2: .5rem; --space-3: 1rem; --space-4: 1.5rem;
   --touch: 44px;
@@ -17,6 +17,13 @@ body{font:16px system-ui,sans-serif;margin:0 auto;max-width:48rem;padding:1rem 1
 }
 body { background: var(--bg); color: var(--fg); }
 button, input, select { min-height: var(--touch); }
+/* one focus ring everywhere a key moved focus; inside for the canvas and for areas focused by script (it would be clipped outside) */
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+canvas:focus-visible, [tabindex="-1"]:focus-visible { outline-offset: -3px; }
+canvas:focus-visible { outline-color: #2874a6; } /* the 3D scene is drawn light in both themes (three-view clear colour #f1f5f9): 4.6:1 */
+/* "Tới bảng bước" at the start of the view: out of sight until a key brings focus to it */
+.skip { align-self: flex-start; }
+.skip:not(:focus) { position: absolute; width: 1px; height: 1px; min-height: 0; margin: 0; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
@@ -121,6 +128,9 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
   #ws-sheets { display: flex; gap: var(--space-1); }
   #ws-sheets button { flex: 1; }
   #ws:has(#coach[data-at=panel]) #sheet-panel { outline: 3px solid var(--accent); } /* the list is in the step panel */
+  /* a sheet covers the lower 60 % of the view: room to scroll anything above it, and focus lands only there */
+  #ws[data-sheet=add] #ws-view, #ws[data-sheet=panel] #ws-view { scroll-padding-bottom: 60%; }
+  #ws[data-sheet=add] #ws-view::after, #ws[data-sheet=panel] #ws-view::after { content: ""; display: block; height: 60cqh; }
 }
 #ws-sheets [aria-expanded=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
 #ws-sheets [aria-expanded=true] span { display: inline-block; transform: rotate(180deg); }
@@ -134,6 +144,7 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
   .canvas-host { flex: 1 1 0; height: auto; min-height: 12rem; }
   .view-tools { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); font-size: .9rem; }
   .view-tools input[type=checkbox] { min-height: 0; }
+  .view-tools label { display: inline-flex; align-items: center; min-height: var(--touch); } /* the row is the touch target */
   #ws-add { grid-area: add; overflow-y: auto; }
   #ws-add .add-items { flex-direction: column; }
   #ws-add .add-items button { text-align: left; }

@@ -196,7 +196,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const top = h('header', { id: 'ws-top' });
   const steps = h('nav', { id: 'ws-steps', 'aria-label': 'Các bước' });
   const tabs = h('div', { id: 'ws-tabs', role: 'tablist' });
-  const panel = h('section', { id: 'ws-panel', role: 'tabpanel' });
+  const panel = h('section', { id: 'ws-panel', role: 'tabpanel', tabIndex: -1 }); // "Tới bảng bước" focuses it
   let health = h('footer', { id: 'ws-health' });
   // one 3D view for the whole workspace: it outlives step and tab changes; selecting or dragging in it works on every tab
   // only tabs that show the selection repaint; any other tab keeps what is being typed into it and swaps just the inspector
@@ -253,7 +253,16 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     ws.dataset.sheet = s ?? '';
     for (const b of sheets.children) b.setAttribute('aria-expanded', String(b.id === `sheet-${s}`));
   }
-  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, view.el, palette, tabs, panel), sheets, health);
+  // focus order: top bar, steps, Thêm, view, tabs, panel, health bar; the view starts with a way past its controls
+  view.el.prepend(h('button', { id: 'skip-panel', type: 'button', className: 'skip', onClick: () => { setSheet('panel'); panel.focus(); } }, 'Tới bảng bước'));
+  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, palette, view.el, tabs, panel), sheets, health);
+  // phones: Esc in an open sheet (or on its button) closes it; focus goes back to the button
+  ws.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !sheet || !narrow.matches || !(e.target as Element).closest('#ws-add, #ws-panel, #ws-sheets')) return;
+    const b = document.getElementById(`sheet-${sheet}`);
+    setSheet(null);
+    b?.focus();
+  });
   const help = h('details', { id: 'ws-help' }, h('summary', {}, 'Trợ giúp'),
     h('button', { id: 'lessons-btn', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'bai-hoc' }); } }, 'Bài học'),
     h('button', { id: 'ws-about', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'phien-ban' }); } }, 'Phiên bản và phạm vi kiểm chứng'),
@@ -271,7 +280,11 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   // phones: the top bar is one row (name, revision, "⋯"); home, undo/redo, depth and help go in the "⋯" menu, built once so it stays open
   const narrow = matchMedia('(max-width: 719px)');
   const moreItems = h('div', { className: 'more-items' });
-  const more = h('details', { id: 'ws-more' }, h('summary', { 'aria-label': 'Tùy chọn' }, '⋯'), moreItems);
+  const moreSummary = h('summary', { 'aria-label': 'Tùy chọn' }, '⋯');
+  const more = h('details', { id: 'ws-more' }, moreSummary, moreItems);
+  const closeMore = () => { more.open = false; moreSummary.focus(); };
+  more.addEventListener('keydown', (e) => { if (e.key === 'Escape' && more.open) closeMore(); });
+  moreItems.addEventListener('click', (e) => { if ((e.target as Element).closest('button')) closeMore(); }); // a used item closes the menu
   narrow.addEventListener('change', paintChrome);
   function paintChrome() {
     const hist = historyFor(edited);
@@ -480,7 +493,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     step = s; tab = t;
     await reload();
     paintNav();
-    if (coach) { coach = false; startCoach({ view: view.el, panel, health }); }
+    if (coach) { coach = false; startCoach({ view: view.el, panel, health }, () => tabs.querySelector<HTMLElement>('[aria-selected="true"]')?.focus()); }
     await renderPanel(keep);
   }
 

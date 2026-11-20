@@ -83,7 +83,7 @@ export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
     const now = h('td', { className: 'num', 'data-cell': 'now' }), mean = h('td', { className: 'num' }), drop = h('td', { className: 'num' });
     cells.set(pn.instanceId, { now, mean, drop });
     return h('tr', { 'data-id': pn.instanceId, className: selected.includes(pn.instanceId) ? 'selected' : '', 'aria-selected': String(selected.includes(pn.instanceId)) },
-      h('td', {}, h('button', { onClick: () => ctx.setSelection([pn.instanceId]), 'aria-label': `Chọn ${pn.label}` }, pn.label)), h('td', {}, pn.stringIndex ? `S${pn.stringIndex}·${pn.seriesIndex}` : '—'), now, mean, drop);
+      h('td', {}, h('button', { id: `sh-pick-${pn.instanceId}`, onClick: () => ctx.setSelection([pn.instanceId]), 'aria-label': `Chọn ${pn.label}` }, pn.label)), h('td', {}, pn.stringIndex ? `S${pn.stringIndex}·${pn.seriesIndex}` : '—'), now, mean, drop);
   });
   const inspector = h('div', { id: 'sh-inspector', 'aria-live': 'polite' });
   const timeLabel = h('span', { id: 'sh-time' });

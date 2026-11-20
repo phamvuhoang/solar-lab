@@ -44,7 +44,11 @@ export interface ViewApi {
   fps(ms: number): Promise<number>;
   dispose(): void;
 }
-export class WebGLUnavailable extends Error { constructor(why: string) { super(why); this.name = 'WebGLUnavailable'; } }
+/** `reason` is a sentence for the person; the message keeps the browser's own words, for engineers. */
+export class WebGLUnavailable extends Error {
+  readonly reason: string;
+  constructor(reason: string, raw: string) { super(raw); this.name = 'WebGLUnavailable'; this.reason = reason; }
+}
 
 /**
  * Three.js scene, loaded lazily by the workspace view. It draws a SceneModel and nothing else: it never creates instances or prices.
@@ -56,7 +60,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers)
   try {
     THREE = await import('three');
     ({ OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js'));
-  } catch (e) { throw new WebGLUnavailable(`Không tải được Three.js: ${(e as Error).message}`); }
+  } catch (e) { throw new WebGLUnavailable('không tải được phần vẽ 3D', (e as Error).message); }
 
   const canvas = document.createElement('canvas');
   canvas.tabIndex = 0;
@@ -66,7 +70,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers)
   host.append(canvas);
   let renderer: InstanceType<typeof THREE.WebGLRenderer>;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
-  catch (e) { canvas.remove(); throw new WebGLUnavailable((e as Error).message || 'WebGL không khả dụng'); }
+  catch (e) { canvas.remove(); throw new WebGLUnavailable('trình duyệt hoặc máy này không mở được đồ họa 3D', (e as Error).message); }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0xf1f5f9);
   renderer.shadowMap.enabled = true; // shadows are drawn on the GPU for the eye; the energy numbers come from the CPU rays

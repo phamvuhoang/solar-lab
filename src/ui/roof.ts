@@ -74,7 +74,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
     return h('form', { 'aria-label': 'Thêm mặt mái chữ nhật', onSubmit: (e: Event) => { e.preventDefault(); const v = [w, sl, t, a].map((x) => num(x.el.value)); if (v.some((x) => x === null || x < 0) || v[0]! <= 0 || v[1]! <= 0) return say(['Kích thước phải là số dương, nghiêng và hướng ≥ 0']); say([]); run(() => addRoofFace(p, faceRect(`Mái ${p.roofFaces.length + 1}`, v[0]!, v[1]!, v[2]!, v[3]!, { e: 0, n: 0, up: 3 }))); } },
       w.node, sl.node, t.node, a.node, h('button', { type: 'submit', id: 'add-rect' }, 'Thêm mặt mái chữ nhật'));
   })();
-  const obstacleList = (p.obstacles ?? []).map((o) => h('li', {}, h('button', { type: 'button', 'aria-label': `Chọn ${o.label}`, onClick: () => ctx.setSelection([o.obstacleId]) }, o.label), ` · ${o.kind === 'box' ? 'hộp' : 'trụ'} ${dec(o.size.x)}×${dec(o.size.y)}×${dec(o.size.z)} m · tại (${dec(o.center.e)}, ${dec(o.center.n)}) ${o.roofFaceId ? '· trên mái' : '· đứng riêng'} `, btn('Xóa', () => run(() => removeObstacle(p, o.obstacleId)))));
+  const obstacleList = (p.obstacles ?? []).map((o) => h('li', {}, h('button', { type: 'button', id: `obs-pick-${o.obstacleId}`, 'aria-label': `Chọn ${o.label}`, onClick: () => ctx.setSelection([o.obstacleId]) }, o.label), ` · ${o.kind === 'box' ? 'hộp' : 'trụ'} ${dec(o.size.x)}×${dec(o.size.y)}×${dec(o.size.z)} m · tại (${dec(o.center.e)}, ${dec(o.center.n)}) ${o.roofFaceId ? '· trên mái' : '· đứng riêng'} `, btn('Xóa', () => run(() => removeObstacle(p, o.obstacleId)))));
 
   // ---- 2. placement tools -----------------------------------------------------------------------------------
   const faceSel = h('select', { id: 'place-face', 'aria-label': 'Mặt mái' }, ...p.roofFaces.map((f) => h('option', { value: f.roofFaceId }, f.label)));
@@ -133,7 +133,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
     const pn = model.panels.find((x) => x.instanceId === i.instanceId), pl = (p.placements ?? []).find((x) => x.instanceId === i.instanceId);
     const own = model.issues.filter((x) => x.instanceId === i.instanceId || x.otherId === i.instanceId);
     return h('tr', { 'data-id': i.instanceId, className: sel.has(i.instanceId) ? 'selected' : '', 'aria-selected': String(sel.has(i.instanceId)) },
-      h('td', {}, h('button', { onClick: () => ctx.setSelection([i.instanceId]), 'aria-label': `Chọn ${i.label}` }, i.label)), h('td', {}, i.instanceId.slice(0, 12)),
+      h('td', {}, h('button', { id: `panel-pick-${i.instanceId}`, onClick: () => ctx.setSelection([i.instanceId]), 'aria-label': `Chọn ${i.label}` }, i.label)), h('td', {}, i.instanceId.slice(0, 12)),
       h('td', {}, pl ? p.roofFaces.find((f) => f.roofFaceId === pl.roofFaceId)?.label ?? '?' : 'chưa đặt'), h('td', { className: 'num' }, pl ? dec(pl.center[0]) : '—'), h('td', { className: 'num' }, pl ? dec(pl.center[1]) : '—'),
       h('td', {}, pl ? (pl.angleDeg ? 'ngang' : 'dọc') : '—'), h('td', {}, pn?.stringIndex ? `S${pn.stringIndex}·${pn.seriesIndex}` : '—'), h('td', {}, !pl ? 'chưa đặt' : own.some((x) => x.severity === 'error') ? 'lỗi' : own.length ? 'cảnh báo' : 'hợp lệ'));
   });

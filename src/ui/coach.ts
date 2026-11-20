@@ -14,7 +14,7 @@ const NOTES = [
  * Each callout goes in just before what it is about, so it follows the layout: on a phone it sits in the flow and covers
  * nothing; from 720 px the stylesheet lifts it onto the top of the view or panel, or just above the health bar.
  */
-export function startCoach(anchors: { view: HTMLElement; panel: HTMLElement; health: HTMLElement }): void {
+export function startCoach(anchors: { view: HTMLElement; panel: HTMLElement; health: HTMLElement }, after: () => void): void {
   let writable = true;
   try { if (localStorage.getItem(COACH_KEY) !== null) return; } catch { writable = false; }
   let i = 0;
@@ -30,11 +30,15 @@ export function startCoach(anchors: { view: HTMLElement; panel: HTMLElement; hea
     anchor.before(box);
     box.scrollIntoView({ block: 'nearest' });
   };
+  /** `after` takes the focus when it was on the callout, so it never drops to the page. */
   const end = () => {
+    const had = box.contains(document.activeElement);
     box.remove();
     if (writable) try { localStorage.setItem(COACH_KEY, '1'); } catch { /* not remembered: it shows again next time */ }
+    if (had) after();
   };
   next.addEventListener('click', () => { if (++i < NOTES.length) { paint(); next.focus(); } else end(); });
   skip.addEventListener('click', end);
+  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') end(); }); // as "Bỏ qua"
   paint();
 }

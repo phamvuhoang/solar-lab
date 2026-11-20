@@ -37,7 +37,7 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
   const instancesOf = (key: string) => p.instances.filter((i) => i.componentRef && `design:${refKey(i.componentRef)}` === key).map((i) => i.instanceId);
   const label = (l: QuoteLine) => {
     const ids = l.source === 'design' && ctx.select ? instancesOf(l.key.replace(/:kit$/, '')) : [];
-    return ids.length ? h('button', { type: 'button', className: 'bom-pick', 'aria-label': `Chọn ${ids.length} × ${l.label}`, onClick: () => ctx.select!(ids) }, l.label) : l.label;
+    return ids.length ? h('button', { type: 'button', id: `bom-pick-${l.key}`, className: 'bom-pick', 'aria-label': `Chọn ${ids.length} × ${l.label}`, onClick: () => ctx.select!(ids) }, l.label) : l.label;
   };
   const row = (l: QuoteLine) => h('tr', { 'data-key': l.key, className: picked.has(l.key.replace(/:kit$/, '')) ? 'selected' : '', 'aria-selected': String(picked.has(l.key.replace(/:kit$/, ''))) },
     h('td', {}, CAT[l.category]), h('td', {}, label(l)),

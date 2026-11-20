@@ -46,9 +46,10 @@ export function createViewport(host: ViewportHost): Viewport {
     onRemove: (ids) => { void host.apply(removePlacements(host.project(), ids)); },
   };
 
-  const why = h('span', {});
+  const why = h('span', {}), raw = h('code', {});
+  const rawBox = h('details', { 'data-min-depth': 'ky-su' }, h('summary', {}, 'Lỗi gốc của trình duyệt'), raw); // for engineers: the browser's own words
   const fallback = h('div', { id: 'webgl-fallback', role: 'status', hidden: true },
-    h('p', {}, 'Không dùng được 3D (', why, '). Khung nhìn dùng Mặt bằng 2D và Sơ đồ; các bảng và danh sách tấm vẫn đầy đủ; bạn có thể tiếp tục đặt, sửa tấm và xem bóng như bình thường.'));
+    h('p', {}, 'Không dùng được 3D (', why, '). Khung nhìn dùng Mặt bằng 2D và Sơ đồ; các bảng và danh sách tấm vẫn đầy đủ; bạn có thể tiếp tục đặt, sửa tấm và xem bóng như bình thường.'), rawBox);
   const btn = (id: string, label: string, f: () => void) => h('button', { id, type: 'button', onClick: f }, label);
   const modes = { '3d': btn('view-mode-3d', '3D · đang tải', () => setMode('3d')), diagram: btn('view-mode-diagram', 'Sơ đồ', () => setMode('diagram')), plan: btn('view-mode-plan', 'Mặt bằng', () => setMode('plan')) };
   modes['3d'].disabled = true;
@@ -103,13 +104,13 @@ export function createViewport(host: ViewportHost): Viewport {
   }
   function setMode(m: ViewMode) { chosen = m; draw(); }
   /** WebGL failed or was lost: the 3D button is off and the view stays 2D; every screen keeps its tables. */
-  const fail = (m: string) => { api?.dispose(); api = null; why.textContent = m; fallback.hidden = false; modes['3d'].textContent = '3D'; modes['3d'].disabled = true; draw(); };
+  const fail = (reason: string, detail = '') => { api?.dispose(); api = null; why.textContent = reason; raw.textContent = detail; rawBox.hidden = !detail; fallback.hidden = false; modes['3d'].textContent = '3D'; modes['3d'].disabled = true; draw(); };
 
   createThreeView(canvasHost, {
     onSelect: pick,
     onMove: (ids, d) => { void host.apply(movePanels(host.project(), ids, d, { snap: true })); },
     onClear: () => host.setSelection([]),
-    onContextLost: () => fail('Mất ngữ cảnh WebGL'),
+    onContextLost: () => fail('đồ họa 3D của máy bị ngắt giữa chừng', 'webglcontextlost'),
   })
     .then((v) => {
       if (disposed) return v.dispose();
@@ -117,7 +118,7 @@ export function createViewport(host: ViewportHost): Viewport {
       modes['3d'].textContent = '3D'; modes['3d'].disabled = false;
       draw();
     })
-    .catch((e) => { if (!disposed) fail(e instanceof WebGLUnavailable ? e.message : String(e)); });
+    .catch((e) => { if (!disposed) fail(e instanceof WebGLUnavailable ? e.reason : 'lỗi không rõ khi mở 3D', e instanceof Error ? e.message : String(e)); });
 
   const el = h('section', { id: 'ws-view', 'aria-label': 'Khung nhìn' },
     h('div', { className: 'view-modes', role: 'group', 'aria-label': 'Chế độ khung nhìn' }, modes['3d'], modes.diagram, modes.plan), fallback, box3d, view2d, flowText);

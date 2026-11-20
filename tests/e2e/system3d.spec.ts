@@ -9,6 +9,7 @@ const pick = async (select: Locator, text: RegExp) => select.selectOption(await 
 /** The sample house with its 3D view ready; returns the canvas and its device ids (inverter, battery, then the loads). */
 async function openSample(page: Page) {
   await page.goto('/#/mau');
+  await page.locator('#coach-skip').click(); // the first callout sits on the view: clicks at a drawn position must reach the canvas
   const view = page.locator('canvas[data-devices]');
   await expect(view).toBeVisible({ timeout: 20000 });
   await expect(page.locator('#view-mode-3d')).toHaveAttribute('aria-pressed', 'true');
