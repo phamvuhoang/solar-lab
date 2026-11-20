@@ -22,3 +22,15 @@ Cột **Người review** chỉ ghi người thật đã đọc và ký. Hiện 
 | Test phục hồi dữ liệu và rollback | Đạt: `backup.test.ts`, `migration.spec.ts` |
 | Một file khách nhận mở lại và giải thích được | Đạt (máy B ngoại tuyến, `report.spec.ts`) |
 | Nhãn kiểm chứng | **"Đã đối chiếu mô hình"**; KHÔNG gắn "đã đối chiếu thực địa" (chưa có phép đo) |
+
+## Bốn tiêu chí "Đo thành công" (1.1, spec `docs/05-experience-v2.md`)
+Có thêm từ `1.1.0-rc.1`. Bản 1.1.0 chính thức chỉ phát hành khi cả bốn dòng có kết quả người thật đạt.
+
+| Tiêu chí | Bản máy (`tests/e2e/uat.spec.ts`) | Giao thức người thật | Trạng thái | Người review |
+|---|---|---|---|---|
+| (a) Người mới, không ai chỉ, ≤ 5 phút: Nhà mẫu 8 → 10 tấm, đọc tiền đã biết và điện mua lưới mỗi năm trước/sau | "Đo thành công (a)": 15.872.000 → 19.840.000 đ; 343,4 → 326 kWh/năm; 5 thao tác ở Cơ bản | `docs/uat/protocol.md` (a) | **Máy đạt; người thật: chưa** | chưa có |
+| (b) Thợ, ≤ 10 phút: từ số 0 dựng 6 tấm + inverter + pin + 1 tải, hết lỗi đỏ, in báo giá | "Đo thành công (b)": "Điện: 0 lỗi", nút in gọi hộp thoại in, trang A4 có dự toán (6 tấm) | `docs/uat/protocol.md` (b) | **Máy đạt; người thật: chưa** | chưa có |
+| (c) Kỹ sư: từ một lỗi bất kỳ tới công thức + nguồn số liệu ≤ 2 thao tác | "Đo thành công (c)": ô Điện 1 thao tác; mỗi mục trong 6 mục của Nhà mẫu 2 thao tác | `docs/uat/protocol.md` (c) | **Máy đạt; người thật: chưa** | chưa có |
+| (d) Lần đầu mở: thấy Nhà mẫu (2D ngay, 3D khi Three.js tải xong), không thao tác | "Đo thành công (d)": Mặt bằng 2D lúc Three.js còn bị giữ, 3D tự lên | `docs/uat/protocol.md` (d) | **Máy đạt; người thật: chưa** | chưa có |
+
+Bằng chứng: `docs/evidence/W15.md`. Engine, golden và khóa đầu vào không đổi từ rc.2, trừ lần khóa lại có chủ đích `schemas/project-v1.json` ở W12. Vì vậy các dòng REQ-01…08 ở trên vẫn đúng cho 1.1.0-rc.1.

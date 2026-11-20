@@ -1,6 +1,12 @@
 # Mekoniq Solar Lab
 
-Bàn thiết kế, ước tính chi phí và mô phỏng điện mặt trời cho Việt Nam. Thiết kế kỹ thuật, backlog theo wave và W00–W09 đã làm xong; bản hiện tại là ứng viên **1.0.0-rc.2**, chưa phải bản chính thức (còn UAT người thật và kỹ sư điện đối chiếu).
+Bàn thiết kế, ước tính chi phí và mô phỏng điện mặt trời cho Việt Nam. Các wave W00–W15 đã làm xong phần máy.
+
+Bản hiện tại là ứng viên **1.1.0-rc.1**: giao diện mới (W10–W15) trên engine của `1.0.0-rc.2`. Đây chưa phải bản chính thức:
+- UAT với người thật theo bốn tiêu chí "Đo thành công" chưa làm;
+- kỹ sư điện chưa đối chiếu datasheet.
+
+`1.0.0-rc.2` vẫn là mốc engine đã khóa; bản 1.0 không phát hành với giao diện cũ.
 
 Kiểm nhanh với Node 24.x, chưa cần cài gói:
 
@@ -17,7 +23,7 @@ pnpm build        # typecheck + dist/ + dist/build-meta.json
 pnpm run ci       # import guard, typecheck, node/vitest/Playwright, build
 ```
 
-Bằng chứng nghiệm thu: `docs/evidence/W00.md` … `W09.md`. Bản ứng viên: [docs/release/v1.0.0-rc.2.md](docs/release/v1.0.0-rc.2.md) (trước đó: [rc.1](docs/release/v1.0.0-rc.1.md)) · [ma trận nghiệm thu](docs/release/acceptance-matrix.md) · [rollback](docs/release/rollback.md) · [UAT](docs/uat/protocol.md).
+Bằng chứng nghiệm thu: `docs/evidence/W00.md` … `W15.md`. Bản ứng viên: [docs/release/v1.1.0-rc.1.md](docs/release/v1.1.0-rc.1.md) (mốc engine: [1.0.0-rc.2](docs/release/v1.0.0-rc.2.md); trước đó: [rc.1](docs/release/v1.0.0-rc.1.md)) · [ma trận nghiệm thu](docs/release/acceptance-matrix.md) · [rollback](docs/release/rollback.md) · [UAT](docs/uat/protocol.md) · [spec giao diện mới](docs/05-experience-v2.md).
 
 Khóa đầu vào: `node scripts/lock.mjs` (kiểm), `node scripts/lock.mjs --write` (khóa lại sau khi đọc diff).
 
