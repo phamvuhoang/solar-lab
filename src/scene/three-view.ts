@@ -16,7 +16,8 @@ const WIRE_STYLE: Record<SceneModel['wires'][number]['kind'], { color: number; d
 };
 
 export interface ViewHandlers {
-  onSelect(ids: string[], mode: 'set' | 'toggle'): void;
+  /** 'drag': the panel a drag starts on, selected so it moves; nothing should open over the view mid-gesture. */
+  onSelect(ids: string[], mode: 'set' | 'toggle' | 'drag'): void;
   /** Called when a drag of the selected panels ends: delta in the face frame (metres). */
   onMove(ids: string[], delta: [number, number]): void;
   onClear(): void;
@@ -283,7 +284,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers)
     if (!down?.id || !down.plane) return;
     if (!down.dragging && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) {
       down.dragging = true; controls.enabled = false;
-      if (!selection.has(down.id)) handlers.onSelect([down.id], 'set');
+      if (!selection.has(down.id)) handlers.onSelect([down.id], 'drag');
     }
     if (!down.dragging) return;
     const d = delta(e);

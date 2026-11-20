@@ -12,7 +12,8 @@ import { h } from './dom';
 
 export type ViewMode = '3d' | 'diagram' | 'plan';
 export interface ViewportHost {
-  project(): Project; selection(): string[]; setSelection(ids: string[]): void; apply(next: Project): Promise<void>;
+  /** setSelection: `shown` is false for a selection that comes with a drag (the view stays in sight). */
+  project(): Project; selection(): string[]; setSelection(ids: string[], shown?: boolean): void; apply(next: Project): Promise<void>;
   /** The diagram's selected object (string, device or port id) and picking one there. */
   selected(): string | null; select(id: string): void;
   /** The Delete key on the 3D view with a device (any non-panel item) selected: preview removing what is selected. */
@@ -37,7 +38,7 @@ export function createViewport(host: ViewportHost): Viewport {
 
   const shown = (): ViewMode => (chosen && (chosen !== '3d' || api) ? chosen : api ? '3d' : host.project().roofFaces.length ? 'plan' : 'diagram');
   const key = () => `${shown()}|${host.selection().join(',')}|${host.selected() ?? ''}`;
-  const pick = (ids: string[], mode: 'set' | 'toggle') => { const s = host.selection(); host.setSelection(mode === 'toggle' ? (s.includes(ids[0]) ? s.filter((x) => x !== ids[0]) : [...s, ids[0]]) : ids); };
+  const pick = (ids: string[], mode: 'set' | 'toggle' | 'drag') => { const s = host.selection(); host.setSelection(mode === 'toggle' ? (s.includes(ids[0]) ? s.filter((x) => x !== ids[0]) : [...s, ids[0]]) : ids, mode !== 'drag'); };
   const plan: PlanHandlers = {
     onSelect: pick, onClear: () => host.setSelection([]),
     onMove: (ids, d, snap) => { void host.apply(movePanels(host.project(), ids, d, { snap })); },

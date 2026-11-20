@@ -13,7 +13,8 @@ function s<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, s
 }
 
 export interface PlanHandlers {
-  onSelect(ids: string[], mode: 'set' | 'toggle'): void;
+  /** 'drag': the panel a drag moved, selected with it (see ViewHandlers). */
+  onSelect(ids: string[], mode: 'set' | 'toggle' | 'drag'): void;
   onMove(ids: string[], delta: [number, number], snap: boolean): void;
   onRotate(ids: string[]): void;
   onRemove(ids: string[]): void;
@@ -79,7 +80,7 @@ export function renderFacePlan(p: Project, face: RoofFace, model: SceneModel, se
     if (!d) return;
     if (!d.moved) { h.onSelect([d.id], d.additive ? 'toggle' : 'set'); return; }
     const now = toLocal(e);
-    if (!selection.has(d.id)) h.onSelect([d.id], 'set');
+    if (!selection.has(d.id)) h.onSelect([d.id], 'drag');
     h.onMove(d.ids, [now[0] - d.start[0], now[1] - d.start[1]], true);
   });
   svg.addEventListener('keydown', (e) => {

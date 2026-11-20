@@ -28,7 +28,6 @@ test('điện thoại: Thêm và bảng bước là tấm kéo từ dưới lên
   await expect(page.locator('#add-panel')).toBeVisible();
   const [sheet, bar] = [(await page.locator('#ws-add').boundingBox())!, (await health.boundingBox())!];
   expect(sheet.y + sheet.height).toBeLessThanOrEqual(bar.y + 1);
-  expect(sheet.height).toBeLessThanOrEqual(740 * 0.7 + 1);
   await expect(health).toBeInViewport({ ratio: 1 });
 
   // a step opens its panel as the other sheet; the sheet scrolls on its own; nothing is wider than the phone
@@ -42,7 +41,7 @@ test('điện thoại: Thêm và bảng bước là tấm kéo từ dưới lên
     await expect(health).toBeInViewport({ ratio: 1 });
   }
   await page.locator('#step-bo-tri').tap();
-  expect(await page.locator('#ws-panel').evaluate((e) => getComputedStyle(e).overflowY === 'auto' && e.scrollHeight > e.clientHeight)).toBe(true);
+  await expect.poll(() => page.locator('#ws-panel').evaluate((e) => getComputedStyle(e).overflowY === 'auto' && e.scrollHeight > e.clientHeight)).toBe(true);
 
   // close the sheet, tap a device in 3D: it is selected and the step panel opens on "Đang chọn"
   await stepSheet.tap();
@@ -55,4 +54,63 @@ test('điện thoại: Thêm và bảng bước là tấm kéo từ dưới lên
   await expect.poll(() => view.getAttribute('data-selected')).toBe(id);
   await expect(stepSheet).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#inspector')).toBeInViewport();
+});
+
+const box = async (page: Page, sel: string) => (await page.locator(sel).boundingBox())!;
+const openSample = async (page: Page) => {
+  await page.goto('/#/mau');
+  await page.locator('#coach-skip').tap();
+  await expect(page.locator('canvas[data-devices]')).toBeVisible({ timeout: 20000 });
+};
+
+test('điện thoại nhỏ: khung nhìn đủ cao, tấm mở vẫn chừa một phần khung nhìn, không bao giờ toàn canvas', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 664 });
+  await openSample(page);
+  expect((await box(page, '#ws-view')).height).toBeGreaterThanOrEqual(300);
+  for (const s of ['#sheet-panel', '#sheet-add']) {
+    await page.locator(s).tap();
+    const [view, sheet, bar] = [await box(page, '#ws-view'), await box(page, s === '#sheet-add' ? '#ws-add' : '#ws-panel'), await box(page, '#ws-health')];
+    expect(sheet.y - view.y, s).toBeGreaterThanOrEqual(120); // part of the 3D stays in sight
+    expect(sheet.y + sheet.height).toBeLessThanOrEqual(bar.y + 1);
+    await expect(page.locator('#ws-health')).toBeInViewport({ ratio: 1 });
+    await page.locator(s).tap();
+  }
+  // the canvas takes touches for the camera: at every scroll position some of the view is not canvas, so a swipe there scrolls it
+  const trapped = await page.locator('#ws-view').evaluate(async (v) => {
+    const r = v.getBoundingClientRect(), bad: number[] = [];
+    for (let top = 0; top <= v.scrollHeight - v.clientHeight; top += 8) {
+      v.scrollTop = top;
+      await new Promise(requestAnimationFrame);
+      let free = false;
+      for (let y = r.top + 2; y < r.bottom - 1 && !free; y += 6) free = !(document.elementFromPoint(r.left + r.width / 2, y) instanceof HTMLCanvasElement);
+      if (!free) bad.push(top);
+    }
+    v.scrollTop = v.scrollHeight;
+    return bad;
+  });
+  expect(trapped).toEqual([]);
+  await expect(page.locator('#ws-view .view-modes')).not.toBeInViewport(); // scrolled to the bottom: the mode row is out of sight…
+  await page.locator('#view-mode-plan').tap(); // …and still reachable
+  await expect(page.locator('#view-mode-plan')).toHaveAttribute('aria-pressed', 'true');
+
+  await page.setViewportSize({ width: 375, height: 548 });
+  await expect.poll(async () => (await box(page, '#ws-view')).height).toBeGreaterThanOrEqual(200);
+  await expect(page.locator('#ws-health')).toBeInViewport({ ratio: 1 });
+});
+
+test('điện thoại: kéo một tấm trong 3D không mở tấm bảng bước giữa chừng', async ({ page }) => {
+  await openSample(page);
+  const view = page.locator('canvas[data-devices]'), ws = page.locator('#ws');
+  await view.scrollIntoViewIfNeeded();
+  const pos = JSON.parse((await view.getAttribute('data-panel-pos'))!) as Record<string, [number, number]>;
+  const [id, [x, y]] = Object.entries(pos)[0]!, b = await box(page, 'canvas[data-devices]');
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove', dx: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: [{ x: b.x + x + dx, y: b.y + y }] });
+  await touch('touchStart', 0);
+  for (let i = 1; i <= 8; i++) await touch('touchMove', i * 5);
+  await expect.poll(() => view.getAttribute('data-selected')).toBe(id); // the drag picked the panel it started on
+  await expect(ws).not.toHaveAttribute('data-sheet', 'panel'); // mid-gesture: the view stays in sight
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page.locator('#status')).toContainText('Đã lưu: revision'); // the move is saved
+  await expect(ws).not.toHaveAttribute('data-sheet', 'panel');
 });

@@ -202,10 +202,10 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   // only tabs that show the selection repaint; any other tab keeps what is being typed into it and swaps just the inspector
   const selectionChanged = () => { if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else { view.refresh(); paintInspector(); } };
   const pick = (ids: string[]) => { if (choose(ids)) selectionChanged(); }; // equal selection (e.g. empty ground clicked twice): nothing repaints
-  /** A pick in the view shows "Đang chọn" on top of the panel; on a phone the step panel opens over the view to show it. */
-  const viewPick = (ids: string[]) => {
+  /** A pick in the view shows "Đang chọn" on top of the panel; on a phone the step panel opens over the view to show it, unless it came with a drag. */
+  const viewPick = (ids: string[], shown = true) => {
     if (!choose(ids)) return;
-    if (selection.length) { setSheet('panel'); panel.scrollTop = 0; }
+    if (shown && selection.length) { setSheet('panel'); panel.scrollTop = 0; }
     selectionChanged();
   };
   const view = createViewport({
@@ -268,15 +268,23 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const depthSwitch = () => h('div', { id: 'ws-depth', role: 'group', 'aria-label': 'Mức chi tiết' },
     ...(Object.keys(DEPTH_LABEL) as Depth[]).map((d) => h('button', { id: `depth-${d}`, type: 'button', 'aria-pressed': String(d === currentDepth()), onClick: () => setDepth(d) }, DEPTH_LABEL[d])));
 
+  // phones: the top bar is one row (name, revision, "⋯"); home, undo/redo, depth and help go in the "⋯" menu, built once so it stays open
+  const narrow = matchMedia('(max-width: 719px)');
+  const moreItems = h('div', { className: 'more-items' });
+  const more = h('details', { id: 'ws-more' }, h('summary', { 'aria-label': 'Tùy chọn' }, '⋯'), moreItems);
+  narrow.addEventListener('change', paintChrome);
   function paintChrome() {
     const hist = historyFor(edited);
-    top.replaceChildren(...[
-      h('h1', {}, 'Mekoniq Solar Lab'), home, h('h2', { id: 'ws-name' }, project.name),
-      isSample(project) && h('span', { id: 'ws-badge' }, 'Mẫu minh họa · không phải báo giá'),
-      h('span', { id: 'ws-rev' }, stored ? `Đã lưu · r${project.revision}` : UNSAVED),
+    const name = h('h2', { id: 'ws-name' }, project.name), rev = h('span', { id: 'ws-rev' }, stored ? `Đã lưu · r${project.revision}` : UNSAVED);
+    const badge = isSample(project) && h('span', { id: 'ws-badge' }, 'Mẫu minh họa · không phải báo giá');
+    const tools = [home,
       h('button', { id: 'ws-undo', type: 'button', disabled: !hist.canUndo, onClick: hist.undo }, 'Hoàn tác'),
       h('button', { id: 'ws-redo', type: 'button', disabled: !hist.canRedo, onClick: hist.redo }, 'Làm lại'),
-      depthSwitch(), help,
+      depthSwitch(), help];
+    moreItems.replaceChildren(...(narrow.matches ? tools : []));
+    top.replaceChildren(...[
+      h('h1', {}, 'Mekoniq Solar Lab'),
+      ...(narrow.matches ? [name, rev, more, badge] : [home, name, badge, rev, ...tools.slice(1)]),
       message().includes('Mở bản mới nhất') && h('button', { id: 'ws-latest', type: 'button', onClick: async () => { project = (await repo.loadRevision(project.projectId))!; say(''); await renderPanel(); } }, 'Mở bản mới nhất'),
       h('p', { id: 'status', role: 'status' }, message())].filter(Boolean) as Node[]);
     paintHealth();
@@ -480,6 +488,6 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     projectId: initial.projectId,
     get stored() { return stored; },
     show,
-    dispose() { disposed = true; seq++; autorun.cancel(); stopShadePlayback(); view.dispose(); },
+    dispose() { disposed = true; seq++; autorun.cancel(); stopShadePlayback(); view.dispose(); narrow.removeEventListener('change', paintChrome); },
   };
 }
