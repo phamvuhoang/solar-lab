@@ -10,6 +10,7 @@ import { formatUtc, localDate, localHour, type WeatherSeries } from '../weather/
 import { runPvInWorker } from '../worker/client';
 import { shadeFor } from '../shade/usage';
 import { download, h } from './dom';
+import { renderLocationForm } from './location';
 
 export interface PvCtx {
   project: Project;
@@ -49,6 +50,7 @@ export async function renderPv(ctx: PvCtx): Promise<Node[]> {
 
   return [
     h('h2', {}, `Mô phỏng PV · ${p.name}`), msg,
+    h('h3', {}, '0. Nơi lắp'), renderLocationForm(p, ctx.apply),
     h('h3', {}, '1. Dữ liệu thời tiết'), weatherSection(ctx, weather, say),
     h('h3', {}, '2. Thiết lập mảng và mô hình'), settingsForm(ctx, st, say),
     h('h3', {}, '3. Chạy'), runSection(ctx, compiled, hash, compileIssues, weather, say),
