@@ -4,7 +4,9 @@ import { isSimplePolygon, type Pt } from '../domain/roof';
 import { refKey, type Project } from '../domain/types';
 import { parseNumber } from '../domain/units';
 import { buildSceneModel } from '../scene/model';
+import { quickFixForLayout } from '../validation/quick-fix';
 import { h } from './dom';
+import { previewer } from './palette';
 import type { Tab } from './route';
 
 export interface RoofState { faceId: string | null; angle: 0 | 90; stepCm: number }
@@ -120,8 +122,10 @@ export function renderRoof(ctx: RoofCtx): Node[] {
   })();
 
   // ---- 4. issues, table, routes -----------------------------------------------------------------------------
+  const pv = previewer(p, { preview: 'fix-preview', confirm: 'fix-confirm', cancel: 'fix-cancel' }, (next) => { void ctx.apply(next); }, () => {});
   const issues = model.issues.length
-    ? h('ul', { id: 'layout-issues' }, ...model.issues.map((i) => h('li', {}, h('button', { className: `finding ${i.severity === 'error' ? 'fail' : 'limited'}`, 'data-code': i.code, onClick: () => ctx.setSelection([i.instanceId, i.otherId].filter(Boolean) as string[]) }, `${i.severity === 'error' ? 'Lỗi' : 'Cảnh báo'} ${i.code}: ${i.message}`))))
+    ? h('ul', { id: 'layout-issues' }, ...model.issues.map((i) => { const qf = quickFixForLayout(p, i); return h('li', {}, h('button', { className: `finding ${i.severity === 'error' ? 'fail' : 'limited'}`, 'data-code': i.code, onClick: () => ctx.setSelection([i.instanceId, i.otherId].filter(Boolean) as string[]) }, `${i.severity === 'error' ? 'Lỗi' : 'Cảnh báo'} ${i.code}: ${i.message}`),
+      qf && h('button', { className: 'quick-fix', type: 'button', onClick: () => pv.show(() => qf.apply(p)) }, qf.label)); }), h('li', {}, ...pv.nodes))
     : h('p', { id: 'layout-issues' }, model.panels.length ? 'Mọi vị trí hợp lệ: trong biên mái, không giao nhau, đủ khoảng cách.' : 'Chưa có tấm nào được đặt.');
   const rows = p.instances.filter((i) => i.kind === 'panel').map((i) => {
     const pn = model.panels.find((x) => x.instanceId === i.instanceId), pl = (p.placements ?? []).find((x) => x.instanceId === i.instanceId);

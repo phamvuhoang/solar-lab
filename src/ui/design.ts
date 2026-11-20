@@ -3,7 +3,9 @@ import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset,
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { parseNumber, parseQuantity } from '../domain/units';
 import { designOf, validateDesign, type Finding } from '../validation/strings';
+import { quickFixFor } from '../validation/quick-fix';
 import { h } from './dom';
+import { previewer } from './palette';
 import type { Tab } from './route';
 
 export interface DesignCtx {
@@ -31,8 +33,10 @@ export function renderDesign(ctx: DesignCtx): Node[] {
   const good = findings.filter((f) => f.status === 'pass');
   const invComp = [...ix.inst.values()].find((d) => d.inst.kind === 'inverter')?.comp;
 
-  const finding = (f: Finding) => h('li', {}, h('button', { className: `finding ${f.status}`, 'data-code': f.code, onClick: () => ctx.select(f.objectIds[0], fixTargets(f)) },
-    `[${STATUS_LABEL[f.status]}${f.assumed ? ', có giả định' : ''}] ${f.message}`));
+  const pv = previewer(p, { preview: 'fix-preview', confirm: 'fix-confirm', cancel: 'fix-cancel' }, (next) => { void ctx.apply(next); }, () => {});
+  const finding = (f: Finding) => { const qf = quickFixFor(p, f); return h('li', {}, h('button', { className: `finding ${f.status}`, 'data-code': f.code, onClick: () => ctx.select(f.objectIds[0], fixTargets(f)) },
+    `[${STATUS_LABEL[f.status]}${f.assumed ? ', có giả định' : ''}] ${f.message}`),
+    qf && h('button', { className: 'quick-fix', type: 'button', onClick: () => pv.show(() => qf.apply(p)) }, qf.label)); };
 
   const detail = () => {
     const f = findings.find((x) => x.objectIds[0] === ctx.selected) ?? findings.find((x) => ctx.selected && x.objectIds.includes(ctx.selected));
@@ -54,6 +58,7 @@ export function renderDesign(ctx: DesignCtx): Node[] {
     h('h3', {}, 'Kiểm tra điện'),
     h('p', { id: 'findings-summary' }, `${findings.filter((f) => f.status === 'fail' && f.severity === 'error').length} lỗi thiết kế · ${findings.filter((f) => f.status === 'limited').length} giới hạn công suất · ${findings.filter((f) => f.status === 'unknown').length} chưa đủ dữ liệu · ${good.length} đạt`),
     h('ul', { id: 'findings' }, ...bad.map(finding)),
+    h('div', {}, ...pv.nodes),
     good.length ? h('details', {}, h('summary', {}, `${good.length} kiểm tra đạt`), h('ul', {}, ...good.map(finding))) : null,
     detail(),
     h('h3', {}, 'Thiết lập thiết kế'), settingsForm(ctx, fail),

@@ -84,3 +84,25 @@ test('W03: thêm theo lô có preview và xác nhận; thiếu dữ liệu hiể
   await page.locator('tr[data-string]').first().getByRole('button', { name: 'Đặt số tấm' }).click();
   await expect(page.locator('#design-error')).toContainText('Không đủ tấm chưa gán');
 });
+
+test('W13: sửa nhanh ISC có xem trước, xác nhận một revision, hoàn tác về lỗi cũ', async ({ page }) => {
+  await page.goto('/#/');
+  await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
+  await tab(page, 'thiet-ke');
+  await page.locator('#d-cold').fill('5');
+  await page.locator('#d-hot').fill('70');
+  await page.getByRole('button', { name: 'Lưu thiết lập' }).click();
+  await expect(page.locator('#status')).toContainText('Đã lưu: revision 2');
+  await page.locator('#preset').selectOption('two-strings-one-tracker');
+  await page.locator('#apply-preset').click();
+  await expect(page.locator('#findings-summary')).toContainText('1 lỗi thiết kế');
+
+  await page.locator('button.quick-fix').first().click();
+  await expect(page.locator('#fix-preview')).toContainText('chuyển sang');
+  await expect(page.locator('#findings-summary')).toContainText('1 lỗi thiết kế'); // nothing applied yet
+  await page.locator('#fix-confirm').click();
+  await expect(page.locator('#findings-summary')).toContainText('0 lỗi thiết kế');
+
+  await page.locator('#ws-undo').click();
+  await expect(page.locator('#findings-summary')).toContainText('1 lỗi thiết kế');
+});
