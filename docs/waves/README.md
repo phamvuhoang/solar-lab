@@ -17,3 +17,4 @@ Mỗi file là một backlog có thể giao riêng. Đọc cùng [kế hoạch t
 - [W12 · 3D toàn hệ thống](W12.md)
 - [W13 · Kết quả tự cập nhật](W13.md)
 - [W14 · Ba độ sâu](W14.md)
+- [W15 · Điện thoại, tiếp cận, UAT thật, 1.1](W15.md)
