@@ -163,7 +163,7 @@ test('W07: không có WebGL: bảng phần trăm thấy nắng và CSV vẫn dù
   await openShade(page);
   await page.locator('#tank-near').click();
   await saved(page);
-  await expect(page.locator('#sh-fallback')).toContainText('vẫn đầy đủ');
+  await expect(page.locator('#webgl-fallback')).toContainText('vẫn đầy đủ'); // the shared view's notice
   await page.locator('#sh-compute-day').click();
   await expect(page.locator('#sh-day-status')).toContainText('đã tính', { timeout: 20000 });
   expect((await accessNow(page)).some((v) => v !== '')).toBe(true);

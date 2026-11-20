@@ -4,7 +4,7 @@ import { simulatePv, type PvResult } from '../engine/pv';
 import { sunPosition, pressureAt } from '../engine/solar';
 import { shadeDayCsv, shadeYearCsv } from '../reports/shade-csv';
 import { buildSceneModel } from '../scene/model';
-import { createThreeView, heatColor, WebGLUnavailable, type ViewApi } from '../scene/three-view';
+import { heatColor, type Overlay } from '../scene/three-view';
 import { sunVector } from '../shade/geometry';
 import { buildShadeSpec, shadeSettingsOf, type ShadeField, type ShadeSpec } from '../shade/sampler';
 import { shadeCache } from '../shade/usage';
@@ -29,17 +29,13 @@ export interface ShadeCtx {
   project: Project; revisions: { revision: number; savedAt: string }[]; selection: string[]; state: ShadeState;
   loadRevision(n: number): Promise<Project | undefined>; loadWeather(id: string): Promise<WeatherSeries | undefined>;
   apply(next: Project): Promise<void>; setSelection(ids: string[]): void; rerender(): void; go(tab: Tab): void;
+  /** Sun and heat drawn in the workspace's shared 3D view. */
+  setOverlay(o: Overlay): void;
 }
 
-// ---- persistent WebGL view (same pattern as the roof screen) ------------------------------------------------------
-const view: { host: HTMLElement; api: ViewApi | null; failed: string | null; started: boolean; latest: ShadeCtx | null; overlay: { sun: { e: number; n: number; up: number } | null; heat: Map<string, number> | null } } =
-  { host: document.createElement('div'), api: null, failed: null, started: false, latest: null, overlay: { sun: null, heat: null } };
 let timer: ReturnType<typeof setInterval> | null = null;
-export function releaseShadeView() {
-  if (timer) clearInterval(timer);
-  timer = null;
-  view.api?.dispose(); view.api = null; view.failed = null; view.started = false; view.host = document.createElement('div'); view.overlay = { sun: null, heat: null };
-}
+/** Stops the sun animation (leaving the tab, closing the project). */
+export function stopShadePlayback() { if (timer) clearInterval(timer); timer = null; }
 
 const kwh = (wh: number) => (wh / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 const pct = (x: number | null, d = 0) => (x === null ? '—' : `${(x * 100).toLocaleString('vi-VN', { maximumFractionDigits: d })} %`);
@@ -51,8 +47,7 @@ const sliceWeather = (w: WeatherSeries, i0: number, i1: number): WeatherSeries =
 const sliceField = (f: ShadeField, i0: number, i1: number): ShadeField => ({ ...f, key: `${f.key}:${i0}-${i1}`, t0: f.t0 + i0 * f.stepSeconds, n: i1 - i0, access: f.access.map((a) => a.slice(i0, i1)), done: f.done.slice(i0, i1) });
 
 export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
-  view.latest = ctx;
-  if (timer) { clearInterval(timer); timer = null; }
+  stopShadePlayback();
   const p = ctx.project, st = ctx.state, tz = p.location?.timezone ?? 'Asia/Ho_Chi_Minh';
   const weather = p.pv?.weatherId ? await ctx.loadWeather(p.pv.weatherId) : undefined;
   const settings = shadeSettingsOf(p);
@@ -81,15 +76,6 @@ export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
   st.step = Math.max(0, Math.min(st.step, upIdx.length - 1));
   const selected = ctx.selection.filter((id) => model.panels.some((x) => x.instanceId === id));
 
-  // ---- 3D view (created once) ---------------------------------------------------------------------------------------
-  if (!view.started) {
-    view.started = true;
-    createThreeView(view.host, { onSelect: (ids, mode) => { const c = view.latest!; c.setSelection(mode === 'toggle' ? (c.selection.includes(ids[0]) ? c.selection.filter((x) => x !== ids[0]) : [...c.selection, ids[0]]) : ids); }, onMove: () => {}, onClear: () => view.latest!.setSelection([]), onContextLost: () => failView('Mất ngữ cảnh WebGL') }, 380)
-      .then((api) => { view.api = api; api.update(buildSceneModel(view.latest!.project), new Set(view.latest!.selection), { roof: true, frame: false, panels: true, wires: false, labels: true }); api.setOverlay(view.overlay); })
-      .catch((e) => failView(e instanceof WebGLUnavailable ? e.message : String(e)));
-  }
-  view.api?.update(model, new Set(selected), { roof: true, frame: false, panels: true, wires: false, labels: true });
-
   // ---- panel table and inspector ------------------------------------------------------------------------------------
   const stringOf = new Map(model.panels.map((x) => [x.instanceId, x]));
   const cells = new Map<string, { now: HTMLElement; mean: HTMLElement; drop: HTMLElement }>();
@@ -110,8 +96,7 @@ export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
     timeLabel.textContent = `${st.date} ${String(localHour(t + weather!.stepSeconds / 2, tz)).padStart(2, '0')}h (${tz}) · Mặt Trời hướng ${sp.azimuthDeg.toFixed(0)}°, cao ${sp.apparentElevationDeg.toFixed(0)}°`;
     const sv = sunVector(sp.azimuthDeg, sp.apparentZenithDeg);
     const heat = dayDone && field ? new Map(field.panelIds.map((id, k) => [id, field.access[k][i]] as [string, number])) : null;
-    view.overlay = { sun: { e: sv[0], n: sv[1], up: sv[2] }, heat };
-    view.api?.setOverlay(view.overlay);
+    ctx.setOverlay({ sun: { e: sv[0], n: sv[1], up: sv[2] }, heat });
     for (const [id, c] of cells) {
       const k = field?.panelIds.indexOf(id) ?? -1, a = heat && k >= 0 ? field!.access[k][i] : null;
       c.now.textContent = a === null ? '—' : pct(a); c.now.setAttribute('data-access', a === null ? '' : a.toFixed(4));
@@ -289,7 +274,6 @@ export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
 
   const date = h('input', { type: 'date', id: 'sh-date', value: st.date, min: dates[0], max: dates[dates.length - 1] });
   date.addEventListener('change', () => { st.date = date.value; st.step = 0; ctx.rerender(); });
-  const threeBlock = h('div', {}, h('div', { id: 'sh-fallback', role: 'status', hidden: !view.failed }, h('p', {}, 'Không dùng được 3D (', h('span', {}, view.failed ?? ''), '). Bảng phần trăm thấy nắng theo từng tấm bên dưới vẫn đầy đủ.')), h('div', { id: 'sh-3d', hidden: !!view.failed }, view.host));
 
   setTimeout(updateStep, 0); // the nodes exist; fill them once they are attached
   updateStep();
@@ -301,18 +285,11 @@ export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
     obstacles.length ? h('ul', { id: 'sh-obstacles' }, ...obstacles) : h('p', {}, 'Chưa có vật cản. Thêm bồn nước hoặc vật cản ở màn Mái nhà 3D.'),
     h('h3', {}, '3. Một ngày'), h('div', {}, h('label', {}, 'Ngày ', date), computeDay, csvDay, cancel, prog),
     h('p', { id: 'sh-day-status' }, dayDone ? `Bóng ngày ${st.date} đã tính (${upIdx.length} bước có nắng).` : `Bóng ngày ${st.date} chưa tính: bấm "Tính bóng ngày này" (bóng đổ trên 3D chỉ để xem; số liệu lấy từ tia CPU).`),
-    threeBlock, slider, h('div', {}, stepBtn('← bước trước', -1, 'sh-prev'), play, stepBtn('bước sau →', 1, 'sh-next'), timeLabel),
+    slider, h('div', {}, stepBtn('← bước trước', -1, 'sh-prev'), play, stepBtn('bước sau →', 1, 'sh-next'), timeLabel),
     h('table', { id: 'sh-table' }, h('thead', {}, h('tr', {}, ...['Tấm', 'Chuỗi·vị trí', 'Thấy nắng giờ này', 'Trung bình ngày', 'PV giảm trong ngày'].map((t) => h('th', {}, t)))), h('tbody', {}, ...rows)),
     h('h4', {}, 'Tấm đang chọn'), inspector,
     h('h3', {}, '4. Cả năm và so sánh hai cảnh'), h('div', {}, runYear, ' ', h('label', {}, 'A = ', selA), ' B = cảnh hiện tại ', runAB),
     stale ? h('p', { id: 'sh-stale' }, 'Kết quả cả năm đã tính trước đó không còn khớp vị trí tấm/vật cản hiện tại; tính lại để cập nhật.') : null,
     results,
   ].filter(Boolean) as Node[];
-}
-
-function failView(why: string) {
-  view.failed = why; view.api = null;
-  const note = document.getElementById('sh-fallback'), box = document.getElementById('sh-3d');
-  if (note) { note.hidden = false; note.querySelector('span')!.textContent = why; }
-  if (box) box.hidden = true;
 }

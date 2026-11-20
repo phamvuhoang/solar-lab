@@ -5,6 +5,7 @@ const saved = (page: Page) => expect(page.locator('#status')).toContainText('ÄÃ
 const rev = async (page: Page) => Number(((await page.locator('#status').textContent()) ?? '').match(/revision (\d+)/)?.[1] ?? 0);
 const canvas = (page: Page) => page.locator('canvas');
 const pos = async (page: Page, i: number) => {
+  await canvas(page).scrollIntoViewIfNeeded(); // positions are relative to the canvas; the view area can scroll
   const ids = (await canvas(page).getAttribute('data-panel-ids'))!.split(',');
   const p = JSON.parse((await canvas(page).getAttribute('data-panel-pos'))!);
   return { id: ids[i], x: p[ids[i]][0] as number, y: p[ids[i]][1] as number };

@@ -7,7 +7,6 @@ import { exportAll } from '../persistence/backup';
 import { ConflictError, type ProjectRepository } from '../persistence/repository';
 import { isQuotaError } from '../persistence/import';
 import { History } from '../app/history';
-import { ALL_LAYERS } from '../scene/three-view';
 import { BUNDLED_WEATHER, loadBundledWeather } from '../weather/bundled';
 import type { PvResult } from '../engine/pv';
 import { renderCatalog } from './catalog';
@@ -18,10 +17,11 @@ import { freshImported, renderImported } from './imported';
 import { renderPv } from './pv';
 import { renderQuote } from './quote';
 import { freshReport, renderReport } from './report';
-import { renderRoof, releaseRoofView, type RoofState } from './roof';
+import { renderRoof, type RoofState } from './roof';
 import { formatRoute, STEPS, stepOfTab, type Step, type Tab, type Target } from './route';
-import { renderShade, releaseShadeView, type ShadeState } from './shade';
+import { renderShade, stopShadePlayback, type ShadeState } from './shade';
 import { renderSim, type SimState } from './sim';
+import { createViewport } from './viewport';
 
 export interface WorkspaceDeps {
   root: HTMLElement; repo: ProjectRepository;
@@ -52,14 +52,14 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
   let selected: string | null = null;
   let pendingFocus: string[] = [];
   let selection: string[] = []; // selected panel instance ids, shared by the diagram, the roof views and the BOM
-  const roofState: RoofState = { layers: ALL_LAYERS, faceId: null, angle: 0, stepCm: 5, fps: null };
+  const roofState: RoofState = { faceId: null, angle: 0, stepCm: 5 };
   const shadeState: ShadeState = { date: null, step: 0, scenes: [], dayEnergy: null, stepLabel: '' };
   let lastPvResult: PvResult | null = null;
   const reportState = freshReport();
   let importedState = freshImported();
   const simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
   let recordedOpen = false; // the "Dự án" tab shows the package's recorded results instead of the summary
-  let step: Step = 'bo-tri', tab: Tab | null = null, seq = 0;
+  let step: Step = 'bo-tri', tab: Tab | null = null, seq = 0, disposed = false;
 
   const reload = async () => { [userComponents, userOffers] = [await repo.listComponents(), await repo.listOffers()]; };
   const save = async (next: Project): Promise<boolean> => {
@@ -118,7 +118,9 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
   const tabs = h('div', { id: 'ws-tabs', role: 'tablist' });
   const panel = h('section', { id: 'ws-panel', role: 'tabpanel' });
   let health = h('footer', { id: 'ws-health' });
-  const ws = h('div', { id: 'ws' }, top, steps, tabs, panel, health);
+  // one 3D view for the whole workspace: it outlives step and tab changes; selecting or dragging in it works on every tab
+  const view = createViewport({ project: () => project, selection: () => selection, setSelection: (ids) => { setSelection(ids); void renderPanel(); }, apply: (next) => saved(next) });
+  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, view.el, tabs, panel), health);
   const help = h('details', { id: 'ws-help' }, h('summary', {}, 'Trợ giúp'),
     h('button', { id: 'lessons-btn', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'bai-hoc' }); } }, 'Bài học'),
     h('button', { id: 'ws-about', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'phien-ban' }); } }, 'Phiên bản và phạm vi kiểm chứng'),
@@ -149,12 +151,14 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
 
   /** Renders the current tab into the panel. Screens are async: only the latest render paints. */
   async function renderPanel(keep = focusKey()): Promise<void> {
+    if (disposed) return; // a save that finishes after the project was closed repaints nothing
     const my = ++seq, t = tab!;
     // a screen's own re-render (selection, progress, results) is dropped once its tab is left: it must not wipe the open tab's input
     const again = async () => { if (tab === t) await renderPanel(); };
     const nodes = await SCREENS[t](again);
     if (my !== seq) return;
     panel.replaceChildren(...nodes);
+    view.refresh();
     paintChrome();
     if (keep) root.querySelector<HTMLElement | SVGElement>(keep)?.focus({ preventScroll: true }); // synchronous: no key can arrive in between
     applyFocus();
@@ -174,6 +178,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
       project, revisions: await repo.listRevisions(project.projectId), selection, state: shadeState, loadRevision: (n) => repo.loadRevision(project.projectId, n), loadWeather,
       apply: saved,
       setSelection: (ids) => { setSelection(ids); void again(); }, rerender: () => { void again(); }, go,
+      setOverlay: (o) => { if (tab === 'bong') view.setOverlay(o); }, // a late shade render must not paint its sun over another tab
     }),
     'thiet-ke': async (again) => {
       await reload();
@@ -262,8 +267,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
       if (!ws.isConnected) root.replaceChildren(...(deps.reloadNeeded() ? [deps.reloadNote()] : []), ws);
       const keep = focusKey();
       if (t !== tab) {
-        if (tab === 'mai') releaseRoofView();
-        if (tab === 'bong') releaseShadeView();
+        if (tab === 'bong') { stopShadePlayback(); view.setOverlay({ sun: null, heat: null }); }
         if (tab === 'du-an') recordedOpen = false;
         panel.replaceChildren(); // never show the previous tab's controls under the new tab
       }
@@ -271,6 +275,6 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
       paintNav();
       await renderPanel(keep);
     },
-    dispose() { seq++; releaseRoofView(); releaseShadeView(); },
+    dispose() { disposed = true; seq++; stopShadePlayback(); view.dispose(); },
   };
 }

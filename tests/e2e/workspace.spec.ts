@@ -81,3 +81,33 @@ test('nền tối: chữ trong hộp của sơ đồ điện vẫn đọc đư�
   });
   expect(ratio).toBeGreaterThanOrEqual(4.5); // WCAG AA cho chữ thường
 });
+
+test('khung nhìn giữ nguyên canvas khi đổi bước', async ({ page }) => {
+  await openLamHa(page);
+  await page.locator('#add-demo-roof').click();
+  await expect(page.locator('#status')).toContainText('Đã lưu: revision');
+  await page.locator('#fill-face').click();
+  const view = page.locator('canvas[data-panels="8"]');
+  await expect(view).toBeVisible({ timeout: 20000 });
+  await view.evaluate((c) => { (c as HTMLElement).dataset.mark = 'x'; });
+  await tab(page, 'du-toan');
+  await tab(page, 'bong');
+  await expect(page.locator('canvas[data-mark="x"]')).toBeVisible();
+  await expect(page.locator('canvas')).toHaveCount(1);
+});
+
+test('đóng dự án khi đang lưu: bản lưu xong muộn không dựng lại 3D', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = HTMLCanvasElement.prototype.getContext, w = window as unknown as { gl: number };
+    w.gl = 0;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...a: unknown[]) { if (/webgl/i.test(type)) w.gl++; return (orig as (...x: unknown[]) => unknown).call(this, type, ...a); } as typeof orig;
+  });
+  const contexts = () => page.evaluate(() => (window as unknown as { gl: number }).gl);
+  await openLamHa(page);
+  await expect(page.locator('canvas')).toHaveCount(1, { timeout: 20000 });
+  const before = await contexts();
+  await page.evaluate(() => { document.getElementById('add-demo-roof')!.click(); location.hash = '#/'; }); // the save ends after the project is closed
+  await expect(page.getByRole('button', { name: 'Mở mẫu Lâm Hà' })).toBeVisible();
+  await page.waitForTimeout(1000); // let the save finish
+  expect(await contexts()).toBe(before);
+});

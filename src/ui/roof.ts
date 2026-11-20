@@ -5,29 +5,16 @@ import { isSimplePolygon, type Pt } from '../domain/roof';
 import { refKey, type Project } from '../domain/types';
 import { parseNumber } from '../domain/units';
 import { buildSceneModel } from '../scene/model';
-import { ALL_LAYERS, createThreeView, WebGLUnavailable, type Layers, type ViewApi } from '../scene/three-view';
 import { h } from './dom';
 import type { Tab } from './route';
 
-export interface RoofState { layers: Layers; faceId: string | null; angle: 0 | 90; stepCm: number; fps: number | null }
+export interface RoofState { faceId: string | null; angle: 0 | 90; stepCm: number }
 export interface RoofCtx {
   project: Project; selection: string[]; state: RoofState;
   apply(next: Project): Promise<void>; setSelection(ids: string[]): void; rerender(): void;
   history: { canUndo: boolean; canRedo: boolean; undo(): void; redo(): void }; go(tab: Tab): void;
 }
 
-// The WebGL canvas outlives screen re-renders (every edit re-renders): it is created once and re-attached.
-const view: { host: HTMLElement; api: ViewApi | null; failed: string | null; latest: RoofCtx | null } = { host: document.createElement('div'), api: null, failed: null, latest: null };
-let started = false;
-export function releaseRoofView() { view.api?.dispose(); view.api = null; view.failed = null; started = false; view.host = document.createElement('div'); }
-
-/** WebGL failed or was lost: switch the 3D block to the notice in place, without rebuilding the screen (which would discard form input). */
-function failView(why: string) {
-  view.failed = why; view.api = null;
-  const note = document.getElementById('webgl-fallback'), box = document.getElementById('view3d-box');
-  if (note) { note.hidden = false; note.querySelector('span')!.textContent = why; }
-  if (box) box.hidden = true;
-}
 const dec = (x: number) => String(Math.round(x * 1000) / 1000).replace('.', ',');
 const num = (t: string) => { const v = t.trim() ? parseNumber(t.trim()) : null; return v; };
 
@@ -47,7 +34,6 @@ export function parsePolygon(text: string): { ok: true; ring: Pt[] } | { ok: fal
 const ringText = (r: Pt[]) => r.map(([a, b]) => `${dec(a)} ${dec(b)}`).join('; ');
 
 export function renderRoof(ctx: RoofCtx): Node[] {
-  view.latest = ctx;
   const p = ctx.project, st = ctx.state, model = buildSceneModel(p), sel = new Set(ctx.selection.filter((id) => model.panels.some((x) => x.instanceId === id)));
   const msg = h('div', { id: 'roof-messages', role: 'alert' });
   const say = (lines: string[]) => msg.replaceChildren(...lines.map((l) => h('p', {}, l)));
@@ -56,26 +42,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
   const unplaced = unplacedPanels(p);
   const ids = [...sel];
 
-  // 3D: create once, update on every render
-  if (!started) {
-    started = true;
-    createThreeView(view.host, {
-      onSelect: (i, mode) => { const c = view.latest!; c.setSelection(mode === 'toggle' ? (c.selection.includes(i[0]) ? c.selection.filter((x) => x !== i[0]) : [...c.selection, i[0]]) : i); },
-      onMove: (i, d) => { const c = view.latest!; void c.apply(movePanels(c.project, i, d, { snap: true })); },
-      onClear: () => view.latest!.setSelection([]),
-      onContextLost: () => failView('Mất ngữ cảnh WebGL'),
-    }).then((api) => { view.api = api; const c = view.latest!; api.update(buildSceneModel(c.project), new Set(c.selection), c.state.layers); }) // no re-render: it would wipe forms being typed in
-      .catch((e) => failView(e instanceof WebGLUnavailable ? e.message : String(e)));
-  }
-  view.api?.update(model, sel, st.layers);
-
   const btn = (label: string, f: () => void, id?: string, disabled = false) => h('button', { id, onClick: f, disabled }, label);
-  const layerBox = (key: keyof Layers, label: string) => {
-    const b = h('input', { type: 'checkbox', id: `layer-${key}`, checked: st.layers[key] });
-    b.addEventListener('change', () => { st.layers = { ...st.layers, [key]: b.checked }; ctx.rerender(); });
-    return h('label', {}, b, ` ${label} `);
-  };
-
   // ---- 1. roof and obstacles --------------------------------------------------------------------------------
   const faceEditors = p.roofFaces.map((f) => {
     const f_ = (id: string, label: string, v: string, size = 7) => { const el = h('input', { id: `${id}-${f.roofFaceId}`, value: v, size }); return { el, node: h('label', {}, label + ' ', el) }; };
@@ -142,12 +109,6 @@ export function renderRoof(ctx: RoofCtx): Node[] {
       h('span', {}, ' (hoặc kéo trên mặt bằng/3D, rời chuột thì snap lưới 5 cm và cạnh tấm bên cạnh; mặt bằng: ←→↑↓, Shift = 1 cm, R xoay, Delete xóa, Esc bỏ chọn)')));
 
   // ---- 3. views ------------------------------------------------------------------------------------------------
-  const fpsOut = h('span', { id: 'fps-result' }, st.fps === null ? '' : `${st.fps.toFixed(0)} FPS`);
-  const threeBlock = h('div', {},
-    h('div', { id: 'webgl-fallback', role: 'status', hidden: !view.failed }, h('p', {}, 'Không dùng được 3D (', h('span', {}, view.failed ?? ''), '). Mặt bằng 2D và danh sách tấm bên dưới vẫn đầy đủ; bạn có thể tiếp tục đặt và sửa tấm như bình thường.')),
-    h('div', { id: 'view3d-box', hidden: !!view.failed }, view.host, h('div', {}, btn('Tổng quan', () => view.api?.setCamera('overview'), 'cam-overview'), btn('Từ trên xuống', () => view.api?.setCamera('top'), 'cam-top'),
-      btn('Đo FPS (4 giây)', async () => { if (!view.api) return say(['3D chưa sẵn sàng']); const f = await view.api.fps(4000); st.fps = f; fpsOut.textContent = `${f.toFixed(0)} FPS (${model.panels.length} tấm, ${model.obstacles.length} vật cản)`; }, 'measure-fps'), fpsOut,
-      layerBox('roof', 'Mái'), layerBox('frame', 'Khung'), layerBox('panels', 'Tấm'), layerBox('wires', 'Đường nối'), layerBox('labels', 'Nhãn'))));
   const plans = p.roofFaces.map((f) => renderFacePlan(p, f, model, sel, {
     onSelect: (i, mode) => ctx.setSelection(mode === 'toggle' ? (ctx.selection.includes(i[0]) ? ctx.selection.filter((x) => x !== i[0]) : [...ctx.selection, i[0]]) : i),
     onMove: (i, d, snap) => run(() => movePanels(p, i, d, { snap })), onRotate: (i) => run(() => rotate90(p, i)), onRemove: (i) => run(() => removePlacements(p, i)), onClear: () => ctx.setSelection([]),
@@ -195,7 +156,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
       btn('Thêm hộp 0,6×0,6×0,8 m trên mái', () => (p.roofFaces[0] ? run(() => addObstacle(p, { label: 'Ống thông hơi', kind: 'box', roofFaceId: p.roofFaces[0].roofFaceId, center: { e: 5, n: 1.2 }, baseUp: 3.2, angleDeg: 0, size: { x: 0.6, y: 0.6, z: 0.8 } })) : say(['Thêm mặt mái trước'])), 'add-box')),
     obstacleList.length ? h('ul', { id: 'obstacles' }, ...obstacleList) : null,
     h('h3', {}, '2. Đặt tấm'), tools,
-    h('h3', {}, '3. Xem'), threeBlock, ...plans, info,
+    h('h3', {}, '3. Xem'), ...plans, info,
     h('h3', {}, 'Kiểm tra vị trí'), issues,
     h('h3', {}, 'Danh sách tấm'),
     h('table', { id: 'panel-table' }, h('thead', {}, h('tr', {}, ...['Tấm', 'ID', 'Mặt mái', 'a (m)', 'b (m)', 'Hướng đặt', 'Chuỗi', 'Trạng thái'].map((t) => h('th', {}, t)))), h('tbody', {}, ...rows)),
