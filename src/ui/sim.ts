@@ -22,7 +22,8 @@ export const REASON_VI: Record<Reason, string> = {
   NO_BATTERY: 'Không có pin', PUMP_BRANCH_CURTAILED: 'PV nhánh bơm dư bị cắt',
 };
 
-export interface Run { label: 'A' | 'B'; source: { kind: 'current' } | { kind: 'revision'; n: number }; title: string; hash: string; result: SimResult; projectName: string }
+/** `revision`: the project revision the run was made from (the progress list counts a run of the current revision only). */
+export interface Run { label: 'A' | 'B'; source: { kind: 'current' } | { kind: 'revision'; n: number }; title: string; hash: string; result: SimResult; projectName: string; revision?: number }
 export interface SimState { runs: Run[]; side: 0 | 1; step: number; progress: Record<string, number> }
 
 export interface SimCtx {
@@ -197,7 +198,7 @@ function runControls(ctx: SimCtx, weather: WeatherSeries | undefined, say: (l: s
     }));
     jobs.length = 0;
     for (const { o, s } of outs) {
-      if (o.status === 'result') done.push({ label: s.label, source: s.source, title: s.title, hash: s.hash, result: o.result, projectName: s.base.name });
+      if (o.status === 'result') done.push({ label: s.label, source: s.source, title: s.title, hash: s.hash, result: o.result, projectName: s.base.name, revision: s.base.revision });
       else say(o.status === 'cancelled' ? ['Đã hủy; không có kết quả nào được lưu.'] : [`${s.title}: ${o.issues.map((i) => `${i.code} tại ${i.field}: ${i.message}`).join('; ')}`]);
     }
     if (done.length === prepared.length) ctx.state.runs = done;

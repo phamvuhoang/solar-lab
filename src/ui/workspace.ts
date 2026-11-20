@@ -8,9 +8,12 @@ import { exportAll } from '../persistence/backup';
 import { ConflictError, type ProjectRepository } from '../persistence/repository';
 import { isQuotaError } from '../persistence/import';
 import { History } from '../app/history';
+import { progressComplete, progressOf, type ProgressItem } from '../app/progress';
 import { BUNDLED_WEATHER, loadBundledWeather } from '../weather/bundled';
 import type { PvResult } from '../engine/pv';
 import { renderCatalog } from './catalog';
+import { renderChecklist } from './checklist';
+import { startCoach } from './coach';
 import { renderDesign } from './design';
 import { download, h } from './dom';
 import { healthOf, renderHealth } from './health';
@@ -65,6 +68,8 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
   let recordedOpen = false; // the "Dự án" tab shows the package's recorded results instead of the summary
   let step: Step = 'bo-tri', tab: Tab | null = null, seq = 0, disposed = false, stored = opts.stored;
+  let checklistOpen: boolean | null = null; // what the person chose by clicking its summary; null = open only while the project is empty
+  let coach = !opts.stored && isSample(initial); // the first-look callouts belong to the sample preview (#/mau)
 
   const reload = async () => { [userComponents, userOffers] = [await repo.listComponents(), await repo.listOffers()]; };
   const save = async (next: Project): Promise<boolean> => {
@@ -74,6 +79,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
       else { // a preview becomes a project on its first edit; the address follows without a hashchange (nothing to re-route)
         project = await repo.createProject(next);
         stored = true;
+        for (const r of simState.runs) delete r.revision; // stored as revision 1 too, but with the edit: no run is of it
         if (ws.isConnected) window.history.replaceState(null, '', formatRoute({ kind: 'project', projectId: project.projectId, step, tab: tab! }));
       }
       say(''); return true;
@@ -181,12 +187,19 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     const again = async () => { if (tab === t) await renderPanel(); };
     const nodes = await SCREENS[t](again);
     if (my !== seq) return;
-    panel.replaceChildren(...nodes);
+    const items = progressOf(project, { simRan: simState.runs.some((r) => r.source.kind === 'current' && r.revision === project.revision) });
+    panel.replaceChildren(...(progressComplete(items) ? [] : [checklist(items)]), ...nodes);
     view.refresh();
     paintChrome();
     if (keep) root.querySelector<HTMLElement | SVGElement>(keep)?.focus({ preventScroll: true }); // synchronous: no key can arrive in between
     applyFocus();
   }
+  /** The steps still to do; open while the project is empty, unless the person opened or closed it. */
+  const checklist = (items: ProgressItem[]) => {
+    const el = renderChecklist(items, goTarget, checklistOpen ?? !project.instances.length);
+    el.querySelector('summary')!.addEventListener('click', () => { checklistOpen = !el.hasAttribute('open'); }); // kept across the repaint every edit makes
+    return el;
+  };
   /** An edit always repaints the open tab, whichever tab made it, so no screen keeps editing a stale copy of the project. */
   const saved = async (next: Project) => { await mutate(next); if (!message()) say(`Đã lưu: revision ${project!.revision}`); await renderPanel(); };
   const edited = () => renderPanel();
@@ -298,6 +311,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     }
     step = s; tab = t;
     paintNav();
+    if (coach) { coach = false; startCoach({ view: view.el, panel, health }); }
     await renderPanel(keep);
   }
 

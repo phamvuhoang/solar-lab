@@ -100,3 +100,36 @@ test('trang đầu: ba lối vào; bắt đầu từ số 0 không lưu gì; đ�
   await page.locator('#ws-home').click();
   await expect(page.getByRole('button', { name: 'Mở: Nhà anh Ba' })).toBeVisible();
 });
+
+test('ba chú thích lần đầu, bỏ qua được, không hiện lại', async ({ page }) => {
+  await page.goto('/#/mau');
+  const coach = page.locator('#coach'), next = page.locator('#coach-next');
+  await expect(coach).toContainText('Đây là một hệ thống điện mặt trời hoàn chỉnh: mái, 8 tấm pin, inverter, pin lưu trữ, tải và lưới. Tất cả là mẫu minh họa, không phải báo giá.');
+  await expect(coach).toHaveAttribute('data-at', 'view');
+  await expect(next).toHaveText('Tiếp');
+  await next.click();
+  await expect(coach).toContainText('Bấm vào một món trên hình hoặc trong danh sách bên phải để xem nó là gì và đổi nó.');
+  await expect(coach).toHaveAttribute('data-at', 'panel');
+  await next.click();
+  await expect(coach).toContainText('Sau mỗi lần sửa, nhìn thanh dưới cùng: lỗi điện, sản lượng, giờ thiếu điện và tiền thay đổi thế nào.');
+  await expect(coach).toHaveAttribute('data-at', 'health');
+  await expect(next).toHaveText('Xong');
+  await next.click();
+  await expect(coach).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('#ws-name')).toContainText('Nhà mẫu');
+  await expect(coach).toHaveCount(0);
+
+  // "Bỏ qua" ends it at once, and only the sample preview shows it
+  await page.evaluate(() => localStorage.clear());
+  await page.goto('/#/moi');
+  await expect(page.locator('#ws-name')).toHaveText('Dự án mới');
+  await expect(coach).toHaveCount(0);
+  await page.goto('/#/mau');
+  await expect(coach).toBeVisible();
+  await page.locator('#coach-skip').click();
+  await expect(coach).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('#ws-name')).toContainText('Nhà mẫu');
+  await expect(coach).toHaveCount(0);
+});

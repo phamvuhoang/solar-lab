@@ -161,8 +161,9 @@ test('W07: không có WebGL: bảng phần trăm thấy nắng và CSV vẫn dù
     HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...a: unknown[]) { return /webgl/i.test(type) ? null : (orig as (...x: unknown[]) => unknown).call(this, type, ...a); } as typeof orig;
   });
   await openShade(page);
+  const r = await rev(page);
   await page.locator('#tank-near').click();
-  await saved(page);
+  await expect.poll(() => rev(page)).toBeGreaterThan(r); // "Đã lưu" is already on screen from the last edit: wait for this one
   await expect(page.locator('#webgl-fallback')).toContainText('vẫn đầy đủ'); // the shared view's notice
   await page.locator('#sh-compute-day').click();
   await expect(page.locator('#sh-day-status')).toContainText('đã tính', { timeout: 20000 });
