@@ -13,9 +13,9 @@ import type { Tab } from './route';
 import { term } from './term';
 
 export interface DesignCtx {
-  project: Project; components: Component[]; offers: Offer[]; selected: string | null;
-  /** focusIds: element ids to try, in order, once the screen has re-rendered. */
-  select(id: string | null, focusIds?: string[]): void; apply(next: Project): Promise<void>;
+  project: Project; components: Component[]; offers: Offer[]; selected: string | null; selectedCode?: string | null;
+  /** focusIds: element ids to try, in order, once the screen has re-rendered. code: the check picked, when the object has several. */
+  select(id: string | null, focusIds?: string[], code?: string): void; apply(next: Project): Promise<void>;
   /** Select a device and open the inspector's delete preview. */
   remove(id: string): void;
   history: { canUndo: boolean; canRedo: boolean; undo(): void; redo(): void };
@@ -38,12 +38,13 @@ export function renderDesign(ctx: DesignCtx): Node[] {
   const invComp = [...ix.inst.values()].find((d) => d.inst.kind === 'inverter')?.comp;
 
   const pv = previewer(p, { preview: 'fix-preview', confirm: 'fix-confirm', cancel: 'fix-cancel' }, (next) => { void ctx.apply(next); }, () => {});
-  const finding = (f: Finding) => { const qf = quickFixFor(p, f); return h('li', {}, h('button', { className: `finding ${f.status}`, 'data-code': f.code, onClick: () => ctx.select(f.objectIds[0], fixTargets(f)) },
+  const finding = (f: Finding) => { const qf = quickFixFor(p, f); return h('li', {}, h('button', { className: `finding ${f.status}`, 'data-code': f.code, onClick: () => ctx.select(f.objectIds[0], fixTargets(f), f.code) },
     ...findingTitle(f, p)),
     qf && h('button', { className: 'quick-fix', type: 'button', onClick: () => pv.show(() => qf.apply(p)) }, qf.label)); };
 
   const detail = () => {
-    const f = findings.find((x) => x.objectIds[0] === ctx.selected) ?? findings.find((x) => ctx.selected && x.objectIds.includes(ctx.selected));
+    const f = findings.find((x) => x.objectIds[0] === ctx.selected && (!ctx.selectedCode || x.code === ctx.selectedCode))
+      ?? findings.find((x) => ctx.selected && x.objectIds.includes(ctx.selected));
     if (!f) return h('p', { id: 'finding-detail', tabIndex: -1 }, ctx.selected ? 'Không có kiểm tra nào gắn với đối tượng đang chọn.' : 'Chọn một mục trong sơ đồ hoặc danh sách lỗi.');
     const qf = quickFixFor(p, f), assumed = f.assumed ? term('gia-dinh') : null;
     assumed?.setAttribute('data-min-depth', 'ky-su'); // with its "có giả định" line

@@ -66,6 +66,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   let userOffers: Offer[] = [];
   const history = new History<Project>();
   let selected: string | null = null; // what the diagram and the finding detail show: a string, device, port or edge id
+  let selectedCode: string | null = null; // the check picked in the list: one object can have several (a battery port: charge and discharge)
   let pendingFocus: string[] = [];
   let selection: string[] = []; // instance and obstacle ids of every kind, shared by 3D, diagram, plan, lists, BOM and the inspector
   const roofState: RoofState = { faceId: null, angle: 0, stepCm: 5 };
@@ -125,7 +126,8 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const choose = (ids: string[]): boolean => {
     const sel = [...new Set(ids.flatMap(resolve))], owners = new Set(sel.map(stringOfPanel).filter(Boolean));
     const obj = ids.length === 1 && !isPanel(ids[0]) ? ids[0] : owners.size === 1 ? [...owners][0]! : null;
-    if (obj === selected && sel.join(',') === selection.join(',')) return false;
+    const coded = selectedCode !== null; selectedCode = null; // any other pick shows the object's worst check again
+    if (!coded && obj === selected && sel.join(',') === selection.join(',')) return false;
     selection = sel; selected = obj;
     return true;
   };
@@ -410,8 +412,8 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
         await edited();
       };
       return renderDesign({
-        project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], selected,
-        select: (id, focusIds = []) => { choose(id ? [id] : []); pendingFocus = focusIds; void again(); },
+        project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], selected, selectedCode,
+        select: (id, focusIds = [], code) => { choose(id ? [id] : []); selectedCode = code ?? null; pendingFocus = focusIds; void again(); },
         remove: (id) => { void requestDelete([id]); },
         apply: saved,
         history: {

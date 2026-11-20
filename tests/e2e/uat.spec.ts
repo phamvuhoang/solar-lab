@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { ENGINE_VERSION } from '../../src/engine/pv';
 import { DISPATCH_VERSION } from '../../src/engine/dispatch';
@@ -33,6 +33,168 @@ async function toSim(page: Page) {
   await page.locator('#s-save').click();
   await saved(page);
 }
+
+// ---- "Đo thành công" (docs/05-experience-v2.md, docs/uat/protocol.md): the machine version of each criterion -------------------
+// Each records what a person's attempt is judged on (numbers, action count, elapsed time) as test annotations. It shows the path
+// exists and fits the limit; whether a person finds it unaided is the real-user UAT, still to do.
+const RUN = { timeout: 60_000 }; // shade preview + a year of dispatch in the worker
+/** "1.234,5" → 1234.5 */
+const vi = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
+/** Known money and yearly grid purchase as the health bar writes them, once the automatic run is done. */
+async function bar(page: Page) {
+  const supply = page.locator('#health-supply');
+  await expect(supply).toContainText('giờ/năm', RUN);
+  const money = (await page.locator('#health-money').textContent())!, grid = (await supply.textContent())!;
+  return { money: vi(/([\d.]+) đ đã biết/.exec(money)![1]), grid: vi(/mua lưới ([\d.,]+) kWh/.exec(grid)![1]), moneyText: money, gridText: grid };
+}
+const note = (info: TestInfo, type: string, v: unknown) => info.annotations.push({ type, description: typeof v === 'string' ? v : JSON.stringify(v) });
+
+test('Đo thành công (a) người mới, Cơ bản, ≤ 5 phút: Nhà mẫu 8 → 10 tấm; đọc tiền đã biết và kWh mua lưới/năm trước và sau', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  let actions = 0;
+  const act = async (l: Locator) => { actions++; await l.click(); };
+  const t0 = Date.now();
+  await page.goto('/');
+  await expect(page).toHaveURL(/#\/mau$/);
+  await expect(page.locator('html')).toHaveAttribute('data-depth', 'co-ban');
+  for (let i = 0; i < 3; i++) await act(page.locator('#coach-next')); // reads the three first-look notes; the last points at the health bar
+  await expect(page.locator('canvas[data-panels="8"]')).toBeVisible({ timeout: 20_000 });
+  const before = await bar(page);
+
+  await act(page.locator('#add-panel'));
+  await expect(page.locator('#add-panel-n')).toBeHidden(); // Cơ bản: the block adds the 2 it suggests, nothing to type
+  await act(page.locator('#add-confirm'));
+  await expect(page.locator('canvas[data-panels="10"]')).toBeVisible();
+  await expect.poll(async () => (await bar(page)).grid, RUN).not.toBe(before.grid); // the bar follows the edit by itself
+  const after = await bar(page);
+  const ms = Date.now() - t0;
+
+  expect(after.money).toBeGreaterThan(before.money); // two more panels with a known price
+  expect(after.grid).toBeLessThan(before.grid); // more PV, less bought from the grid
+  await expect(page.locator('html')).toHaveAttribute('data-depth', 'co-ban'); // never left Cơ bản
+  expect(actions).toBe(5);
+  expect(ms).toBeLessThan(5 * 60_000);
+  // the bar reads right: its money is the estimate's known part (checked by the script, not part of the person's task)
+  await page.locator('#step-chi-phi').click();
+  await expect(page.locator('#quote-known')).toContainText(after.money.toLocaleString('vi-VN'));
+  note(info, 'a-before', { money: before.moneyText, grid: before.gridText });
+  note(info, 'a-after', { money: after.moneyText, grid: after.gridText });
+  note(info, 'a-actions', actions);
+  note(info, 'a-ms', ms);
+});
+
+test('Đo thành công (b) thợ, Thợ, ≤ 10 phút: từ số 0 dựng 6 tấm + inverter + pin + 1 tải, "0 lỗi", in báo giá', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  const rev = async () => Number(/r(\d+)/.exec((await page.locator('#ws-rev').textContent()) ?? '')?.[1] ?? 0);
+  /** A block of the Thêm column: open, set its fields, confirm; one revision. */
+  const add = async (id: string, set?: () => Promise<void>) => {
+    const r = await rev();
+    await page.locator(`#${id}`).click();
+    await set?.();
+    await page.locator('#add-confirm').click();
+    await expect.poll(rev).toBeGreaterThan(r);
+  };
+  const t0 = Date.now();
+  await page.goto('/#/');
+  await page.locator('#entry-new').click();
+  await expect(page).toHaveURL(/#\/moi$/);
+  await page.locator('#depth-tho').click();
+  await expect(page.locator('#depth-tho')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#add-rect').click(); // a roof face for the panels
+  await expect(page.locator('#ws-rev')).toContainText('r1');
+  await add('add-panel', () => page.locator('#add-panel-n').fill('6'));
+  await add('add-inverter');
+  await add('add-battery');
+  await add('add-load');
+  const electric = page.locator('#health-electric');
+  await expect(electric).toContainText('Điện: 0 lỗi');
+  await expect(electric).not.toHaveAttribute('data-state', 'fail');
+  await page.locator('#step-dau-noi').click();
+  await expect(page.locator('#findings-summary')).toContainText('0 lỗi thiết kế');
+  await expect(page.locator('#findings .finding.fail')).toHaveCount(0); // no red line anywhere in the list
+
+  await page.evaluate(() => { (window as { printed?: number }).printed = 0; window.print = () => { (window as { printed?: number }).printed! += 1; }; });
+  await page.locator('#step-bao-cao').click();
+  await page.locator('#rp-print').click();
+  expect(await page.evaluate(() => (window as { printed?: number }).printed)).toBe(1);
+  const ms = Date.now() - t0;
+  // what the print dialog gets: the A4 page with the estimate, every device on a line, a missing price still missing
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('#report')).toBeVisible();
+  await expect(page.locator('#rp-compute')).toBeHidden();
+  await expect(page.locator('#rp-cost')).toBeVisible();
+  const lines = page.locator('#rp-lines tbody tr');
+  await expect(lines.filter({ has: page.locator('td:nth-of-type(2)', { hasText: /^6$/ }) })).toHaveCount(1); // SL: the 6 panels on one line
+  const pdf = await page.pdf({ preferCSSPageSize: true });
+  const box = pdf.toString('latin1').match(/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/)!;
+  expect(Math.abs(Number(box[1]) - 595.28)).toBeLessThan(1); // A4
+  expect(Math.abs(Number(box[2]) - 841.89)).toBeLessThan(1);
+  await page.emulateMedia({ media: 'screen' });
+  expect(ms).toBeLessThan(10 * 60_000);
+  note(info, 'b-electric', (await electric.textContent()) ?? '');
+  note(info, 'b-lines', await lines.allInnerTexts());
+  note(info, 'b-ms', ms);
+});
+
+test('Đo thành công (c) kỹ sư: từ mỗi lỗi tới công thức và nguồn số liệu trong ≤ 2 thao tác', async ({ page }, info) => {
+  await asEngineer(page);
+  await page.goto('/#/mau');
+  await page.locator('#coach-skip').click();
+  const detail = page.locator('#finding-detail');
+  const formulaAndSource = async (what: string) => {
+    await expect(detail.getByText(/^Công thức: /), what).toBeVisible();
+    await expect(detail.getByText(/^.+ · \w+ = .+ \([\w-]+\)$/).first(), what).toBeVisible(); // "<device> · <field> = <value> (<provenance>)"
+  };
+  // from the health bar: one action to the worst check
+  await page.locator('#health-electric').click();
+  await formulaAndSource('ô Điện');
+  // any check in the list, starting from another step: the step, then the check
+  await page.locator('#step-dau-noi').click();
+  const items = page.locator('#findings button.finding');
+  const n = await items.count();
+  expect(n).toBeGreaterThan(0);
+  const counts: number[] = [];
+  for (let i = 0; i < n; i++) {
+    await page.locator('#step-bo-tri').click(); // where the person happens to be
+    let actions = 0;
+    await page.locator('#step-dau-noi').click(); actions++;
+    const item = items.nth(i), title = (await item.innerText()).trim();
+    await item.click(); actions++;
+    await expect(detail.locator('h3'), title).toHaveText(title);
+    await formulaAndSource(title);
+    counts.push(actions);
+  }
+  expect(Math.max(...counts)).toBeLessThanOrEqual(2);
+  // a check picked in the list does not stick to its object: the Điện cell still opens the worst check (here: the same port)
+  const worst = (await items.first().innerText()).trim();
+  await items.nth(1).click();
+  await expect(detail.locator('h3')).not.toHaveText(worst);
+  await page.locator('#health-electric').click();
+  await expect(detail.locator('h3')).toHaveText(worst);
+  note(info, 'c-checks', n);
+  note(info, 'c-actions', { healthCell: 1, list: counts });
+});
+
+test('Đo thành công (d) lần đầu mở: thấy Nhà mẫu, 2D ngay, 3D khi Three.js tải xong, không một thao tác', async ({ page }, info) => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  await page.route(/three\.module/, async (route) => { await gate; await route.continue(); }); // Three.js held back: what a slow line shows first
+  const t0 = Date.now();
+  await page.goto('/');
+  await expect(page).toHaveURL(/#\/mau$/);
+  await expect(page.locator('#ws-name')).toContainText('Nhà mẫu');
+  await expect(page.locator('#ws-badge')).toContainText('Mẫu minh họa');
+  await expect(page.locator('#ws-view svg[id^="plan-"] g.panel')).toHaveCount(8); // the 2D plan while 3D is on its way
+  await expect(page.locator('#ws-view svg[id^="plan-"]').first()).toBeVisible();
+  await expect(page.locator('#view-mode-3d')).toHaveText('3D · đang tải');
+  const ms2d = Date.now() - t0;
+  release();
+  await expect(page.locator('canvas[data-panels="8"]')).toBeVisible({ timeout: 20_000 }); // 3D takes over by itself
+  await expect(page.locator('#view-2d')).toBeHidden();
+  const ms3d = Date.now() - t0;
+  await expect(page.locator('#health-supply')).toContainText('giờ/năm', RUN); // and the numbers, with no click
+  note(info, 'd-ms', { plan2d: ms2d, view3dAfterRelease: ms3d });
+});
 
 // the homeowner works at the default depth, Cơ bản; only building the electrical system is a thợ's job, done at Thợ
 test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và còn thiếu gì, rồi chỉ ra giờ thiếu điện', async ({ page }) => {
