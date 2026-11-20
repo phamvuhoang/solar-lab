@@ -111,5 +111,6 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 @media print {
   #app>#ws { display: block !important; } /* the workspace holds the report page; the rc.2 rule above would hide it */
   #ws-top, #ws-steps, #ws-view, #ws-add, #ws-tabs, #ws-health, #ws-panel > :not(.report-page) { display: none !important; }
+  #rp-wiring-page { break-before: page; }
   #ws-panel { overflow: visible !important; } /* a scroll box would not break across pages */
 }

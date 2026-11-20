@@ -12,6 +12,7 @@ import { pvResultToCsv } from '../reports/pv-csv';
 import { CURRENT_ENGINES } from '../reports/replay';
 import { reportFacts, type LevelState, type ReportFacts, type ReportRun } from '../reports/report-data';
 import { simResultToCsv } from '../reports/sim-csv';
+import { WIRING_NOTE, wiringTable } from '../reports/wiring';
 import { shadeFor } from '../shade/usage';
 import { BUNDLED_WEATHER } from '../weather/bundled';
 import type { WeatherSeries } from '../weather/series';
@@ -23,8 +24,8 @@ import projectSchema from '../../schemas/project-v1.json';
 const OWNER_FIELDS = projectSchema.properties.owner.properties;
 
 /** Results computed for the report. They belong to one revision: any edit clears them so the page never mixes old numbers with a new design. */
-export interface ReportState { forRevision: number | null; pv: PvResult | null; runs: ReportRun[]; includeContact: boolean; includeSeries: boolean; weatherHash: string | null; message: string; aRevision: string }
-export const freshReport = (): ReportState => ({ forRevision: null, pv: null, runs: [], includeContact: false, includeSeries: true, weatherHash: null, message: '', aRevision: '' });
+export interface ReportState { forRevision: number | null; pv: PvResult | null; runs: ReportRun[]; includeContact: boolean; includeSeries: boolean; includeWiring: boolean; weatherHash: string | null; message: string; aRevision: string }
+export const freshReport = (): ReportState => ({ forRevision: null, pv: null, runs: [], includeContact: false, includeSeries: true, includeWiring: false, weatherHash: null, message: '', aRevision: '' });
 export interface ReportCtx {
   project: Project; revisions: { revision: number; savedAt: string }[]; state: ReportState; buildId: string;
   loadRevision(n: number): Promise<Project | undefined>; loadWeather(id: string): Promise<WeatherSeries | undefined>;
@@ -158,6 +159,12 @@ export async function renderReport(ctx: ReportCtx): Promise<Node[]> {
   const incSeries = h('input', { type: 'checkbox', id: 'rp-series', checked: st.includeSeries });
   incSeries.addEventListener('change', () => { st.includeSeries = incSeries.checked; });
 
+  const incWiring = h('input', { type: 'checkbox', id: 'rp-wiring', checked: st.includeWiring });
+  incWiring.addEventListener('change', () => { st.includeWiring = incWiring.checked; ctx.rerender(); });
+  const wiringPage = st.includeWiring ? h('section', { className: 'report-page', id: 'rp-wiring-page', 'aria-label': 'Bảng đấu nối' },
+    h('h2', {}, `Bảng đấu nối: ${p.name}`),
+    dtab(['Từ', 'Đến', 'Ghi chú'], wiringTable(p).map((r) => [r.from, r.to, r.detail]), 'rp-wiring-table'), h('p', { id: 'rp-wiring-note' }, WIRING_NOTE)) : null;
+
   // ---- exports ---------------------------------------------------------------------------------------------------------
   const fileBase = p.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'du-an';
   const records = (): { runs: RecordedRun[]; variants: Record<string, Project> } => {
@@ -189,8 +196,9 @@ export async function renderReport(ctx: ReportCtx): Promise<Node[]> {
       csvBtn('rp-csv-bom', 'CSV dự toán (BOM)', true, () => download(`${fileBase}-du-toan.csv`, quoteToCsv(buildQuote(p), p.name), 'text/csv;charset=utf-8')),
       csvBtn('rp-csv-pv', 'CSV PV theo giờ', !!st.pv && !!weather, () => download(`${fileBase}-pv.csv`, pvResultToCsv(st.pv!, { weatherName: weather!.name, source: weather!.source.name, timeZone: tz }), 'text/csv;charset=utf-8')),
       csvBtn('rp-csv-sim', 'CSV hệ thống theo giờ', !!sim && !!weather, () => download(`${fileBase}-he-thong.csv`, simResultToCsv(sim!.result, { projectName: p.name, weatherName: weather!.name, timeZone: tz, label: sim!.title }), 'text/csv;charset=utf-8'))),
+    h('label', { 'data-min-depth': 'tho' }, incWiring, ' Thêm trang bảng đấu nối cho thợ vào báo cáo'),
     h('div', {}, h('label', {}, incSeries, ' Kèm chuỗi theo bước của kết quả đã chọn (gói đầy đủ)'), ' ',
       h('button', { id: 'rp-pack-full', onClick: () => void pack('full')() }, 'Xuất gói đầy đủ (chạy lại được)'), h('button', { id: 'rp-pack-report', onClick: () => void pack('report')() }, 'Xuất gói báo cáo (nhẹ, không kèm số liệu thời tiết)')),
-    h('h3', {}, '4. Xem trước báo cáo A4'), page,
+    h('h3', {}, '4. Xem trước báo cáo A4'), page, ...(wiringPage ? [wiringPage] : []),
   ];
 }

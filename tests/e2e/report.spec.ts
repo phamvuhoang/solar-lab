@@ -72,6 +72,10 @@ test('W08: báo cáo A4 có giả định, cấp độ kiểm tra, ngày giá, b
   await expect(page.locator('#rp-attached')).toContainText('Thông tin liên hệ');
   await expect(page.locator('#report')).not.toContainText('0909 123 456');
 
+  // trang bảng đấu nối tùy chọn: mặc định không có, bật thì thành trang riêng
+  await expect(page.locator('#rp-wiring-page')).toHaveCount(0);
+  await page.locator('#rp-wiring').check();
+  await expect(page.locator('#rp-wiring-page')).toContainText('Tiết diện dây và thiết bị bảo vệ do người lắp xác nhận.');
   // in: chỉ còn trang báo cáo, khổ A4
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('#report')).toBeVisible();
@@ -83,6 +87,9 @@ test('W08: báo cáo A4 có giả định, cấp độ kiểm tra, ngày giá, b
   expect(box).not.toBeNull();
   expect(Math.abs(Number(box![1]) - 595.28)).toBeLessThan(1); // A4 = 210 × 297 mm = 595,28 × 841,89 pt
   expect(Math.abs(Number(box![2]) - 841.89)).toBeLessThan(1);
+  await expect(page.locator('#rp-wiring-page')).toBeVisible(); // vẫn hiện khi in, bắt đầu trang mới
+  expect(await page.locator('#rp-wiring-page').evaluate((e) => getComputedStyle(e).breakBefore)).toBe('page');
+  for (const m of pdf.toString('latin1').matchAll(/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/g)) { expect(Math.abs(Number(m[1]) - 595.28)).toBeLessThan(1); expect(Math.abs(Number(m[2]) - 841.89)).toBeLessThan(1); }
   await page.emulateMedia({ media: 'screen' });
 
   // CSV BOM: giá thiếu vẫn thiếu
