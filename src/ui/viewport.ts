@@ -51,7 +51,7 @@ export function createViewport(host: ViewportHost): Viewport {
   const btn = (id: string, label: string, f: () => void) => h('button', { id, type: 'button', onClick: f }, label);
   const modes = { '3d': btn('view-mode-3d', '3D · đang tải', () => setMode('3d')), diagram: btn('view-mode-diagram', 'Sơ đồ', () => setMode('diagram')), plan: btn('view-mode-plan', 'Mặt bằng', () => setMode('plan')) };
   modes['3d'].disabled = true;
-  const canvasHost = h('div', {});
+  const canvasHost = h('div', { className: 'canvas-host' });
   // Delete in 3D: only panels selected → off the roof, as in the plan (undo brings them back); a device too → the delete preview
   canvasHost.addEventListener('keydown', (e) => {
     const sel = host.selection(), p = host.project();
@@ -109,7 +109,7 @@ export function createViewport(host: ViewportHost): Viewport {
     onMove: (ids, d) => { void host.apply(movePanels(host.project(), ids, d, { snap: true })); },
     onClear: () => host.setSelection([]),
     onContextLost: () => fail('Mất ngữ cảnh WebGL'),
-  }, matchMedia('(max-width: 719px)').matches ? 300 : 440)
+  })
     .then((v) => {
       if (disposed) return v.dispose();
       api = v; v.setOverlay(overlay);

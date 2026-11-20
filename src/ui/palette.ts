@@ -11,7 +11,8 @@ import { parseNumber } from '../domain/units';
 import { errText } from './design';
 import { h } from './dom';
 
-export interface PaletteCtx { project: Project; components: Component[]; offers: Offer[]; apply(next: Project): Promise<void> }
+/** fold: whether "Thêm" is expanded, kept by the workspace across the rebuild every edit makes. */
+export interface PaletteCtx { project: Project; components: Component[]; offers: Offer[]; apply(next: Project): Promise<void>; fold: { open: boolean } }
 
 const vnd = (q: Quote) => Number(q.knownSubtotalMinor).toLocaleString('vi-VN');
 /** What an edit would change, in words: describeChange, plus the money when it moves (missing prices are counted, never hidden). */
@@ -129,6 +130,7 @@ export function renderPalette(ctx: PaletteCtx): HTMLElement {
     });
     return button;
   });
-  return h('aside', { id: 'ws-add', 'aria-label': 'Thêm' },
-    h('details', { open: matchMedia('(min-width: 720px)').matches }, h('summary', {}, 'Thêm'), h('div', { className: 'add-items' }, ...buttons), body));
+  const fold: HTMLDetailsElement = h('details', { open: ctx.fold.open, onToggle: () => { ctx.fold.open = fold.open; } },
+    h('summary', {}, 'Thêm'), h('div', { className: 'add-items' }, ...buttons), body);
+  return h('aside', { id: 'ws-add', 'aria-label': 'Thêm' }, fold);
 }

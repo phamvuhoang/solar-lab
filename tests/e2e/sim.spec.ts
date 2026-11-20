@@ -118,6 +118,7 @@ test('W13: kéo thanh phát lại → mũi tên công suất và Mặt Trời tr
   expect(flows.some((f) => f.w > 0)).toBe(true);
   await expect(page.locator('#view-flows')).toContainText('PV vào inverter');
   await expect(page.locator('#view-flows')).toContainText('kW');
+  await expect(page.locator('#view-flows')).toBeInViewport({ ratio: 1 }); // 1280 × 720: under the canvas, no scrolling
   expect(await canvas.getAttribute('data-sun')).toMatch(/^\[/); // cùng con trỏ thời gian đặt Mặt Trời
 
   await tab(page, 'pv');

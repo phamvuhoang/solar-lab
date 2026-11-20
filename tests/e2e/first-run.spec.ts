@@ -108,7 +108,7 @@ test('ba chú thích lần đầu, bỏ qua được, không hiện lại', asyn
   await expect(coach).toHaveAttribute('data-at', 'view');
   await expect(next).toHaveText('Tiếp');
   await next.click();
-  await expect(coach).toContainText('Bấm vào một món trên hình hoặc trong danh sách bên phải để xem nó là gì và đổi nó.');
+  await expect(coach).toContainText('Bấm vào một món trên hình hoặc trong danh sách để xem nó là gì và đổi nó.');
   await expect(coach).toHaveAttribute('data-at', 'panel');
   await next.click();
   await expect(coach).toContainText('Sau mỗi lần sửa, nhìn thanh dưới cùng: lỗi điện, sản lượng, giờ thiếu điện và tiền thay đổi thế nào.');

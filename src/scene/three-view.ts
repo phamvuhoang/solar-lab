@@ -48,8 +48,9 @@ export class WebGLUnavailable extends Error { constructor(why: string) { super(w
 /**
  * Three.js scene, loaded lazily by the workspace view. It draws a SceneModel and nothing else: it never creates instances or prices.
  * Coordinates arrive in ENU and are mapped to Three.js (x = East, y = Up, z = −North) at the very edge.
+ * The canvas fills `host`: the stylesheet gives the host its height.
  */
-export async function createThreeView(host: HTMLElement, handlers: ViewHandlers, height = 440): Promise<ViewApi> {
+export async function createThreeView(host: HTMLElement, handlers: ViewHandlers): Promise<ViewApi> {
   let THREE: typeof import('three'), OrbitControls: typeof import('three/examples/jsm/controls/OrbitControls.js').OrbitControls;
   try {
     THREE = await import('three');
@@ -60,7 +61,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   canvas.tabIndex = 0;
   canvas.setAttribute('role', 'img');
   canvas.setAttribute('aria-label', 'Nhà, mái, tấm và thiết bị 3D. Chọn bằng bàn phím ở Mặt bằng, Sơ đồ hoặc danh sách tấm; phím mũi tên dịch camera.');
-  canvas.style.cssText = `width:100%;height:${height}px;display:block;touch-action:none;border:1px solid #8886;border-radius:4px`;
+  canvas.style.cssText = 'width:100%;height:100%;box-sizing:border-box;display:block;touch-action:none;border:1px solid #8886;border-radius:4px';
   host.append(canvas);
   let renderer: InstanceType<typeof THREE.WebGLRenderer>;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
@@ -325,7 +326,7 @@ export async function createThreeView(host: HTMLElement, handlers: ViewHandlers,
   };
   controls.addEventListener('end', publish);
   // also republishes positions: the canvas may have been drawn while hidden (2D mode) or before a window resize
-  const resize = () => { const w = Math.max(200, host.clientWidth); renderer.setSize(w, height, false); camera.aspect = w / height; camera.updateProjectionMatrix(); need(); publish(); };
+  const resize = () => { const w = Math.max(200, host.clientWidth), ht = Math.max(150, host.clientHeight); renderer.setSize(w, ht, false); camera.aspect = w / ht; camera.updateProjectionMatrix(); need(); publish(); };
   const ro = new ResizeObserver(resize);
   ro.observe(host);
   resize();

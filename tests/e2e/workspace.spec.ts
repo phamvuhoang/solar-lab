@@ -28,6 +28,8 @@ test('360 px: không cuộn ngang ở trang đầu và workspace', async ({ page
   await page.goto('/#/');
   await expect(page.getByRole('button', { name: 'Mở mẫu Lâm Hà' })).toBeVisible();
   expect(await width()).toBeLessThanOrEqual(360);
+  const tiles = await Promise.all(['#entry-sample', '#entry-new', '#entry-open'].map(async (id) => (await page.locator(id).boundingBox())!));
+  for (const t of tiles) expect([Math.round(t.width), Math.round(t.height)]).toEqual([Math.round(tiles[0]!.width), Math.round(tiles[0]!.height)]); // three entries of the same size
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   for (const s of STEPS) {
     await page.locator(`#step-${s.id}`).click();
@@ -36,6 +38,17 @@ test('360 px: không cuộn ngang ở trang đầu và workspace', async ({ page
     expect(await width(), s.id).toBeLessThanOrEqual(360);
     await expect(page.locator('#ws-health')).toBeVisible();
   }
+});
+
+test('Thêm thu gọn vẫn thu gọn sau một lần sửa', async ({ page }) => {
+  await openLamHa(page);
+  const fold = page.locator('#ws-add details');
+  await expect(fold).toHaveAttribute('open', '');
+  await page.locator('#ws-add summary').click();
+  await expect(fold).not.toHaveAttribute('open');
+  await page.locator('#add-demo-roof').click();
+  await expect(page.locator('#status')).toContainText('Đã lưu: revision');
+  await expect(page.locator('#ws-add details')).not.toHaveAttribute('open');
 });
 
 test('hash tới dự án không có → về trang đầu kèm lời giải thích', async ({ page }) => {
@@ -135,6 +148,8 @@ test('Nhà mẫu trong 3D có 4 thiết bị, chú giải bằng chữ, công t�
   expect(ids).toHaveLength(4);
   await expect(page.locator('#view-legend')).toContainText('AC');
   await expect(page.locator('#view-legend')).toContainText('minh họa');
+  await expect(page.locator('#view-legend')).toBeInViewport({ ratio: 1 }); // 1280 × 720: the legend and the layer toggles need no scrolling
+  await expect(page.locator('#layer-labels')).toBeInViewport({ ratio: 1 });
   await expect(view).toHaveAttribute('data-props', /Công tơ \(minh họa\)/);
   // a device is picked like a panel: the inverter, first on the device wall
   await view.scrollIntoViewIfNeeded();

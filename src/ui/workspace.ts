@@ -81,6 +81,8 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   let step: Step = 'bo-tri', tab: Tab | null = null, seq = 0, disposed = false, stored = opts.stored;
   let checklistOpen: boolean | null = null; // what the person chose by clicking its summary; null = open only while the project is empty
   let coach = !opts.stored && isSample(initial); // the first-look callouts belong to the sample preview (#/mau)
+  let sheet: 'add' | 'panel' | null = null; // phones: the bottom sheet that is open (Thêm or the step panel); the stylesheet ignores it from 720 px
+  const addFold = { open: true }; // "Thêm" expanded or collapsed, as the person left it
 
   const reload = async () => { [userComponents, userOffers] = [await repo.listComponents(), await repo.listOffers()]; };
   const save = async (next: Project): Promise<boolean> => {
@@ -149,18 +151,21 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   };
   const go = (t: Tab) => navigate(stepOfTab(t), t);
   const goTarget = (t: Target) => {
+    setSheet('panel'); // a target is in the panel, or in Thêm (applyFocus switches)
     pendingFocus = [t.focusId ?? []].flat();
     const picked = !!t.select && choose([t.select]); // the finding detail shows what is selected
     if (t.tab !== tab) navigate(t.step, t.tab); else if (picked) void renderPanel(null); else applyFocus();
   };
   const applyFocus = () => {
-    // the first target shown at this depth; one in a closed <details> (the Thêm column on phones) opens it
-    const els = pendingFocus.map((id) => document.getElementById(id));
+    // the first target shown at this depth; one in a closed <details> (Thêm collapsed) or a closed sheet (phones) opens it
+    const els = pendingFocus.map((id) => document.getElementById(id)), was = sheet;
     const target = els.find((el) => {
       const fold = el?.closest('details:not([open])') as HTMLDetailsElement | null;
       if (fold) fold.open = true;
+      if (el?.closest('#ws-add')) setSheet('add'); else if (el?.closest('#ws-panel')) setSheet('panel');
       if (el && (el.checkVisibility?.() ?? el.getClientRects().length > 0)) return true; // checkVisibility: Safari 17.4+, Chrome 105+
       if (fold) fold.open = false;
+      setSheet(was);
       return false;
     });
     pendingFocus = [];
@@ -197,9 +202,15 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   // only tabs that show the selection repaint; any other tab keeps what is being typed into it and swaps just the inspector
   const selectionChanged = () => { if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else { view.refresh(); paintInspector(); } };
   const pick = (ids: string[]) => { if (choose(ids)) selectionChanged(); }; // equal selection (e.g. empty ground clicked twice): nothing repaints
+  /** A pick in the view shows "Đang chọn" on top of the panel; on a phone the step panel opens over the view to show it. */
+  const viewPick = (ids: string[]) => {
+    if (!choose(ids)) return;
+    if (selection.length) { setSheet('panel'); panel.scrollTop = 0; }
+    selectionChanged();
+  };
   const view = createViewport({
     project: () => project, selection: () => selection, apply: (next) => saved(next), selected: () => selected,
-    setSelection: pick, select: (id) => pick([id]), remove: () => { void requestDelete(selection); },
+    setSelection: viewPick, select: (id) => viewPick([id]), remove: () => { void requestDelete(selection); },
     replay: () => simState.runs.find((r) => r.source.kind === 'current')?.result ?? null,
   });
 
@@ -219,7 +230,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const paintInspector = () => panel.querySelector('#inspector')?.replaceWith(inspector());
   /** Select `ids` and show what deleting them takes along, focus on its confirm button (the Delete key in 3D, "Xóa" in the device list). */
   const requestDelete = async (ids: string[]) => {
-    choose(ids); inspOpen = 'delete';
+    choose(ids); inspOpen = 'delete'; setSheet('panel');
     if (tab && SHOWS_SELECTION.includes(tab)) await renderPanel(null); else { view.refresh(); paintInspector(); }
     document.getElementById('insp-confirm')?.focus();
   };
@@ -227,12 +238,22 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   let palette = h('aside', { id: 'ws-add' }), paletteOf: Project | null = null;
   const paintPalette = () => {
     if (paletteOf === project) return;
-    const next = renderPalette({ project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], apply: saved });
+    const next = renderPalette({ project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], apply: saved, fold: addFold });
     palette.replaceWith(next); palette = next; paletteOf = project;
   };
   /** The design's "Mái nhà 3D" and the roof's "Sơ đồ điện" also switch the view to what they name. */
   const goView = (t: Tab) => { if (t === 'mai') view.setMode('3d'); else if (t === 'thiet-ke') view.setMode('diagram'); go(t); };
-  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, view.el, palette, tabs, panel), health);
+  // phones: Thêm and the step panel are sheets over the view, above the health bar; tap to open or close
+  // ponytail: tap only, no drag gesture; add dragging if UAT asks for it
+  const sheetButton = (s: 'add' | 'panel', label: string) => h('button', { id: `sheet-${s}`, type: 'button', 'aria-expanded': 'false', 'aria-controls': s === 'add' ? 'ws-add' : 'ws-panel',
+    onClick: () => { if (s === 'add') addFold.open = palette.querySelector('details')!.open = true; setSheet(sheet === s ? null : s); } }, `${label} `, h('span', { 'aria-hidden': 'true' }, '▲'));
+  const sheets = h('div', { id: 'ws-sheets' }, sheetButton('add', 'Thêm'), sheetButton('panel', 'Bảng bước'));
+  function setSheet(s: typeof sheet) {
+    sheet = s;
+    ws.dataset.sheet = s ?? '';
+    for (const b of sheets.children) b.setAttribute('aria-expanded', String(b.id === `sheet-${s}`));
+  }
+  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, view.el, palette, tabs, panel), sheets, health);
   const help = h('details', { id: 'ws-help' }, h('summary', {}, 'Trợ giúp'),
     h('button', { id: 'lessons-btn', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'bai-hoc' }); } }, 'Bài học'),
     h('button', { id: 'ws-about', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'phien-ban' }); } }, 'Phiên bản và phạm vi kiểm chứng'),
@@ -300,9 +321,9 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const progressItems = () => progressOf(project, { simRan: auto.kind === 'done' }); // done is always for the current project
   function paintNav() {
     const def = STEPS.find((s) => s.id === step)!;
-    steps.replaceChildren(...STEPS.map((s) => h('button', { id: `step-${s.id}`, type: 'button', 'aria-current': s.id === step ? 'step' : undefined, onClick: () => { if (s.id !== step) navigate(s.id, s.tabs[0]!.id); } }, `${s.n} ${s.label}`)));
+    steps.replaceChildren(...STEPS.map((s) => h('button', { id: `step-${s.id}`, type: 'button', 'aria-current': s.id === step ? 'step' : undefined, onClick: () => { setSheet('panel'); if (s.id !== step) navigate(s.id, s.tabs[0]!.id); } }, `${s.n} ${s.label}`)));
     tabs.setAttribute('aria-label', def.label);
-    tabs.replaceChildren(...def.tabs.map((x) => h('button', { id: x.elId, type: 'button', role: 'tab', 'aria-selected': String(x.id === tab), 'aria-controls': 'ws-panel', onClick: () => navigate(step, x.id) }, x.label)));
+    tabs.replaceChildren(...def.tabs.map((x) => h('button', { id: x.elId, type: 'button', role: 'tab', 'aria-selected': String(x.id === tab), 'aria-controls': 'ws-panel', onClick: () => { setSheet('panel'); navigate(step, x.id); } }, x.label)));
     panel.setAttribute('aria-labelledby', def.tabs.find((x) => x.id === tab)!.elId);
   }
 

@@ -23,6 +23,7 @@ button, input, select { min-height: var(--touch); }
 
 /* ---- home: three entries of the same size, then the saved projects as cards ------------------------------------- */
 #entries, #saved { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--space-2); }
+#entries { grid-auto-rows: 1fr; } /* one column on a phone: the rows are as tall as the tallest entry */
 #saved { list-style: none; padding: 0; }
 .entry, #saved li { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-2) var(--space-3); margin: 0; }
 button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-align: left; cursor: pointer; }
@@ -31,13 +32,29 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 #entry-open input { box-sizing: border-box; max-width: 100%; margin-inline: 0; } /* a file input is ~330 px wide: it must not widen a phone page */
 
 /* ---- workspace: as high as the window; the view and the panel scroll in their own areas, so the health bar is
-        always in view and nothing covers the canvas. Phones: one column, the view on top. From 720 px: view | panel. -- */
+        always in view. Phones: one column, the view on top, Thêm and the step panel as sheets. From 720 px: Thêm | view | panel. -- */
 @media screen {
   body:has(#ws) { max-width: none; height: 100vh; height: 100dvh; box-sizing: border-box; padding-block: var(--space-2) 0; display: flex; flex-direction: column; }
   body:has(#ws) > #app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   #ws { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; }
-  #ws-main { overflow-y: auto; }
 }
+/* phones: the step's tabs, then the view; a sheet (Thêm or the step panel, one at a time) rises over the view from its button
+   just above the health bar, at most 70 % of the screen high, and scrolls on its own; it never covers the tabs or the health bar */
+#ws-sheets { display: none; }
+@media screen and (max-width: 719px) {
+  #ws-main { display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "tabs" "view"; overflow: hidden; }
+  #ws-tabs { grid-area: tabs; }
+  #ws-view { grid-area: view; overflow-y: auto; }
+  #ws-add, #ws-panel { grid-area: view; align-self: end; z-index: 5; max-height: min(70vh, 100%); overflow-y: auto; box-sizing: border-box; padding: 0 var(--space-2);
+    background: var(--bg); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; box-shadow: 0 -2px 10px #0003; }
+  #ws:not([data-sheet=add]) #ws-add, #ws:not([data-sheet=panel]) #ws-panel { display: none; }
+  #ws-add summary { display: none; } /* the sheet's button opens and closes it */
+  #ws-sheets { display: flex; gap: var(--space-1); }
+  #ws-sheets button { flex: 1; }
+  #ws:has(#coach[data-at=panel]) #sheet-panel { outline: 3px solid var(--accent); } /* the list is in the step panel */
+}
+#ws-sheets [aria-expanded=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
+#ws-sheets [aria-expanded=true] span { display: inline-block; transform: rotate(180deg); }
 #ws > *, #ws-main > * { min-width: 0; }
 #ws-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
 #ws-top h1, #ws-name { font-size: 1.1rem; margin: 0; }
@@ -63,6 +80,8 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 .view-modes { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .view-modes [aria-pressed=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
 #view-legend { margin: var(--space-1) 0; color: var(--muted); font-size: .9rem; }
+.canvas-host { position: relative; height: 300px; }
+.canvas-host > canvas { position: absolute; inset: 0; } /* sized by its host, never the other way round */
 #view-2d > svg { display: block; margin-bottom: var(--space-2); }
 /* ---- steps still to do, at the top of the panel; first-look callouts on the sample, outlining what they talk about - */
 #checklist { border: 1px solid var(--border); border-radius: var(--radius); padding: 0 var(--space-2); margin-block: var(--space-2); }
@@ -90,7 +109,14 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 #inspector ul { margin: 0 0 var(--space-2); padding-left: 1.25rem; }
 @media screen and (min-width: 720px) {
   #ws-main { display: grid; grid-template-columns: minmax(7rem, 14vw) minmax(0, 3fr) minmax(16rem, 2fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "add view tabs" "add view panel"; gap: 0 var(--space-3); overflow: hidden; }
-  #ws-view { grid-area: view; overflow-y: auto; } #ws-tabs { grid-area: tabs; } #ws-panel { grid-area: panel; overflow: auto; }
+  #ws-tabs { grid-area: tabs; } #ws-panel { grid-area: panel; overflow: auto; }
+  /* the 3D canvas takes the height its tools, legend and flow text leave, so they are seen without scrolling */
+  #ws-view { grid-area: view; overflow-y: auto; display: flex; flex-direction: column; }
+  #ws-view > * { flex: none; }
+  #view3d-box:not([hidden]) { flex: 1 1 auto; display: flex; flex-direction: column; }
+  .canvas-host { flex: 1 1 0; height: auto; min-height: 12rem; }
+  .view-tools { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); font-size: .9rem; }
+  .view-tools input[type=checkbox] { min-height: 0; }
   #ws-add { grid-area: add; overflow-y: auto; }
   #ws-add .add-items { flex-direction: column; }
   #ws-add .add-items button { text-align: left; }

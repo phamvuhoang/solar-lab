@@ -4,7 +4,7 @@ export const COACH_KEY = 'solar-lab:coach-v1';
 
 const NOTES = [
   ['view', 'Đây là một hệ thống điện mặt trời hoàn chỉnh: mái, 8 tấm pin, inverter, pin lưu trữ, tải và lưới. Tất cả là mẫu minh họa, không phải báo giá.'],
-  ['panel', 'Bấm vào một món trên hình hoặc trong danh sách bên phải để xem nó là gì và đổi nó.'],
+  ['panel', 'Bấm vào một món trên hình hoặc trong danh sách để xem nó là gì và đổi nó.'],
   ['health', 'Sau mỗi lần sửa, nhìn thanh dưới cùng: lỗi điện, sản lượng, giờ thiếu điện và tiền thay đổi thế nào.'],
 ] as const;
 
