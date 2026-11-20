@@ -136,6 +136,8 @@ test('Đo thành công (b) thợ, Thợ, ≤ 10 phút: từ số 0 dựng 6 tấ
   note(info, 'b-ms', ms);
 });
 
+// (c) covers computed checks: a structural one (not connected, wrong port type or direction) has no formula or data source by
+// nature, its detail names the broken rule and the fix
 test('Đo thành công (c) kỹ sư: từ mỗi lỗi tới công thức và nguồn số liệu trong ≤ 2 thao tác', async ({ page }, info) => {
   await asEngineer(page);
   await page.goto('/#/mau');
@@ -171,8 +173,30 @@ test('Đo thành công (c) kỹ sư: từ mỗi lỗi tới công thức và ngu
   await expect(detail.locator('h3')).not.toHaveText(worst);
   await page.locator('#health-electric').click();
   await expect(detail.locator('h3')).toHaveText(worst);
+
+  // a red error: Lâm Hà with two strings on one tracker (set up here; the person starts once the error is in view)
+  await page.goto('/#/');
+  await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
+  await tab(page, 'thiet-ke');
+  await page.locator('#preset').selectOption('two-strings-one-tracker');
+  await page.locator('#apply-preset').click();
+  await saved(page);
+  const red = page.locator('#findings button.finding.fail[data-code="ISC_TRACKER"]');
+  await expect(red).toContainText(/^Có lỗi: /);
+  const redTitle = (await red.innerText()).trim();
+  await expect(page.locator('#health-electric')).toHaveAttribute('data-state', 'fail');
+  await page.locator('#step-bo-tri').click();
+  await page.locator('#health-electric').click(); // 1 action: the worst check is this error
+  await expect(detail.locator('h3')).toHaveText(redTitle);
+  await formulaAndSource('ô Điện, lỗi đỏ');
+  await page.locator('#step-bo-tri').click();
+  await page.locator('#step-dau-noi').click(); // 2 actions from the list
+  await red.click();
+  await expect(detail.locator('h3')).toHaveText(redTitle);
+  await expect(detail).toContainText('Σ_chuỗi min(Isc)');
+  await formulaAndSource('danh sách, lỗi đỏ');
   note(info, 'c-checks', n);
-  note(info, 'c-actions', { healthCell: 1, list: counts });
+  note(info, 'c-actions', { healthCell: 1, list: counts, redError: { code: 'ISC_TRACKER', healthCell: 1, list: 2 } });
 });
 
 test('Đo thành công (d) lần đầu mở: thấy Nhà mẫu, 2D ngay, 3D khi Three.js tải xong, không một thao tác', async ({ page }, info) => {

@@ -76,7 +76,7 @@ Ai cũng bắt đầu bằng (d), vì đó là lần đầu họ mở app.
 
 Nếu màn hình hiện số khác, tin màn hình và ghi cả hai.
 
-**Bản máy:** "Đo thành công (a)". Đường đi gồm 5 thao tác: ba chú thích lần đầu, "Tấm pin" trong khối Thêm, "Xác nhận". Bản máy mất khoảng 11–14 giây; phần lớn là chờ tự chạy. Sau đó test kiểm số tiền trên thanh bằng phần đã biết ở Dự toán.
+**Bản máy:** "Đo thành công (a)". Đường đi gồm 5 thao tác: ba chú thích lần đầu, "Tấm pin" trong khối Thêm, "Xác nhận". Bản máy mất khoảng 11,1–11,6 giây; phần lớn là chờ tự chạy. Sau đó test kiểm số tiền trên thanh bằng phần đã biết ở Dự toán.
 
 ## (b) Thợ, trong 10 phút: từ số 0 dựng 6 tấm + inverter + pin + 1 tải, hết lỗi đỏ, in báo giá
 
@@ -105,6 +105,13 @@ Nếu màn hình hiện số khác, tin màn hình và ghi cả hai.
 
 *"Mở nhà mẫu và chuyển sang chế độ Kỹ sư. Chọn một lỗi hoặc giới hạn bất kỳ mà app đang báo, rồi cho tôi xem công thức đã dùng và số liệu lấy từ đâu."* Làm lại với ít nhất ba mục khác nhau, trong đó ít nhất một mục không phải mục đầu danh sách.
 
+Nhà mẫu không có lỗi đỏ nào (0 lỗi, 2 giới hạn, 4 chưa đủ dữ liệu), nên làm thêm **một lần với lỗi đỏ**:
+- Người quan sát chuẩn bị sẵn, không tính vào thao tác: trang đầu → "Mở mẫu Lâm Hà" → ② Đấu nối → chọn mẫu "2 chuỗi song song trên MPPT 1" → "Áp dụng preset (thay mọi chuỗi)" → bấm bước ① Bố trí.
+- Thanh dưới cùng khi đó báo "có lỗi" và danh sách có mục "Có lỗi: … Dòng ngắn mạch vượt giới hạn cổng".
+- Việc đọc to: *"App đang báo một lỗi đỏ. Cho tôi xem công thức và số liệu của lỗi đó."*
+
+**Phạm vi:** Kiểm tra cấu trúc (chuỗi, tải hay pin chưa nối; cổng sai loại hoặc sai chiều) vốn không có công thức hay nguồn số liệu: chi tiết của nó nêu quy tắc bị vi phạm và cách sửa. Vì vậy tiêu chí (c) áp dụng cho các kiểm tra có tính toán. Nếu kỹ sư chọn một kiểm tra cấu trúc, ghi lại; lần đó không tính vào tiêu chí, và người làm chọn mục khác.
+
 **Đếm thao tác:**
 - Bắt đầu đếm từ lúc người làm đã thấy lỗi, ở thanh dưới cùng hoặc trong danh sách.
 - Mỗi lần bấm, chạm hoặc Enter là một thao tác.
@@ -119,6 +126,7 @@ Nếu màn hình hiện số khác, tin màn hình và ghi cả hai.
 **Bản máy:** "Đo thành công (c)".
 - Ô Điện ở thanh dưới: 1 thao tác tới kiểm tra nặng nhất.
 - Mỗi mục trong 6 mục của nhà mẫu: 2 thao tác (bước ② Đấu nối, rồi chính mục đó), bắt đầu từ bước ①.
+- Lỗi đỏ ISC_TRACKER của Lâm Hà (2 chuỗi trên MPPT 1): ô Điện 1 thao tác; từ danh sách 2 thao tác. Chi tiết có "Công thức: … Σ_chuỗi min(Isc) …" và dòng nguồn.
 - Test kiểm chi tiết hiện đúng mục đã bấm.
 
 Lúc viết bản máy, test này tìm ra một lỗi thật: pin có hai giới hạn trên cùng một cổng (dòng sạc và dòng xả). Bấm "dòng xả" lại mở chi tiết của "dòng sạc". Lỗi đã sửa trong W15.
@@ -130,7 +138,7 @@ Lúc viết bản máy, test này tìm ra một lỗi thật: pin có hai giới
 | (d) | | | | | | — | — | | | |
 | (a) | | | | | | — | trước: … đ, … kWh; sau: … đ, … kWh | | | |
 | (b) | | | | | | — | "0 lỗi"? PDF có Chi phí + 6 tấm? | | | |
-| (c) | | | | | | lần 1: … · lần 2: … · lần 3: … | — | | | |
+| (c) | | | | | | lần 1: … · lần 2: … · lần 3: … · lỗi đỏ: … | — | | | |
 
 Thời gian của (d) ghi ba số, cách nhau bằng "/": tới hình đầu / tới 3D / tới khi thanh có số.
 
