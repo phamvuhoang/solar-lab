@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 const open = async (page: Page, id: string) => { await page.getByRole('button', { name: 'Bài học' }).click(); await page.locator(`#ls-start-${id}`).click(); await expect(page.locator('#ls-before')).toBeVisible({ timeout: 30000 }); };
 
 test('W08 bài 1: dự đoán V → đổi sang song song → đồng hồ đổi; reset dựng bản sao mới; kỹ sư thêm công thức', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await open(page, 'series-parallel');
   await expect(page.locator('#ls-before')).toContainText('82,46 V');
   await expect(page.locator('#ls-act')).toBeDisabled(); // phải dự đoán trước
@@ -28,7 +28,7 @@ test('W08 bài 1: dự đoán V → đổi sang song song → đồng hồ đổ
 });
 
 test('W08 bài 2: đoán sai vẫn được giải thích; bảng số thay cho biểu đồ; không có project nào bị tạo', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await open(page, 'pump-hour');
   await page.locator('input[name="ls-pick"][value="lower"]').check();
   await page.locator('#ls-commit').click();
@@ -40,11 +40,11 @@ test('W08 bài 2: đoán sai vẫn được giải thích; bảng số thay cho 
   await page.locator('#ls-tables summary').click();
   await expect(page.locator('#ls-tables')).toContainText('ngày 1, 12h');
   await page.locator('#ls-back').click();
-  await expect(page.locator('#saved')).toHaveCount(0); // bài học không lưu dự án
+  await expect(page.locator('#saved')).toHaveText('Chưa có dự án.'); // bài học không lưu dự án
 });
 
 test('W08 bài 3: số tấm bị che lúc 8h, chuỗi liên quan, dịch bồn xong hết che', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await open(page, 'tank-shade');
   await expect(page.locator('#ls-before')).toContainText('chuỗi');
   await page.locator('#ls-answer').fill('2');

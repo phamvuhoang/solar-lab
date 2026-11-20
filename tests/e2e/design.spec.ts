@@ -5,7 +5,7 @@ import { tab } from './nav';
 const pick = async (select: Locator, text: RegExp) => select.selectOption(await select.locator('option', { hasText: text }).first().getAttribute('value') as string);
 
 test('W03: preset 2 chuỗi cùng tracker → lỗi Isc → bấm lỗi → chuyển sang MPPT 2 → hết lỗi; BOM giữ nguyên; undo/redo', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'thiet-ke');
 
@@ -60,7 +60,7 @@ test('W03: preset 2 chuỗi cùng tracker → lỗi Isc → bấm lỗi → chuy
 });
 
 test('W03: thêm theo lô có preview và xác nhận; thiếu dữ liệu hiển thị là chưa đủ dữ liệu, không phải đạt', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'thiet-ke');
   await page.locator('#preset').selectOption('two-trackers');

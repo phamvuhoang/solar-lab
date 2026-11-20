@@ -7,7 +7,7 @@ const rev = async (page: Page) => Number(((await page.locator('#status').textCon
 
 /** Lâm Hà: weather chosen, 2 strings (preset), demo gable roof, 8 panels filled on the south face, then the shading screen. */
 async function openShade(page: Page) {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'pv');
   await page.locator('#wx-select').selectOption({ index: 1 });

@@ -8,7 +8,7 @@ test('W01: mở mẫu → chọn thiết bị → nhân bản → sửa Ah → l
   const external: string[] = [];
   page.on('request', (r) => { if (!r.url().startsWith(baseURL!) && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) external.push(r.url()); });
 
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await expect(page.locator('#ws-name')).toContainText('Lâm Hà');
   await tab(page, 'du-an');
@@ -40,7 +40,7 @@ test('W01: mở mẫu → chọn thiết bị → nhân bản → sửa Ah → l
 });
 
 test('W01: nhập sai đơn vị báo lỗi tại form, không lưu gì', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'thiet-bi');
   await page.locator('#new-kind').selectOption('battery');
@@ -54,7 +54,7 @@ test('W01: nhập sai đơn vị báo lỗi tại form, không lưu gì', async 
 });
 
 test('W01: xuất rồi nhập lại; file sai đơn vị báo đúng trường và giữ nguyên nháp; chạy được khi offline', async ({ page, context }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await context.setOffline(true); // everything below must work without network
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'du-an');

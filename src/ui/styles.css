@@ -21,6 +21,15 @@ button, input, select { min-height: var(--touch); }
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
+/* ---- home: three entries of the same size, then the saved projects as cards ------------------------------------- */
+#entries, #saved { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--space-2); }
+#saved { list-style: none; padding: 0; }
+.entry, #saved li { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-2) var(--space-3); margin: 0; }
+button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-align: left; cursor: pointer; }
+.entry strong, #entry-open h2 { font-size: 1.1rem; margin: 0; }
+.entry span, #saved li p { color: var(--muted); margin: var(--space-1) 0 0; }
+#entry-open input { box-sizing: border-box; max-width: 100%; margin-inline: 0; } /* a file input is ~330 px wide: it must not widen a phone page */
+
 /* ---- workspace: as high as the window; the view and the panel scroll in their own areas, so the health bar is
         always in view and nothing covers the canvas. Phones: one column, the view on top. From 720 px: view | panel. -- */
 @media screen {
@@ -33,6 +42,7 @@ button, input, select { min-height: var(--touch); }
 #ws-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
 #ws-top h1, #ws-name { font-size: 1.1rem; margin: 0; }
 #ws-rev { color: var(--muted); }
+#ws-badge { border: 1px dashed var(--lim); border-radius: var(--radius); padding: 0 var(--space-1); font-size: .9rem; }
 #ws-help summary { line-height: var(--touch); cursor: pointer; }
 #ws-top #status { flex-basis: 100%; margin: 0; }
 #ws-top #status:empty { display: none; }

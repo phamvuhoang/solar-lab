@@ -1,14 +1,16 @@
 import { createProject, openLamHa } from '../domain/project';
+import { buildSampleHouse } from '../domain/seed';
 import type { Project } from '../domain/types';
 import { stageImport } from '../persistence/exchange';
-import { commitPackage, isQuotaError, storageEstimate } from '../persistence/import';
+import { commitPackage, isQuotaError } from '../persistence/import';
 import { isPackage, stagePackage } from '../reports/package';
-import { backupBeforeUpgrade, contentKeys, deleteBackup, exportAll, listBackups, restoreBackup, stageBackup, BACKUP_FORMAT } from '../persistence/backup';
+import { backupBeforeUpgrade, contentKeys, stageBackup, BACKUP_FORMAT } from '../persistence/backup';
 import { renderAbout } from './about';
 import { freshLessons, renderLessons } from './lessons';
 import { freshImported, renderImported } from './imported';
 import { ProjectRepository } from '../persistence/repository';
-import { download, h } from './dom';
+import { h } from './dom';
+import { renderHome } from './home';
 import { formatRoute, parseRoute } from './route';
 import { openWorkspace, weatherLoader, type Workspace } from './workspace';
 
@@ -24,82 +26,71 @@ export async function startApp(root: HTMLElement) {
   const lessonState = freshLessons();
   let importedState = freshImported();
   let importIssues: { code: string; severity: string; field: string; message: string }[] = [];
-  let routing = 0;
+  let routing = 0; // each route() and each home/about paint takes a number; a slower one that finishes late paints nothing
+  let preview: 'mau' | 'moi' | null = null; // what the unsaved workspace shows, so Back from a help page finds it again
 
   const say = (m: string) => { message = m; };
-  const show = (...kids: (Node | false)[]) => {
-    root.replaceChildren(...(reloadNeeded ? [reloadNote()] : []), h('h1', {}, 'Mekoniq Solar Lab'), message && h('p', { role: 'status', id: 'status' }, message), ...kids.filter(Boolean) as Node[]);
-  };
+  const paint = (...kids: Node[]) => { root.replaceChildren(...(reloadNeeded ? [reloadNote()] : []), h('h1', {}, 'Mekoniq Solar Lab'), ...kids); };
+  const show = (...kids: (Node | false)[]) => paint(...[message && h('p', { role: 'status', id: 'status' }, message), ...kids].filter(Boolean) as Node[]);
   const deps = { root, repo, say, message: () => message, reloadNeeded: () => reloadNeeded, reloadNote };
   const openProject = (projectId: string) => { location.hash = formatRoute({ kind: 'project', projectId, step: 'bo-tri', tab: 'mai' }); };
+  const open = (p: Project, stored: boolean) => { workspace?.dispose(); return (workspace = openWorkspace(deps, p, { stored })); };
 
   // ---- router -------------------------------------------------------------------------------------------------------
   async function route() {
     const my = ++routing;
-    const r = parseRoute(location.hash) ?? { kind: 'home' as const }; // W10: an empty hash is the home page
-    if (r.kind === 'home') return home();
-    if (r.kind === 'help') return r.page === 'bai-hoc' ? lessonsScreen() : aboutScreen(); // the workspace, if any, waits detached for Back
+    const r = parseRoute(location.hash);
+    if (!r) { // the bare address: the project worked on last, or (first visit) the sample house, unsaved
+      const last = (await repo.listProjects())[0];
+      if (my === routing) location.replace(formatRoute(last ? { kind: 'project', projectId: last.projectId, step: 'bo-tri', tab: 'mai' } : { kind: 'preview', what: 'mau' }));
+      return;
+    }
+    if (r.kind === 'home') return home(my);
+    if (r.kind === 'help') return r.page === 'bai-hoc' ? lessonsScreen() : aboutScreen(my); // the workspace, if any, waits detached for Back
+    if (r.kind === 'preview') {
+      if (workspace && !workspace.stored && preview === r.what) return workspace.show();
+      preview = r.what; // a reload or a new visit builds a fresh copy: nothing of a preview is stored
+      return open(r.what === 'mau' ? buildSampleHouse() : createProject('Dự án mới'), false).show('bo-tri', 'mai');
+    }
     if (workspace?.projectId === r.projectId) return workspace.show(r.step, r.tab);
     const p = await repo.loadRevision(r.projectId);
     if (my !== routing) return;
     if (!p) { say('Không tìm thấy dự án này trong trình duyệt (có thể đã bị xóa hoặc đang mở trên máy khác).'); location.replace('#/'); return; }
-    workspace?.dispose();
-    workspace = openWorkspace(deps, p);
-    await workspace.show(r.step, r.tab);
+    await open(p, true).show(r.step, r.tab);
   }
   window.addEventListener('hashchange', () => { void route(); });
 
   // ---- home ---------------------------------------------------------------------------------
-  async function home() {
+  async function home(my = ++routing) {
     workspace?.dispose(); workspace = null; importedState = freshImported();
-    const heads = await repo.listProjects(), backups = await listBackups();
-    const name = h('input', { name: 'name', value: 'Dự án mới', required: true });
-    const file = h('input', { type: 'file', accept: 'application/json,.json', id: 'import-file' });
-    file.addEventListener('change', async () => {
-      const f = file.files?.[0];
-      if (!f) return;
-      const text = await f.text(), ids = new Set((await repo.listProjects()).map((x) => x.projectId));
-      if (isPackage(text)) return void (await importPackage(text, ids));
-      if (text.slice(0, 500).includes(BACKUP_FORMAT)) return void (await importBackupFile(text));
-      const staged = await stageImport(text, ids);
-      if (!staged.ok) {
-        say('Không nhập được file; dự án hiện có không bị thay đổi.');
-        show(...issueList(staged.issues), h('button', { onClick: () => home() }, 'Quay lại'));
-        return;
-      }
-      let project: Project;
-      try { project = await repo.createProject(staged.project); }
-      catch (e) {
-        say('Không nhập được file; dự án hiện có không bị thay đổi.');
-        show(...issueList([{ code: isQuotaError(e) ? 'STORAGE_FULL' : 'STORAGE_ERROR', severity: 'error', field: '/', message: isQuotaError(e) ? 'Hết dung lượng lưu trữ của trình duyệt. Xóa bớt dự án hoặc dữ liệu cũ rồi thử lại.' : (e as Error).message }]), h('button', { onClick: () => home() }, 'Quay lại'));
-        return;
-      }
-      say(staged.renamed ? 'ID trùng: đã nhập thành bản sao mới.' : 'Đã nhập dự án.');
-      // a hand-edited file (hash differs) or other warnings must be seen before the work starts, not dropped
-      if (staged.issues.length) show(...issueList(staged.issues), h('button', { id: 'open-imported', onClick: () => openProject(project.projectId) }, 'Mở dự án'));
-      else openProject(project.projectId);
+    const nodes = await renderHome({
+      repo, say, message: () => message, importFile,
+      openLamHa: async () => { const p = await repo.createProject(openLamHa()); say(''); openProject(p.projectId); },
     });
-    show(
-      h('form', { onSubmit: async (e: Event) => { e.preventDefault(); const p = await repo.createProject(createProject(name.value)); say(''); openProject(p.projectId); } },
-        h('label', {}, 'Tên dự án ', name), h('button', { type: 'submit' }, 'Tạo dự án')),
-      h('button', { type: 'button', onClick: async () => { const p = await repo.createProject(openLamHa()); say(''); openProject(p.projectId); } }, 'Mở mẫu Lâm Hà'),
-      h('label', {}, 'Nhập dự án hoặc gói (JSON) ', file), h('p', { id: 'storage-note' }),
-      h('button', { id: 'export-all', type: 'button', onClick: async () => { download('mekoniq-tat-ca-du-an.json', await exportAll(repo)); } }, 'Xuất tất cả dự án (sao lưu)'),
-      ...backups.map((b) => h('p', { className: 'backup', 'data-backup': b.name }, `Có bản sao lưu tự động trước khi nâng cấp kho từ v${b.fromVersion}. `,
-        h('button', { className: 'restore-backup', onClick: async (ev: Event) => {
-          (ev.currentTarget as HTMLButtonElement).disabled = true; // a second click while it runs would race the first
-          try { const r = await restoreBackup(repo, b.name); say(`Đã khôi phục ${r.restored} dự án (bản mới nhất của từng dự án, không kèm lịch sử revision; bản sao lưu vẫn giữ nguyên)${r.copies ? `; ${r.copies} dự án trùng ID được khôi phục thành bản sao` : ''}${r.skipped ? `; ${r.skipped} dự án đã có sẵn, bỏ qua` : ''}.`); }
-          catch (e) { say((e as Error)?.name === 'BackupGone' ? (e as Error).message : `${isQuotaError(e) ? 'Hết dung lượng.' : 'Lỗi lưu trữ.'} Khôi phục dở: ${(e as Error)?.message}. Bản sao lưu vẫn còn nguyên; bấm "Khôi phục" lần nữa sẽ chỉ thêm phần còn thiếu.`); }
-          await home();
-        } }, 'Khôi phục'),
-        h('button', { className: 'delete-backup', onClick: async () => { await deleteBackup(b.name); await home(); } }, 'Xóa bản sao lưu'))),
-      h('button', { id: 'about-btn', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'phien-ban' }); } }, 'Phiên bản và phạm vi kiểm chứng'),
-      h('button', { id: 'lessons-home-btn', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'bai-hoc' }); } }, 'Bài học'),
-      h('h2', {}, 'Dự án đã lưu'),
-      heads.length ? h('ul', { id: 'saved' }, ...heads.map((p) => h('li', {},
-        h('button', { onClick: () => { say(''); openProject(p.projectId); } }, `Mở: ${p.name}`),
-        ` · bản nháp, revision ${p.headRevision}`))) : h('p', {}, 'Chưa có dự án.'));
-    void storageEstimate().then((e) => { const n = document.getElementById('storage-note'); if (n && e) n.textContent = `Bộ nhớ trình duyệt: đã dùng ${(e.usage / 1e6).toFixed(1)} MB trên ${(e.quota / 1e6).toFixed(0)} MB.`; });
+    if (my === routing) paint(...nodes);
+  }
+
+  async function importFile(f: File) {
+    const text = await f.text(), ids = new Set((await repo.listProjects()).map((x) => x.projectId));
+    if (isPackage(text)) return void (await importPackage(text, ids));
+    if (text.slice(0, 500).includes(BACKUP_FORMAT)) return void (await importBackupFile(text));
+    const staged = await stageImport(text, ids);
+    if (!staged.ok) {
+      say('Không nhập được file; dự án hiện có không bị thay đổi.');
+      show(...issueList(staged.issues), h('button', { onClick: () => home() }, 'Quay lại'));
+      return;
+    }
+    let project: Project;
+    try { project = await repo.createProject(staged.project); }
+    catch (e) {
+      say('Không nhập được file; dự án hiện có không bị thay đổi.');
+      show(...issueList([{ code: isQuotaError(e) ? 'STORAGE_FULL' : 'STORAGE_ERROR', severity: 'error', field: '/', message: isQuotaError(e) ? 'Hết dung lượng lưu trữ của trình duyệt. Xóa bớt dự án hoặc dữ liệu cũ rồi thử lại.' : (e as Error).message }]), h('button', { onClick: () => home() }, 'Quay lại'));
+      return;
+    }
+    say(staged.renamed ? 'ID trùng: đã nhập thành bản sao mới.' : 'Đã nhập dự án.');
+    // a hand-edited file (hash differs) or other warnings must be seen before the work starts, not dropped
+    if (staged.issues.length) show(...issueList(staged.issues), h('button', { id: 'open-imported', onClick: () => openProject(project.projectId) }, 'Mở dự án'));
+    else openProject(project.projectId);
   }
 
   async function importPackage(text: string, ids: ReadonlySet<string>) {
@@ -140,8 +131,9 @@ export async function startApp(root: HTMLElement) {
   async function lessonsScreen() {
     show(...renderLessons({ state: lessonState, rerender: () => { if (location.hash === formatRoute({ kind: 'help', page: 'bai-hoc' })) void lessonsScreen(); }, back: () => history.back(), backLabel: 'Quay lại' }));
   }
-  async function aboutScreen() {
-    show(...(await renderAbout(() => history.back())));
+  async function aboutScreen(my = ++routing) {
+    const nodes = await renderAbout(() => history.back());
+    if (my === routing) show(...nodes);
   }
 
   await route();

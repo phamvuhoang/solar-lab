@@ -12,7 +12,7 @@ const pumpCard = (page: Page) => page.locator('.card[data-load]', { hasText: 'B�
 
 /** Lâm Hà, thời tiết đóng gói, cấu hình A (8 tấm vào inverter), hai revision: bơm 18h rồi bơm 11h. Dừng ở tab Hệ thống. */
 async function setup(page: Page) {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'pv');
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);
@@ -131,7 +131,7 @@ async function exportFull(page: Page, dir: string, name = 'goi.json') {
 async function machineB(browser: Browser, baseURL: string | undefined) {
   const ctx = await browser.newContext({ baseURL });
   const page = await ctx.newPage();
-  await page.goto('/');
+  await page.goto('/#/');
   await expect(page.locator('#offline-status')).toHaveAttribute('data-state', 'ready', { timeout: 30000 }); // đã tải đủ file để dùng ngoại tuyến
   return { ctx, page };
 }
@@ -170,7 +170,7 @@ test('W08: gói hỏng chỉ rõ vị trí và giữ nháp cũ; engine khác phi
   const { text } = await exportFull(page, info.outputDir);
   const ctx = await browser.newContext({ baseURL });
   const b = await ctx.newPage();
-  await b.goto('/');
+  await b.goto('/#/');
   await b.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await b.locator('#ws-home').click();
   await expect(b.locator('#saved li')).toHaveCount(1);

@@ -13,7 +13,7 @@ const pos = async (page: Page, i: number) => {
 const cell = (page: Page, id: string, col: number) => page.locator(`#panel-table tr[data-id="${id}"] td`).nth(col);
 
 async function openRoof(page: Page) {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'mai');
   await page.locator('#add-demo-roof').click();
@@ -117,7 +117,7 @@ test('W06: chọn đồng bộ giữa sơ đồ điện, mái 3D và BOM; chuỗ
 });
 
 test('W06: 40 tấm + 10 vật cản: cùng 40 ID, đo FPS; báo vượt biên trên mái lõm và vùng loại trừ', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'du-toan');
   await page.locator('[data-device="vsun-620@1"]').getByLabel(/Số lượng/).fill('40');

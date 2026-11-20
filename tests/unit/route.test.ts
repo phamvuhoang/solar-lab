@@ -23,6 +23,11 @@ describe('địa chỉ theo hash', () => {
       expect(stepOfTab(t.id)).toBe(s.id);
     }
   });
+  test('xem thử không lưu: #/mau là Nhà mẫu, #/moi là dự án trống; khứ hồi', () => {
+    expect(parseRoute('#/mau')).toEqual({ kind: 'preview', what: 'mau' });
+    expect(parseRoute('#/moi')).toEqual({ kind: 'preview', what: 'moi' });
+    for (const what of ['mau', 'moi'] as const) expect(parseRoute(formatRoute({ kind: 'preview', what }))).toEqual({ kind: 'preview', what });
+  });
   test('5 bước, tab và elId không trùng', () => {
     expect(STEPS.map((s) => s.n)).toEqual([1, 2, 3, 4, 5]);
     const tabs = STEPS.flatMap((s) => s.tabs);

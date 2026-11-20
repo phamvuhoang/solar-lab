@@ -33,7 +33,7 @@ const bumped = (code: string, version: string, extraAsset?: [string, string]) =>
 };
 
 test('W08: app tải đủ file, mở lại khi mất mạng, kể cả sau khi đóng và mở trang', async ({ page, context }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await ready(page);
   const keys = await cacheKeys(page);
   expect(keys).toHaveLength(1);
@@ -55,7 +55,7 @@ test('W08: app tải đủ file, mở lại khi mất mạng, kể cả sau khi 
 
 test('W08: bản cập nhật thiếu file thì bỏ, bản cũ vẫn chạy nguyên vẹn (ngoại tuyến vẫn mở được)', async ({ page, context }) => {
   const d = await deploy();
-  await page.goto(d.url + '/');
+  await page.goto(d.url + '/#/');
   await ready(page);
   const [old] = await cacheKeys(page);
   const code = await readFile(join(DIST, 'sw.js'), 'utf8');
@@ -73,7 +73,7 @@ test('W08: bản cập nhật thiếu file thì bỏ, bản cũ vẫn chạy ngu
 
 test('W08: bản cập nhật đủ file chờ người dùng bấm Cập nhật; sau đó chỉ còn cache mới; dự án đang sửa vẫn còn', async ({ page }) => {
   const d = await deploy();
-  await page.goto(d.url + '/');
+  await page.goto(d.url + '/#/');
   await ready(page);
   const [old] = await cacheKeys(page);
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();

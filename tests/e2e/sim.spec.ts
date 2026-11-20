@@ -6,7 +6,7 @@ const pick = async (select: Locator, text: RegExp) => select.selectOption((await
 const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đã lưu: revision');
 
 async function setupPv(page: Page) {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'pv');
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);

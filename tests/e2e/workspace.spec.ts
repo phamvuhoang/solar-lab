@@ -3,7 +3,7 @@ import { STEPS } from '../../src/ui/route';
 import { tab } from './nav';
 
 const openLamHa = async (page: Page) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await expect(page.locator('#ws-name')).toContainText('Lâm Hà');
 };
@@ -23,7 +23,7 @@ test('tải lại trang giữ đúng dự án, bước và tab; Back của trìn
 test('360 px: không cuộn ngang ở trang đầu và workspace', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   const width = () => page.evaluate(() => document.scrollingElement!.scrollWidth);
-  await page.goto('/');
+  await page.goto('/#/');
   await expect(page.getByRole('button', { name: 'Mở mẫu Lâm Hà' })).toBeVisible();
   expect(await width()).toBeLessThanOrEqual(360);
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();

@@ -1,5 +1,6 @@
 import { BUILTIN_COMPONENTS, BUILTIN_OFFERS } from '../catalog/catalog';
 import { diff } from '../domain/diff';
+import { isSample } from '../domain/seed';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { buildQuote } from '../cost/quote';
 import { exportProject } from '../persistence/exchange';
@@ -27,8 +28,10 @@ export interface WorkspaceDeps {
   root: HTMLElement; repo: ProjectRepository;
   say(m: string): void; message(): string; reloadNeeded(): boolean; reloadNote(): HTMLElement;
 }
-export interface Workspace { readonly projectId: string; show(step: Step, tab: Tab): Promise<void>; dispose(): void }
+/** `stored` is false for a preview (#/mau, #/moi) until its first save; `show()` with no arguments shows it again where it was. */
+export interface Workspace { readonly projectId: string; readonly stored: boolean; show(step?: Step, tab?: Tab): Promise<void>; dispose(): void }
 
+const UNSAVED = 'Xem thử · chưa lưu';
 const vnd = (minor: string) => Number(minor).toLocaleString('vi-VN') + ' đ';
 /** Tabs whose screen draws the shared selection (roof, shade, diagram, BOM highlight). */
 const SHOWS_SELECTION: Tab[] = ['mai', 'bong', 'thiet-ke', 'du-toan'];
@@ -43,7 +46,7 @@ export const weatherLoader = (repo: ProjectRepository) => async (id: string) => 
  * One project = one screen: top bar, step bar, tabs, the panel that runs the current tab's screen, and the health bar.
  * Navigation goes through the hash (the router calls show); an edit repaints only the panel, the top bar and the health bar.
  */
-export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace {
+export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { stored: boolean }): Workspace {
   const { root, repo, say } = deps;
   const message = () => deps.message();
   const loadWeather = weatherLoader(repo);
@@ -61,12 +64,20 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
   let importedState = freshImported();
   const simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
   let recordedOpen = false; // the "Dự án" tab shows the package's recorded results instead of the summary
-  let step: Step = 'bo-tri', tab: Tab | null = null, seq = 0, disposed = false;
+  let step: Step = 'bo-tri', tab: Tab | null = null, seq = 0, disposed = false, stored = opts.stored;
 
   const reload = async () => { [userComponents, userOffers] = [await repo.listComponents(), await repo.listOffers()]; };
   const save = async (next: Project): Promise<boolean> => {
     if (deps.reloadNeeded()) { say(`${deps.reloadNote().textContent} Thay đổi này chưa được lưu.`); return false; }
-    try { project = await repo.saveRevision(project!.revision, next); say(''); return true; }
+    try {
+      if (stored) project = await repo.saveRevision(project!.revision, next);
+      else { // a preview becomes a project on its first edit; the address follows without a hashchange (nothing to re-route)
+        project = await repo.createProject(next);
+        stored = true;
+        if (ws.isConnected) window.history.replaceState(null, '', formatRoute({ kind: 'project', projectId: project.projectId, step, tab: tab! }));
+      }
+      say(''); return true;
+    }
     catch (e) {
       if (!(e instanceof ConflictError)) {
         say(isQuotaError(e) ? 'Hết dung lượng lưu trữ của trình duyệt nên thay đổi này CHƯA được lưu. Giải phóng dung lượng (xóa dự án hoặc dữ liệu thời tiết cũ, hoặc bấm "Xuất tất cả" rồi xóa bớt) rồi làm lại.' : `Không lưu được thay đổi: ${(e as Error).message}. Thay đổi này chưa được lưu.`);
@@ -102,6 +113,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
 
   // ---- navigation: a new step is a new history entry, a tab inside the step replaces it ---------------------------
   const navigate = (s: Step, t: Tab) => {
+    if (!stored) return void show(s, t); // a preview keeps its #/mau or #/moi address until the first save
     const url = formatRoute({ kind: 'project', projectId: project.projectId, step: s, tab: t });
     if (s === step) location.replace(url); else location.hash = url;
   };
@@ -141,7 +153,9 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
   function paintChrome() {
     const hist = historyFor(edited);
     top.replaceChildren(...[
-      h('h1', {}, 'Mekoniq Solar Lab'), home, h('h2', { id: 'ws-name' }, project.name), h('span', { id: 'ws-rev' }, `Đã lưu · r${project.revision}`),
+      h('h1', {}, 'Mekoniq Solar Lab'), home, h('h2', { id: 'ws-name' }, project.name),
+      isSample(project) && h('span', { id: 'ws-badge' }, 'Mẫu minh họa · không phải báo giá'),
+      h('span', { id: 'ws-rev' }, stored ? `Đã lưu · r${project.revision}` : UNSAVED),
       h('button', { id: 'ws-undo', type: 'button', disabled: !hist.canUndo, onClick: hist.undo }, 'Hoàn tác'),
       h('button', { id: 'ws-redo', type: 'button', disabled: !hist.canRedo, onClick: hist.redo }, 'Làm lại'),
       help,
@@ -251,14 +265,17 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
       const revs = await repo.listRevisions(p.projectId);
       const labelOf = (key: string) => p.snapshots.components.find((c) => `${c.modelId}@${c.revision}` === key)?.name ?? key;
       const diffOut = h('div', { id: 'diff' });
+      const name = h('input', { id: 'p-name', value: p.name, required: true });
       return [
+        h('p', {}, h('label', {}, 'Tên dự án ', name),
+          h('button', { id: 'p-name-save', type: 'button', onClick: () => { const n = name.value.trim(); if (n && n !== p.name) void saved({ ...project, name: n }); } }, 'Đổi tên')),
         h('section', { 'aria-label': 'Bản thiết kế nháp' },
-          h('p', {}, `Bản nháp · revision ${p.revision}`),
+          h('p', {}, stored ? `Bản nháp · revision ${p.revision}` : UNSAVED),
           h('ul', { id: 'devices' }, ...Object.entries(q.deviceCounts).map(([k, n]) => h('li', {}, `${n} × ${labelOf(k)}`))),
           h('p', { id: 'bom-total' }, p.instances.length ? `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}${q.complete ? '' : ' · tổng hoàn chỉnh: chưa đủ'}` : 'Chưa có linh kiện.')),
         !!recorded && h('button', { id: 'recorded-btn', onClick: () => { importedState = freshImported(); recordedOpen = true; void again(); } }, 'Kết quả đã ghi từ gói'),
         h('button', { onClick: async () => download(`${p.name}.json`, await exportProject(p)) }, 'Xuất JSON'),
-        h('button', { onClick: async () => { const c = await repo.cloneProject(p.projectId); say('Đã nhân bản dự án.'); location.hash = formatRoute({ kind: 'project', projectId: c.projectId, step: stepOfTab('du-an'), tab: 'du-an' }); } }, 'Nhân bản dự án'),
+        stored && h('button', { onClick: async () => { const c = await repo.cloneProject(p.projectId); say('Đã nhân bản dự án.'); location.hash = formatRoute({ kind: 'project', projectId: c.projectId, step: stepOfTab('du-an'), tab: 'du-an' }); } }, 'Nhân bản dự án'),
         h('h3', {}, 'Lịch sử revision'),
         h('ol', { id: 'revisions' }, ...revs.map((r, i) => h('li', {}, `revision ${r.revision} · ${r.savedAt} `,
           i > 0 && h('button', { onClick: async () => {
@@ -271,20 +288,23 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
     },
   };
 
+  async function show(s: Step = step, t: Tab = tab ?? STEPS[0]!.tabs[0]!.id) {
+    if (!ws.isConnected) root.replaceChildren(...(deps.reloadNeeded() ? [deps.reloadNote()] : []), ws);
+    const keep = focusKey();
+    if (t !== tab) {
+      if (tab === 'bong') { stopShadePlayback(); view.setOverlay({ sun: null, heat: null }); }
+      if (tab === 'du-an') recordedOpen = false;
+      panel.replaceChildren(); // never show the previous tab's controls under the new tab
+    }
+    step = s; tab = t;
+    paintNav();
+    await renderPanel(keep);
+  }
+
   return {
     projectId: initial.projectId,
-    async show(s, t) {
-      if (!ws.isConnected) root.replaceChildren(...(deps.reloadNeeded() ? [deps.reloadNote()] : []), ws);
-      const keep = focusKey();
-      if (t !== tab) {
-        if (tab === 'bong') { stopShadePlayback(); view.setOverlay({ sun: null, heat: null }); }
-        if (tab === 'du-an') recordedOpen = false;
-        panel.replaceChildren(); // never show the previous tab's controls under the new tab
-      }
-      step = s; tab = t;
-      paintNav();
-      await renderPanel(keep);
-    },
+    get stored() { return stored; },
+    show,
     dispose() { disposed = true; seq++; stopShadePlayback(); view.dispose(); },
   };
 }

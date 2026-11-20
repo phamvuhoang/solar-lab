@@ -27,6 +27,7 @@ export const STEPS: readonly StepDef[] = [
 export interface Target { step: Step; tab: Tab; focusId?: string }
 export type Route =
   | { kind: 'home' }
+  | { kind: 'preview'; what: 'mau' | 'moi' } // not stored yet: the sample house or an empty project, saved on the first edit
   | { kind: 'project'; projectId: string; step: Step; tab: Tab }
   | { kind: 'help'; page: 'bai-hoc' | 'phien-ban' };
 
@@ -35,6 +36,7 @@ export function parseRoute(hash: string): Route | null {
   if (path === '') return null;
   const [root, id, stepSeg, tabSeg] = path.split('/').slice(1);
   if (root === 'bai-hoc' || root === 'phien-ban') return { kind: 'help', page: root };
+  if (root === 'mau' || root === 'moi') return { kind: 'preview', what: root };
   if (root !== 'p' || !id) return { kind: 'home' };
   let projectId: string;
   try { projectId = decodeURIComponent(id); } catch { return { kind: 'home' }; }
@@ -46,6 +48,7 @@ export function parseRoute(hash: string): Route | null {
 export function formatRoute(r: Route): string {
   if (r.kind === 'home') return '#/';
   if (r.kind === 'help') return `#/${r.page}`;
+  if (r.kind === 'preview') return `#/${r.what}`;
   return `#/p/${encodeURIComponent(r.projectId)}/${r.step}/${r.tab}`;
 }
 

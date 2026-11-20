@@ -6,7 +6,7 @@ import { tab } from './nav';
 const pick = async (select: Locator, text: RegExp) => select.selectOption((await select.locator('option', { hasText: text }).first().getAttribute('value')) as string);
 
 test('W04: chọn dataset → khai hướng → chạy PV trong worker → công suất, nguồn, CSV; đổi thiết lập thì kết quả cũ không còn hiển thị', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'thiet-ke');
   await page.locator('#preset').selectOption('two-trackers');
@@ -58,7 +58,7 @@ test('W04: chọn dataset → khai hướng → chạy PV trong worker → công
 });
 
 test('W04: nhập CSV sai báo đúng dòng và giữ nguyên lựa chọn; nhập CSV đúng thì dùng được', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'pv');
   const meta = '# latitude: 11.87\n# longitude: 108.2\n# source: thử\n# method: synthetic\n# timestamp_convention: start\n# step_seconds: 3600\n';

@@ -21,7 +21,7 @@ async function downgradeToV2(page: Page) {
 }
 
 test('W09 migration N−1: mở bản mới trên DB v2 → sao lưu tự động trước khi nâng, dữ liệu còn nguyên, khôi phục thành bản sao; xuất tất cả nhập lại được', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'du-toan');
   await expect(page.locator('#quote-known')).toContainText('31.872.000');
@@ -56,14 +56,14 @@ test('W09 migration N−1: mở bản mới trên DB v2 → sao lưu tự độn
   expect(JSON.parse(text).projects).toHaveLength(2);
   await page.evaluate(async () => { await new Promise((ok) => { const r = indexedDB.deleteDatabase('mekoniq-solar-lab'); r.onsuccess = r.onerror = r.onblocked = () => ok(null); }); });
   await page.reload();
-  await expect(page.locator('#saved')).toHaveCount(0);
+  await expect(page.locator('#saved')).toHaveText('Chưa có dự án.');
   await page.locator('#import-file').setInputFiles({ name: 'all.json', mimeType: 'application/json', buffer: Buffer.from(text) });
   await expect(page.locator('#status')).toContainText('Đã nhập 2 dự án từ file sao lưu');
   await expect(page.locator('#saved li')).toHaveCount(2);
 });
 
 test('W09 rollback: bản app cũ gặp DB mới hơn → thông báo rõ, không xóa gì; mở lại bản mới thì dữ liệu còn', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   // giả lập DB do bản tương lai (v9) tạo ra: bản này (DB v3) mở được tối đa v3 → VersionError
   await page.evaluate(async () => {

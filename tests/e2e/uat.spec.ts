@@ -15,7 +15,7 @@ const saved = (page: Page) => expect(page.locator('#status')).toContainText('Đ�
 const BAD = /NaN|undefined|Infinity|\[object|(^|[^\p{L}])null([^\p{L}]|$)/u;
 
 async function toSim(page: Page) {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'pv');
   await pick(page.locator('#wx-select'), /PVGIS-ERA5/);
@@ -33,7 +33,7 @@ async function toSim(page: Page) {
 }
 
 test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và còn thiếu gì, rồi chỉ ra giờ thiếu điện', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'du-toan');
   await expect(page.locator('#quote-known')).toContainText('31.872.000');
@@ -70,7 +70,7 @@ test('UAT chủ nhà: nhập lại một báo giá, thấy tổng đổi và cò
 });
 
 test('UAT thợ: tạo một SKU, đọc giải thích lỗi MPPT (công thức, nguồn, hậu quả) rồi sửa', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'thiet-bi');
   await page.locator('#new-kind').selectOption('battery');
@@ -152,7 +152,7 @@ test('máy yếu (giả lập CPU chậm 6 lần trong Chrome): chạy hệ th�
 });
 
 test('Phiên bản: màn About đọc release-manifest, nói rõ đã/chưa đối chiếu; dùng được cả khi offline', async ({ page, context }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await expect(page.locator('#offline-status')).toHaveAttribute('data-state', 'ready', { timeout: 30000 });
   await context.setOffline(true);
   await page.reload();
@@ -166,7 +166,7 @@ test('Phiên bản: màn About đọc release-manifest, nói rõ đã/chưa đ�
 });
 
 test('Soát: file dự án bị sửa tay (mã băm lệch) vẫn nhập được nhưng hiện cảnh báo trước khi mở', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/#/');
   await page.getByRole('button', { name: 'Mở mẫu Lâm Hà' }).click();
   await tab(page, 'du-an');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Xuất JSON' }).click()]);
