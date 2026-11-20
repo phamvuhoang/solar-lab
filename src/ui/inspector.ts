@@ -31,8 +31,8 @@ export function renderInspector(ctx: InspectorCtx): HTMLElement {
   const p = ctx.project, ix = indexProject(p), sel = new Set(ctx.selection);
   const insts = p.instances.filter((i) => sel.has(i.instanceId)), obs = (p.obstacles ?? []).filter((o) => sel.has(o.obstacleId));
   const box = h('section', { id: 'inspector', 'aria-label': 'Đang chọn', tabIndex: -1 }, h('h2', {}, 'Đang chọn'));
-  // the status line is the part read out when it changes (aria-live), with nothing selected too; never the whole section
-  const live = (text: string) => h('p', { id: 'insp-status', 'aria-live': 'polite' }, text);
+  // the status line, with nothing selected too: the workspace reads it out (with the first line) through its one live region
+  const live = (text: string) => h('p', { id: 'insp-status' }, text);
   if (!insts.length && !obs.length) { box.append(live('Chưa chọn gì. Bấm một món trên hình hoặc trong danh sách.')); return box; }
 
   // ---- what it is -----------------------------------------------------------------------------------------------

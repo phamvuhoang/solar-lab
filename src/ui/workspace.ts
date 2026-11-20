@@ -216,6 +216,15 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
 
   // ---- "Đang chọn" on top of the panel; kept while project and selection stay, so an open preview survives other repaints ----
   let insp: { el: HTMLElement; project: Project; key: string } | null = null, inspOpen: 'delete' | undefined;
+  // the one live region for "Đang chọn": built once, never repainted (a region inserted already filled is usually not read out)
+  const said = h('p', { id: 'ws-said', className: 'sr-only', 'aria-live': 'polite' });
+  let spoken: string | null = null; // what it would say now; the first paint is not news
+  const speak = (el: HTMLElement) => {
+    const status = el.querySelector('#insp-status')?.textContent ?? '', name = el.querySelector('h2 + p:not(#insp-status)')?.textContent;
+    const text = name ? `Đang chọn ${name}. ${status}` : status;
+    if (spoken !== null && text !== spoken) said.textContent = text;
+    spoken = text;
+  };
   const inspector = (): HTMLElement => {
     const key = selection.join(',');
     if (insp?.project !== project || insp.key !== key || inspOpen) {
@@ -224,6 +233,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
         apply: saved, select: pick, go: goTarget, open: inspOpen,
       }) };
       inspOpen = undefined;
+      speak(insp.el);
     }
     return insp.el;
   };
@@ -255,7 +265,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   }
   // focus order: top bar, steps, Thêm, view, tabs, panel, health bar; the view starts with a way past its controls
   view.el.prepend(h('button', { id: 'skip-panel', type: 'button', className: 'skip', onClick: () => { setSheet('panel'); panel.focus(); } }, 'Tới bảng bước'));
-  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, palette, view.el, tabs, panel), sheets, health);
+  const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, palette, view.el, tabs, panel), sheets, health, said);
   // phones: Esc in an open sheet (or on its button) closes it; focus goes back to the button
   ws.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || !sheet || !narrow.matches || !(e.target as Element).closest('#ws-add, #ws-panel, #ws-sheets')) return;
@@ -284,6 +294,10 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const more = h('details', { id: 'ws-more' }, moreSummary, moreItems);
   const closeMore = () => { more.open = false; moreSummary.focus(); };
   more.addEventListener('keydown', (e) => { if (e.key === 'Escape' && more.open) closeMore(); });
+  // focus leaving the open menu closes it, so it never covers what gets focus next. Focus going nowhere (a click on the page, or
+  // a repaint replacing the focused item) is checked after the repaint has put it back
+  const shut = () => { if (!more.contains(document.activeElement)) more.open = false; };
+  more.addEventListener('focusout', (e) => { const to = e.relatedTarget as Node | null; if (!to) setTimeout(shut); else if (!more.contains(to)) more.open = false; });
   moreItems.addEventListener('click', (e) => { if ((e.target as Element).closest('button')) closeMore(); }); // a used item closes the menu
   narrow.addEventListener('change', paintChrome);
   function paintChrome() {

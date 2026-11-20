@@ -100,14 +100,22 @@ test('focus giữ nguyên chỗ sau khi bảng vẽ lại: nút chọn dòng d�
   await expect(obs).toBeFocused();
 });
 
-test('dòng trạng thái của "Đang chọn" là vùng đọc lên (không phải cả khung)', async ({ page }) => {
+test('"Đang chọn" được đọc lên qua một vùng live duy nhất, không bị vẽ lại', async ({ page }) => {
   await openSample(page);
-  const status = page.locator('#inspector #insp-status');
-  await expect(status).toHaveAttribute('aria-live', 'polite'); // nothing selected yet: the line is there too
+  const said = page.locator('#ws-said');
+  await expect(said).toHaveAttribute('aria-live', 'polite');
+  await expect(page.locator('#inspector, #inspector [aria-live]')).toHaveCount(1); // the repainted inspector has no live region of its own
   await expect(page.locator('#inspector')).not.toHaveAttribute('aria-live');
-  await page.locator('#panel-table button').first().click();
-  await expect(status).toContainText('Kiểm tra');
-  await expect(status).toHaveAttribute('aria-live', 'polite');
+  const node = await said.elementHandle();
+  const rows = page.locator('#panel-table button');
+  await rows.nth(0).click();
+  await expect(said).toContainText(`Đang chọn ${await rows.nth(0).textContent()}`);
+  await expect(said).toContainText(((await page.locator('#insp-status').textContent()) ?? '').trim());
+  const first = await said.textContent();
+  await rows.nth(1).click();
+  await expect(said).toContainText(`Đang chọn ${await rows.nth(1).textContent()}`);
+  expect(await said.textContent()).not.toBe(first);
+  expect(await node!.evaluate((el) => el.isConnected && el === document.getElementById('ws-said'))).toBe(true); // the same node all along
 });
 
 test('chú thích lần đầu: Esc như "Bỏ qua"; đóng thì focus về thẻ đang mở', async ({ page }) => {
@@ -174,6 +182,28 @@ test.describe('điện thoại', () => {
     await page.keyboard.press('Enter');
     await expect(ws).toHaveAttribute('data-sheet', 'panel');
     await expect(page.locator('#ws-panel')).toBeFocused();
+  });
+
+  test('menu "⋯" đóng khi Tab ra khỏi nó; ô nhận focus không bị menu che', async ({ page }) => {
+    await openSample(page);
+    const more = page.locator('#ws-more'), summary = more.locator('> summary');
+    await summary.focus();
+    await page.keyboard.press('Enter');
+    await expect(more).toHaveAttribute('open', '');
+    await page.keyboard.press('Tab'); // into its items: it stays open
+    expect(await page.evaluate(() => !!document.activeElement?.closest('#ws-more .more-items'))).toBe(true);
+    await expect(more).toHaveAttribute('open', '');
+    for (let i = 0; i < 20 && (await page.evaluate(() => !!document.activeElement?.closest('#ws-more'))); i++) await page.keyboard.press('Tab');
+    await expect(more).not.toHaveAttribute('open');
+    const hidden = await page.evaluate(() => {
+      const a = document.activeElement as HTMLElement, r = a.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { what: a.id, hidden: !hit || !a.contains(hit) };
+    });
+    expect(hidden).toEqual({ what: 'step-bo-tri', hidden: false });
+    await summary.focus(); // Shift+Tab out of it too
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Shift+Tab');
+    await expect(more).not.toHaveAttribute('open');
   });
 
   test('tấm đang mở: Tab không dừng ở điều khiển của khung nhìn nằm dưới tấm', async ({ page }) => {

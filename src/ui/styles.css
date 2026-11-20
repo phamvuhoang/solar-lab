@@ -21,9 +21,9 @@ button, input, select { min-height: var(--touch); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 canvas:focus-visible, [tabindex="-1"]:focus-visible { outline-offset: -3px; }
 canvas:focus-visible { outline-color: #2874a6; } /* the 3D scene is drawn light in both themes (three-view clear colour #f1f5f9): 4.6:1 */
-/* "Tới bảng bước" at the start of the view: out of sight until a key brings focus to it */
+/* "Tới bảng bước" at the start of the view: out of sight until a key brings focus to it; .sr-only: for screen readers only */
 .skip { align-self: flex-start; }
-.skip:not(:focus) { position: absolute; width: 1px; height: 1px; min-height: 0; margin: 0; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.skip:not(:focus), .sr-only { position: absolute; width: 1px; height: 1px; min-height: 0; margin: 0; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
