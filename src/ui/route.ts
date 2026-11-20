@@ -24,7 +24,8 @@ export const STEPS: readonly StepDef[] = [
   ] },
 ];
 
-export interface Target { step: Step; tab: Tab; focusId?: string }
+/** focusId: the element to focus, or a list of which the first one shown at this depth wins. select: an id to select first (a finding's object). */
+export interface Target { step: Step; tab: Tab; focusId?: string | string[]; select?: string }
 export type Route =
   | { kind: 'home' }
   | { kind: 'preview'; what: 'mau' | 'moi' } // not stored yet: the sample house or an empty project, saved on the first edit

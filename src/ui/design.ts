@@ -5,6 +5,7 @@ import { parseNumber, parseQuantity } from '../domain/units';
 import { designOf, validateDesign, type Finding } from '../validation/strings';
 import { FINDING_TERMS, findingLines } from '../validation/finding-view';
 import { quickFixFor, type QuickFix } from '../validation/quick-fix';
+import { assumptionsOf } from './assumptions';
 import type { Depth } from './depth';
 import { h } from './dom';
 import { previewer } from './palette';
@@ -62,6 +63,10 @@ export function renderDesign(ctx: DesignCtx): Node[] {
     h('div', {}, ...pv.nodes),
     good.length ? h('details', {}, h('summary', {}, `${good.length} kiểm tra đạt`), h('ul', {}, ...good.map(finding))) : null,
     detail(),
+    // read-only at every depth (never data-min-depth): what Cơ bản has instead of the settings forms below
+    h('section', { id: 'assumptions', 'aria-labelledby': 'assumptions-h' }, h('h3', { id: 'assumptions-h' }, 'Giả định đang dùng'),
+      h('ul', {}, ...assumptionsOf(p).map((x) => h('li', {}, x))),
+      h('p', {}, 'Chỉ đọc. Thợ sửa được nhiệt độ cell và khoảng lùi mép; Kỹ sư sửa được mọi tham số.')),
     h('h3', { 'data-min-depth': 'tho' }, 'Thiết lập thiết kế'), settingsForm(ctx, fail),
     h('h3', { 'data-min-depth': 'tho' }, 'Thêm theo lô'), batchForm(ctx, invComp, fail, run),
     h('h3', { 'data-min-depth': 'tho' }, 'Preset và nhánh'), presetForm(ctx, run, fail),

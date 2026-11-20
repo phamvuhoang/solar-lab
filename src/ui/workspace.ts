@@ -148,7 +148,11 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     if (s === step) location.replace(url); else location.hash = url;
   };
   const go = (t: Tab) => navigate(stepOfTab(t), t);
-  const goTarget = (t: Target) => { pendingFocus = t.focusId ? [t.focusId] : []; if (t.tab === tab) applyFocus(); else navigate(t.step, t.tab); };
+  const goTarget = (t: Target) => {
+    pendingFocus = [t.focusId ?? []].flat();
+    const picked = !!t.select && choose([t.select]); // the finding detail shows what is selected
+    if (t.tab !== tab) navigate(t.step, t.tab); else if (picked) void renderPanel(null); else applyFocus();
+  };
   const applyFocus = () => {
     // the first target shown at this depth; one in a closed <details> (the Thêm column on phones) opens it
     const els = pendingFocus.map((id) => document.getElementById(id));

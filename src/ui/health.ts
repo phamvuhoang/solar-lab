@@ -16,9 +16,11 @@ export const STATE_LABEL: Record<Status, string> = { pass: 'đạt', fail: 'có 
 const NOT_RUN = 'chưa chạy thử';
 
 function electric(p: Project): HealthCell {
-  const target: Target = { step: 'dau-noi', tab: 'thiet-ke', focusId: 'findings' };
+  let target: Target = { step: 'dau-noi', tab: 'thiet-ke', focusId: 'findings' };
   if (!p.instances.length) return { key: 'electric', state: 'unknown', text: 'Điện: chưa có thiết bị', missing: null, target };
-  const fs = validateDesign(p);
+  const fs = validateDesign(p), worst = fs.find((f) => f.status !== 'pass'); // sorted worst first
+  // one click to the worst check's detail: its formula and the source of every number (Kỹ sư lines)
+  if (worst) target = { ...target, focusId: 'finding-detail', select: worst.objectIds[0] };
   const err = fs.filter((f) => f.status === 'fail' && f.severity === 'error').length;
   const lim = fs.filter((f) => f.status === 'limited').length;
   const unknowns = fs.filter((f) => f.status === 'unknown' || (f.status === 'fail' && f.severity !== 'error'));
@@ -31,7 +33,7 @@ function electric(p: Project): HealthCell {
 }
 
 function money(p: Project): HealthCell {
-  const target: Target = { step: 'chi-phi', tab: 'du-toan' };
+  const target: Target = { step: 'chi-phi', tab: 'du-toan', focusId: ['quote-lines', 'quote-total'] }; // the lines with seller and date; Cơ bản: what is missing
   if (!p.instances.length) return { key: 'money', state: 'unknown', text: 'Tiền: chưa có thiết bị', missing: null, target };
   const q = buildQuote(p);
   const n = q.missing.lineKeys.length + q.missing.scope.length;
@@ -42,6 +44,8 @@ function money(p: Project): HealthCell {
 }
 
 const PV: Target = { step: 'chay-thu', tab: 'pv' }, SYSTEM: Target = { step: 'chay-thu', tab: 'he-thong' };
+/** Where a finished run's numbers come from: the run's assumptions; the energy ledger (Kỹ sư), else "Đủ điện …" (every depth). */
+const PV_SOURCE: Target = { ...SYSTEM, focusId: 'sim-assumptions' }, SUPPLY_SOURCE: Target = { ...SYSTEM, focusId: ['sim-ledger', 'sim-days'] };
 
 /** PV and supply from the automatic run: never an old number while a new one is being computed. */
 function live(p: Project, auto: AutoState): [HealthCell, HealthCell] {
@@ -55,8 +59,8 @@ function live(p: Project, auto: AutoState): [HealthCell, HealthCell] {
   const mwh = ((m['pv.eInverterWh'] ?? 0) / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
   const grid = simPolicyOf(p).gridAvailable ? ` · mua lưới ${formatKWh(m['dispatch.gridImportWh'] ?? 0)} kWh` : '';
   return [
-    { key: 'pv', state: 'pass', text: `☀ ${mwh} MWh/năm${auto.shadePreview ? ' (bóng: xem trước)' : ''}`, missing: null, target: PV },
-    { key: 'supply', state: hours > 0 ? 'limited' : 'pass', text: `Cấp điện: thiếu ${hours.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ/năm${grid}`, missing: null, target: SYSTEM }];
+    { key: 'pv', state: 'pass', text: `☀ ${mwh} MWh/năm${auto.shadePreview ? ' (bóng: xem trước)' : ''}`, missing: null, target: PV_SOURCE },
+    { key: 'supply', state: hours > 0 ? 'limited' : 'pass', text: `Cấp điện: thiếu ${hours.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ/năm${grid}`, missing: null, target: SUPPLY_SOURCE }];
 }
 
 /** Always four cells: electric, pv, supply, money. Without `auto` PV and supply have not run. */

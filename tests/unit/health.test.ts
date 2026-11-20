@@ -5,6 +5,7 @@ import { buildSampleHouse } from '../../src/domain/seed';
 import { formatKWh } from '../../src/domain/units';
 import type { SimResult } from '../../src/engine/system';
 import { healthOf } from '../../src/ui/health';
+import { validateDesign } from '../../src/validation/strings';
 import { catalog, rig, withStrings } from './helpers';
 
 const cell = (p: Parameters<typeof healthOf>[0], k: string) => healthOf(p).find((c) => c.key === k)!;
@@ -53,4 +54,15 @@ test('blocked: chưa đủ dữ liệu kèm lý do, nút tới đúng chỗ nh�
     expect(c).toMatchObject({ state: 'unknown', missing: 'chưa đủ dữ liệu: thiếu thời tiết', target });
     expect(c.text).toContain('thiếu thời tiết');
   }
+});
+test('mỗi ô tới nguồn của số: điện mở lỗi nặng nhất (công thức, nguồn); PV giả định của lần chạy; cấp điện sổ năng lượng; tiền bảng dòng', () => {
+  const p = buildSampleHouse();
+  const [e, pv, supply, money] = healthOf(p, { kind: 'done', hash: 'h', result, shadePreview: true });
+  const worst = validateDesign(p).find((f) => f.status !== 'pass')!;
+  expect(worst.status).toBe('limited'); // Nhà mẫu: 2 giới hạn đứng đầu, đúng trạng thái của ô
+  expect(e.target).toEqual({ step: 'dau-noi', tab: 'thiet-ke', focusId: 'finding-detail', select: worst.objectIds[0] });
+  expect(pv.target).toEqual({ step: 'chay-thu', tab: 'he-thong', focusId: 'sim-assumptions' });
+  // a target hidden at this depth falls back to the next one shown: the ledger is for Kỹ sư, "Đủ điện …" and the total for everyone
+  expect(supply.target).toEqual({ step: 'chay-thu', tab: 'he-thong', focusId: ['sim-ledger', 'sim-days'] });
+  expect(money.target).toEqual({ step: 'chi-phi', tab: 'du-toan', focusId: ['quote-lines', 'quote-total'] });
 });

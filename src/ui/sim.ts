@@ -7,6 +7,7 @@ import type { SimResult } from '../engine/system';
 import { buildLamHaConfig, LAMHA_CONFIG_LABEL, type LamHaConfig } from '../domain/presets';
 import { refKey, type Component, type LoadPlan, type Offer, type Project } from '../domain/types';
 import { formatKWh, parseNumber } from '../domain/units';
+import { daysShort } from '../reports/days';
 import { simResultToCsv } from '../reports/sim-csv';
 import { localDate, localHour, type WeatherSeries } from '../weather/series';
 import { runSimInWorker } from '../worker/client';
@@ -234,7 +235,7 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
   const [a, b] = runs.length === 2 ? runs : [null, runs[0]];
   const cols = a ? [a, b] : [b];
   const m = (r: Run) => ({ d: r.result.dispatch, t: r.result.dispatch.totals, mm: r.result.dispatch.metrics });
-  const rows: [string, (r: Run) => string, ((x: Run, y: Run) => string) | null, Depth?][] = [
+  const rows: [string, (r: Run) => string, ((x: Run, y: Run) => string) | null, Depth?, string?][] = [
     ['Điện PV tới inverter (sau giới hạn)', (r) => `${formatKWh(m(r).t.pvBusWh)} kWh`, (x, y) => `${formatKWh(m(y).t.pvBusWh - m(x).t.pvBusWh)} kWh`],
     ['Tải yêu cầu', (r) => `${formatKWh(m(r).t.loadRequestedWh)} kWh`, null],
     ['Tải được cấp', (r) => `${formatKWh(m(r).t.loadServedWh)} kWh`, (x, y) => `${formatKWh(m(y).t.loadServedWh - m(x).t.loadServedWh)} kWh`],
@@ -251,7 +252,7 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
     ['Tháng ít nắng nhất (đủ dữ liệu)', (r) => (m(r).mm.lowestSunMonth ? `${m(r).mm.lowestSunMonth!.month}: ${m(r).mm.lowestSunMonth!.pvKWh.toLocaleString('vi-VN', { maximumFractionDigits: 0 })} kWh` : '—'), null],
     ['Bơm: thể tích', (r) => m(r).d.loads.filter((l) => l.volumeM3 !== null || l.volumeNote).map((l) => `${l.label}: ${l.volumeM3 === null ? l.volumeNote : l.volumeM3.toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + ' m³'}`).join('; ') || '—', null],
     ['Khởi động bị chặn', (r) => `${m(r).d.loads.reduce((s, l) => s + l.startsBlocked, 0)} / ${m(r).d.startCheckCount}`, null],
-    ['Sổ năng lượng: sai số lớn nhất / bước', (r) => `${m(r).d.ledger.maxResidualWh.toExponential(1)} Wh (ngưỡng đạt)`, null, 'ky-su'],
+    ['Sổ năng lượng: sai số lớn nhất / bước', (r) => `${m(r).d.ledger.maxResidualWh.toExponential(1)} Wh (ngưỡng đạt)`, null, 'ky-su', 'sim-ledger'],
   ];
   const energyNote = a && Math.abs(m(a).t.eEndWh - m(b).t.eEndWh) > 1
     ? `Hai phương án kết thúc với năng lượng trong pin khác nhau: B ${m(b).t.eEndWh > m(a).t.eEndWh ? 'còn nhiều hơn' : 'còn ít hơn'} A ${formatKWh(Math.abs(m(b).t.eEndWh - m(a).t.eEndWh))} kWh. Phần này chưa được tính như điện đã cấp; khi so điện đã cấp cần xét riêng.` : null;
@@ -262,12 +263,15 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
   return h('section', { id: 'sim-result', 'aria-label': 'Kết quả hệ thống' },
     h('h3', {}, '5. Kết quả'),
     h('p', { id: 'sim-scope' }, `Kết luận chỉ đúng cho dữ liệu đã chọn: ${weather.name} (${weather.source.period ?? '?'}), SoC đầu ${pct(simPolicyOf(ctx.project).soc0)}, chính sách và lịch tải như trên. Không suy ra cho năm hay địa điểm khác.`),
+    // "đủ điện mấy ngày" for every depth: the engine's hours re-counted by day, not a number of its own (the bar keeps hours)
+    h('p', { id: 'sim-days', tabIndex: -1 }, cols.map((r) => { const d = daysShort(r.result, tz); return `${a ? `${r.label}: ` : ''}Đủ điện ${d.days - d.short}/${d.days} ngày`; }).join(' · '),
+      ` (chỉ tính ngày đủ 24 giờ dữ liệu của ${weather.name})`),
     h('table', { id: 'sim-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Chỉ số'), ...cols.map((r) => h('th', {}, r.title)), a ? h('th', {}, 'Chênh B − A') : null)),
-      h('tbody', {}, ...rows.map(([label, f, d, depth]) => h('tr', { 'data-min-depth': depth }, h('th', { scope: 'row' }, label), ...cols.map((r) => h('td', {}, f(r))), a ? h('td', {}, d ? d(a, b) : '—') : null)))),
+      h('tbody', {}, ...rows.map(([label, f, d, depth, id]) => h('tr', { 'data-min-depth': depth, id, tabIndex: id ? -1 : undefined }, h('th', { scope: 'row' }, label), ...cols.map((r) => h('td', {}, f(r))), a ? h('td', {}, d ? d(a, b) : '—') : null)))),
     term('gio-thieu-dien'), term('mua-luoi'), term('cat-cong-suat'),
     energyNote ? h('p', { id: 'sim-energy-note' }, energyNote) : null, cost,
     h('h4', {}, 'Lý do giới hạn (số bước)'), reasonTable(cols), h('h4', {}, 'Giả định đã áp dụng'),
-    h('ul', {}, ...[...new Set(cols.flatMap((r) => [...r.result.pv.assumptions, ...r.result.dispatch.assumptions, ...r.result.dispatch.skipped.map((x) => 'Không áp: ' + x)]))].map((x) => h('li', {}, x))),
+    h('ul', { id: 'sim-assumptions', tabIndex: -1 }, ...[...new Set(cols.flatMap((r) => [...r.result.pv.assumptions, ...r.result.dispatch.assumptions, ...r.result.dispatch.skipped.map((x) => 'Không áp: ' + x)]))].map((x) => h('li', {}, x))),
     replay(ctx, cols, step, tz),
     h('button', { id: 'sim-csv', 'data-min-depth': 'ky-su', onClick: () => { const r = cols[ctx.state.side] ?? cols[0]; download(`he-thong-${r.label}-${r.hash.slice(0, 8)}.csv`, simResultToCsv(r.result, { projectName: r.projectName, weatherName: weather.name, timeZone: tz, label: r.title }), 'text/csv;charset=utf-8'); } }, 'Xuất CSV theo giờ (phương án đang xem)'));
 }
