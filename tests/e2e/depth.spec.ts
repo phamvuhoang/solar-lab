@@ -40,3 +40,13 @@ test('Cơ bản không ẩn trạng thái nào', async ({ page }) => {
   await setDepth(page, 'ky-su');
   expect(await shown()).toEqual(basic);
 });
+
+test('trình duyệt chưa có checkVisibility (Safari < 17.4): bấm lỗi vẫn đưa focus tới chi tiết, không lỗi', async ({ page }) => {
+  await page.addInitScript(() => { delete (Element.prototype as Partial<Element>).checkVisibility; });
+  await page.goto('/#/mau');
+  await page.locator('#coach-skip').click();
+  await page.locator('#step-dau-noi').click();
+  await page.locator('#ws-panel .finding.limited').first().click(); // at Cơ bản its controls are hidden: the detail takes the focus
+  await expect(page.locator('#finding-detail')).toBeFocused();
+  await expect(page.locator('#fatal')).toHaveCount(0);
+});

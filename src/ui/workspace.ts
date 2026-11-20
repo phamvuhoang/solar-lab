@@ -154,7 +154,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     const target = pendingFocus.map((id) => document.getElementById(id)).find((el) => {
       const fold = el?.closest('details:not([open])') as HTMLDetailsElement | null;
       if (fold) fold.open = true;
-      if (el?.checkVisibility()) return true;
+      if (el && (el.checkVisibility?.() ?? el.getClientRects().length > 0)) return true; // checkVisibility: Safari 17.4+, Chrome 105+
       if (fold) fold.open = false;
       return false;
     });
