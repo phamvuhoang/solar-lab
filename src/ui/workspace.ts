@@ -72,7 +72,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   let lastPvResult: PvResult | null = null;
   const reportState = freshReport();
   let importedState = freshImported();
-  const simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
+  const simState: SimState = { runs: [], side: 0, step: 0, progress: {}, busy: false };
   let auto: AutoState = { kind: 'idle' }, autoOf: Project | null = null; // the automatic run and the project it is for
   let fresh = false; // a run finished while a field in the panel was being typed into: the panel waits for "Hiện"
   const simCache = new Lru<SimResult>(8);
@@ -247,11 +247,11 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   };
   /**
    * The bar shows the run at once. Of the panel only the progress list and the system screen show it: the system screen
-   * repaints, unless a field in the panel is being typed into, then "Hiện" offers the repaint.
+   * repaints, unless a field in the panel is being typed into or a manual run is going there; then "Hiện" offers the repaint.
    */
   const autoDone = () => {
     const a = document.activeElement;
-    fresh = tab === 'he-thong' && !!a && panel.contains(a) && a.matches('input, select, textarea');
+    fresh = tab === 'he-thong' && (simState.busy || (!!a && panel.contains(a) && a.matches('input, select, textarea')));
     paintHealth();
     if (tab === 'he-thong' && !fresh) return void renderPanel();
     const items = progressItems();

@@ -115,6 +115,7 @@ test('W07: bật bóng che mà chưa tính thì PV từ chối; tính xong thì 
   await page.locator('#tank-near').click();
   await saved(page);
   await page.locator('#sh-enabled').check();
+  await page.locator('#sh-mode').selectOption('standard'); // the 4×4 grid this test reads; a new project starts at the preview
   await page.locator('#sh-save').click();
   await saved(page);
   await page.locator('button', { hasText: 'Thời tiết và PV' }).click();
@@ -169,4 +170,16 @@ test('W07: không có WebGL: bảng phần trăm thấy nắng và CSV vẫn dù
   await expect(page.locator('#sh-day-status')).toContainText('đã tính', { timeout: 20000 });
   expect((await accessNow(page)).some((v) => v !== '')).toBe(true);
   await expect(page.locator('#sh-csv-day')).toBeEnabled();
+});
+
+test('dự án chưa đặt bóng che: bật lên thì lưu mức xem trước, thanh sức khỏe ghi (bóng: xem trước)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openShade(page);
+  await expect(page.locator('#sh-mode')).toHaveValue('preview');
+  await page.locator('#sh-enabled').check();
+  await page.locator('#sh-save').click();
+  await saved(page);
+  await expect(page.locator('#sh-settings')).toContainText('Hiện dùng 1 mẫu mỗi tấm'); // the saved setting, read back
+  await expect(page.locator('#health-pv')).toHaveAttribute('data-state', 'pass', { timeout: 60_000 });
+  await expect(page.locator('#health-pv')).toContainText('(bóng: xem trước)');
 });

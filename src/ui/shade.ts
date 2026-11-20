@@ -222,7 +222,7 @@ export async function renderShade(ctx: ShadeCtx): Promise<Node[]> {
 
   // ---- settings and obstacles ---------------------------------------------------------------------------------------
   const en = h('input', { type: 'checkbox', id: 'sh-enabled', checked: settings.enabled }), mode = h('select', { id: 'sh-mode', 'aria-label': 'Chế độ lấy mẫu' }, h('option', { value: 'standard' }, 'Chuẩn: lưới n×n mỗi tấm'), h('option', { value: 'preview' }, 'Xem nhanh: 1 điểm ở giữa tấm'));
-  mode.value = settings.mode;
+  mode.value = p.shade?.mode ?? 'preview'; // a project that never chose turns shade on at the preview; SHADE_DEFAULTS stays 'standard' for rc.2 files
   const grid = h('input', { id: 'sh-grid', value: String(settings.grid), size: 3, 'aria-label': 'Cạnh lưới mẫu' });
   const settingsForm = h('form', { id: 'sh-settings', 'aria-label': 'Thiết lập bóng che', onSubmit: (e: Event) => {
     e.preventDefault();

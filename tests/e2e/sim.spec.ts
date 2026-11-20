@@ -50,8 +50,7 @@ test('W05: dựng A → chạy → đổi giờ bơm về 11h → so A/B → rep
 
   // A = revision trước (bơm 18h), B = hiện tại (bơm 11h)
   await page.locator('#sim-ab').click();
-  await expect(page.locator('#sim-result')).toBeVisible({ timeout: 30000 });
-  await expect(page.locator('#sim-table thead')).toContainText('Chênh B − A');
+  await expect(page.locator('#sim-table thead')).toContainText('Chênh B − A', { timeout: 30000 }); // the A/B itself, not the automatic run of B
   const discharge = page.locator('#sim-table tbody tr', { hasText: 'Pin: điện năng xả' }).locator('td').last();
   await expect(discharge).toHaveText(/^-\d/); // dời bơm về trưa giảm Wh xả trên dữ liệu này
   await expect(page.locator('#sim-cost')).toContainText('Chênh chi phí B − A');

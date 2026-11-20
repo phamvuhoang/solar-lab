@@ -66,3 +66,36 @@ test('đang gõ dở thì kết quả mới không xóa ô nhập', async ({ pag
   await expect(page.locator('#sim-result')).toBeVisible();
   await expect(page.locator('#ws-fresh')).toHaveCount(0);
 });
+
+test('tự chạy xong giữa lúc đang so A/B: thanh tiến độ và Hủy vẫn còn, kết quả là A/B', async ({ page }) => {
+  test.setTimeout(150_000);
+  // every system run in a worker answers 3 s late, as on a slow phone; the automatic run below is a cache hit (no worker),
+  // so it lands while the A/B is still going
+  await page.addInitScript(() => {
+    const Real = Worker;
+    window.Worker = class extends Real {
+      postMessage(m: unknown) { // the app posts plain messages, no transfer list
+        if ((m as { type?: string })?.type === 'simulate') setTimeout(() => super.postMessage(m), 3000); else super.postMessage(m);
+      }
+    };
+  });
+  await openSample(page);
+  await tab(page, 'he-thong');
+  await page.locator('#s-min').fill('30');
+  await page.locator('#s-save').click();
+  await expect(page.locator('#ws-rev')).toHaveText('Đã lưu · r1');
+  await page.locator('#ws-undo').click(); // r2 = the sample again: its run is in the cache
+  await expect(page.locator('#ws-rev')).toHaveText('Đã lưu · r2');
+  await page.locator('#ab-a').selectOption('1');
+  await page.locator('#sim-ab').click();
+  await expect(page.locator('#sim-cancel')).toBeVisible();
+  await expect(page.locator('#health-pv')).toHaveAttribute('data-state', 'pass', RUN);
+  // the automatic result did not repaint the panel under the running A/B
+  await expect(page.locator('#ws-fresh')).toBeVisible();
+  await expect(page.locator('#sim-cancel')).toBeVisible();
+  await expect(page.locator('#sim-progress')).toBeVisible();
+  await expect(page.locator('#sim-ab')).toBeDisabled();
+  await expect(page.locator('#sim-table thead')).toContainText('Chênh B − A', RUN);
+  await expect(page.locator('#ws-fresh')).toHaveCount(0);
+  await expect(page.locator('#sim-cancel')).toBeHidden();
+});

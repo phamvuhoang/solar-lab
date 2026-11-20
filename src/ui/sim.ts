@@ -24,7 +24,8 @@ export const REASON_VI: Record<Reason, string> = {
 };
 
 export interface Run { label: 'A' | 'B'; source: { kind: 'current' } | { kind: 'revision'; n: number }; title: string; hash: string; result: SimResult; projectName: string }
-export interface SimState { runs: Run[]; side: 0 | 1; step: number; progress: Record<string, number> }
+/** `busy`: a manual run is going; its progress bar and "Hủy" live in the panel it started from, so nothing else may repaint it. */
+export interface SimState { runs: Run[]; side: 0 | 1; step: number; progress: Record<string, number>; busy: boolean }
 
 export interface SimCtx {
   project: Project; components: Component[]; offers: Offer[]; revisions: { revision: number; savedAt: string }[];
@@ -180,37 +181,42 @@ function runControls(ctx: SimCtx, weather: WeatherSeries | undefined, say: (l: s
 
   const go = async (sides: { label: 'A' | 'B'; source: Run['source']; base: Project; title: string }[]) => {
     if (!weather) return say(['Chọn dữ liệu thời tiết trước (Thời tiết và PV)']);
-    const prepared = [];
-    for (const s of sides) {
-      const run = asRunFor(s.base, p), sf = await shadeFor(run, weather);
-      if (sf.issues.length) return say([`${s.title}: không chạy được`, ...sf.issues.map((i) => `${i.code}: ${i.message}`)]);
-      const c = await compileSim(run, weather, { shade: sf.field });
-      if (!c.input || !c.hash) return say([`${s.title}: không chạy được`, ...c.issues.map((i) => `${i.code} tại ${i.field}: ${i.message}`)]);
-      prepared.push({ ...s, input: c.input, hash: c.hash });
-    }
-    say([]);
-    ctx.state.runs = []; ctx.state.step = 0; ctx.state.side = 0;
-    progress.hidden = false; cancel.hidden = false; buttons.forEach((b) => { b.disabled = true; });
-    const done: Run[] = [];
-    const outs = await Promise.all(prepared.map((s, k) => {
-      const job = runSimInWorker(s.input, s.hash, (d, t) => { ctx.state.progress[s.label] = d / t; progress.value = Math.round((Object.values(ctx.state.progress).reduce((a, b) => a + b, 0) / prepared.length) * 100); });
-      jobs.push(job);
-      return job.promise.then((o) => ({ o, s, k }));
-    }));
-    jobs.length = 0;
-    for (const { o, s } of outs) {
-      if (o.status === 'result') done.push({ label: s.label, source: s.source, title: s.title, hash: s.hash, result: o.result, projectName: s.base.name });
-      else say(o.status === 'cancelled' ? ['Đã hủy; không có kết quả nào được lưu.'] : [`${s.title}: ${o.issues.map((i) => `${i.code} tại ${i.field}: ${i.message}`).join('; ')}`]);
-    }
-    if (done.length === prepared.length) ctx.state.runs = done;
-    ctx.state.progress = {};
+    ctx.state.busy = true;
+    try {
+      const prepared = [];
+      for (const s of sides) {
+        const run = asRunFor(s.base, p), sf = await shadeFor(run, weather);
+        if (sf.issues.length) return say([`${s.title}: không chạy được`, ...sf.issues.map((i) => `${i.code}: ${i.message}`)]);
+        const c = await compileSim(run, weather, { shade: sf.field });
+        if (!c.input || !c.hash) return say([`${s.title}: không chạy được`, ...c.issues.map((i) => `${i.code} tại ${i.field}: ${i.message}`)]);
+        prepared.push({ ...s, input: c.input, hash: c.hash });
+      }
+      say([]);
+      ctx.state.runs = []; ctx.state.step = 0; ctx.state.side = 0;
+      progress.hidden = false; cancel.hidden = false; buttons.forEach((b) => { b.disabled = true; });
+      const done: Run[] = [];
+      const outs = await Promise.all(prepared.map((s, k) => {
+        const job = runSimInWorker(s.input, s.hash, (d, t) => { ctx.state.progress[s.label] = d / t; progress.value = Math.round((Object.values(ctx.state.progress).reduce((a, b) => a + b, 0) / prepared.length) * 100); });
+        jobs.push(job);
+        return job.promise.then((o) => ({ o, s, k }));
+      }));
+      jobs.length = 0;
+      for (const { o, s } of outs) {
+        if (o.status === 'result') done.push({ label: s.label, source: s.source, title: s.title, hash: s.hash, result: o.result, projectName: s.base.name });
+        else say(o.status === 'cancelled' ? ['Đã hủy; không có kết quả nào được lưu.'] : [`${s.title}: ${o.issues.map((i) => `${i.code} tại ${i.field}: ${i.message}`).join('; ')}`]);
+      }
+      if (done.length === prepared.length) ctx.state.runs = done;
+      ctx.state.progress = {};
+    } finally { ctx.state.busy = false; } // a side that cannot run returns above, keeping its message on screen
     ctx.rerender();
   };
   const runOne = h('button', { id: 'sim-run' }, 'Chạy cấu hình hiện tại');
   runOne.addEventListener('click', () => go([{ label: 'B', source: { kind: 'current' }, base: p, title: `Hiện tại (revision ${p.revision})` }]));
   const runAB = h('button', { id: 'sim-ab' }, 'So sánh A/B');
   runAB.addEventListener('click', async () => {
+    ctx.state.busy = true; // from the click on: the revision read below is an await an automatic repaint could land in
     const n = Number(optA.value), a = await ctx.loadRevision(n);
+    ctx.state.busy = false;
     if (!a) return say(['Chọn revision làm phương án A']);
     go([{ label: 'A', source: { kind: 'revision', n }, base: a, title: `A · revision ${n}` }, { label: 'B', source: { kind: 'current' }, base: p, title: `B · hiện tại (revision ${p.revision})` }]);
   });
