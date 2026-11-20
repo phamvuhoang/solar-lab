@@ -7,6 +7,10 @@ import { buildSampleHouse } from '../../src/domain/seed';
 import { validateLayout } from '../../src/domain/placement';
 import { validateDesign } from '../../src/validation/strings';
 import { refKey, type Project } from '../../src/domain/types';
+import { BUILTIN_OFFERS, offersFor } from '../../src/catalog/catalog';
+import { buildLamHaConfig } from '../../src/domain/presets';
+import { demoGableRoof } from '../../src/domain/layout-edit';
+import { openLamHa } from '../../src/domain/project';
 import { catalog } from './helpers';
 
 const seed = () => buildSampleHouse('2026-11-20T00:00:00.000Z');
@@ -44,5 +48,40 @@ describe('addPanels', () => {
     // both ports held by Hestia strings: no free port for VSUN
     const blocked = { ...p, strings: [p.strings![0], { ...p.strings![1], panelIds: ids.slice(0, 4) }] };
     expect(() => restringPanels(blocked, inv, refKey(vs))).toThrow('NO_FREE_MPPT');
+  });
+
+  const lamha = () => buildLamHaConfig(openLamHa(), 'split6+2', { inverter: catalog('luxpower-sna6000wpv'), battery: catalog('used-battery'), home: catalog('sample-home-load'), pump: catalog('sample-pump-load'), controller: catalog('sample-pump-controller') }, (c) => offersFor(BUILTIN_OFFERS, c));
+  test('Lâm Hà split6+2 + 2 tấm: nhãn chuỗi được giữ, chuỗi bơm không bị đụng', () => {
+    const b = lamha(), panel = b.snapshots.components.find((c) => c.kind === 'panel')!;
+    const labels0 = b.strings!.map((s) => s.label);
+    const a = addPanels(b, panel, 2).project;
+    const lab = a.strings!.map((s) => s.label);
+    expect(new Set(lab).size).toBe(lab.length);
+    expect(lab).toEqual(expect.arrayContaining(labels0));
+    expect(a.strings!.find((s) => s.label === labels0[0])!.target!.port).toBe('M1');
+    expect(describeChange(b, a).some((l) => l.endsWith(': bỏ'))).toBe(false);
+  });
+  test('nhãn đổi tay được giữ, không trùng nhãn', () => {
+    const hes = catalog('hestia-650'), vs = catalog('vsun-620');
+    let p = addInstances(addInstances(createProject('x'), vs, 4), seed().snapshots.components.find((c) => c.kind === 'inverter')!, 1);
+    const ids = p.instances.map((i) => i.instanceId), inv = ids[4];
+    p = addString(p, { label: 'Dãy trước', panelIds: ids.slice(0, 4), target: { instanceId: inv, port: 'M1' } });
+    p = addPanels(p, hes, 2).project;
+    p = addPanels(p, vs, 2).project;
+    const lab = p.strings!.map((s) => s.label);
+    expect(new Set(lab).size).toBe(lab.length);
+    expect(lab).toContain('Dãy trước');
+  });
+  test('Lâm Hà + mặt mái minh họa + 2 tấm: đặt đủ 10 tấm, không dòng đặt dở', () => {
+    const o = openLamHa(), panel = o.snapshots.components.find((c) => c.kind === 'panel')!;
+    const b = demoGableRoof(buildLamHaConfig(o, 'shared8', { inverter: catalog('luxpower-sna6000wpv'), battery: catalog('used-battery'), home: catalog('sample-home-load'), pump: catalog('sample-pump-load'), controller: catalog('sample-pump-controller') }, (c) => offersFor(BUILTIN_OFFERS, c)));
+    const { project: a, left } = addPanels(b, panel, 2);
+    expect(left).toBe(0);
+    expect(a.placements).toHaveLength(10);
+    expect(describeChange(b, a).some((l) => l.includes('tấm đã đặt lên mái'))).toBe(false);
+  });
+  test('Nhà mẫu + 6 tấm: có dòng chuỗi nằm trên 2 mặt mái', () => {
+    const b = seed(), a = addPanels(b, catalog('vsun-620'), 6).project;
+    expect(describeChange(b, a).some((l) => l.includes('nằm trên 2 mặt mái'))).toBe(true);
   });
 });

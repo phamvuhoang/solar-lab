@@ -21,6 +21,12 @@ export function describeChange(before: Project, after: Project): string[] {
   for (const s of stringsOf(before)) if (!now.has(s.label)) out.push(`${s.label}: bỏ`);
   const seen = new Set(validateDesign(before).filter((f) => f.status === 'fail' && f.severity === 'error').map((f) => f.code + f.objectIds.join()));
   for (const f of findings) if (f.status === 'fail' && f.severity === 'error' && !seen.has(f.code + f.objectIds.join())) out.push(`Lỗi mới: ${f.message}`);
+  const placeAt = new Map((after.placements ?? []).map((x) => [x.instanceId, x.roofFaceId]));
+  for (const s of stringsOf(after)) {
+    const faces = new Set(s.panelIds.flatMap((id) => placeAt.get(id) ?? [])), placed = s.panelIds.filter((id) => placeAt.has(id)).length;
+    if (faces.size > 1) out.push(`${s.label}: tấm nằm trên ${faces.size} mặt mái, chưa chạy thử được`);
+    if (placed > 0 && placed < s.panelIds.length) out.push(`${s.label}: ${placed}/${s.panelIds.length} tấm đã đặt lên mái, chưa chạy thử được`);
+  }
   const kept = new Set(after.instances.map((i) => i.instanceId));
   for (const i of before.instances) if (!kept.has(i.instanceId)) out.push(`Bỏ ${i.label}`);
   const k = before.edges.length - after.edges.length;

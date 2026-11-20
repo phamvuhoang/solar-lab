@@ -103,7 +103,9 @@ export function restringPanels(p: Project, inverterId: string, modelKey: string)
   let next: Project = { ...structuredClone(p), strings: stringsOf(p).filter((s) => !mineIds.has(s.stringId)) };
   let at = 0;
   (panel ? proposeStrings(ids.length, panel, probe) : suggestGrouping(ids.length, free.length)).forEach((size, i) => {
-    next = addString(next, { panelIds: ids.slice(at, at + size), target: { instanceId: inverterId, port: free[i].id } });
+    const used = new Set(stringsOf(next).map((x) => x.label));
+    let k = 1; while (used.has(`Chuỗi ${k}`)) k++;
+    next = addString(next, { label: mine[i]?.label ?? `Chuỗi ${k}`, panelIds: ids.slice(at, at + size), target: { instanceId: inverterId, port: free[i].id } });
     at += size;
   });
   return next;
@@ -118,7 +120,9 @@ export function addPanels(p: Project, panel: Component, n: number, offers: reado
   if (inv) next = restringPanels(next, inv.instanceId, refKey(panel));
   const sameModel = new Set((next.placements ?? []).filter((x) => { const r = next.instances.find((i) => i.instanceId === x.instanceId)?.componentRef; return !!r && refKey(r) === refKey(panel); }).map((x) => x.roofFaceId));
   const faces = [...next.roofFaces].sort((a, b) => Number(sameModel.has(b.roofFaceId)) - Number(sameModel.has(a.roofFaceId)));
-  let todo = added;
+  const isModel = (id: string) => { const r = next.instances.find((i) => i.instanceId === id)?.componentRef; return !!r && refKey(r) === refKey(panel); };
+  // every unplaced panel of the model (old strings' panels that were off the roof, plus the new ones), so a string is never half on the roof
+  let todo = next.instances.filter((i) => i.kind === 'panel' && isModel(i.instanceId) && !(next.placements ?? []).some((x) => x.instanceId === i.instanceId)).map((i) => i.instanceId);
   for (const f of faces) { if (!todo.length) break; const r = fillFace(next, f.roofFaceId, todo); next = r.project; todo = r.left; }
   return { project: next, left: todo.length };
 }
