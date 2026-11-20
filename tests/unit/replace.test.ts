@@ -32,6 +32,13 @@ describe('replaceComponent', () => {
     expect(ids.map((id) => q.instances.find((i) => i.instanceId === id)!.label)).toEqual(ids.map((id) => `${hes.name} #${p.instances.find((i) => i.instanceId === id)!.label.split('#')[1]}`));
     expect(describeChange(p, q)).toContain(`Đổi model: 4 × ${catalog('vsun-620').name} → ${hes.name}`); // one line for the swap, not one per panel
   });
+  test('đổi sang revision mới cùng tên, cùng giá: bản xem trước vẫn nêu, không phải "Không có gì thay đổi"', () => {
+    const p = seed(), bat = p.instances.find((i) => i.kind === 'battery')!, old = catalog(bat.componentRef!.modelId);
+    const r2 = { ...structuredClone(old), revision: old.revision + 1 }; // new specs under the old name; offers point at revision 1
+    const q = replaceComponent(p, [bat.instanceId], r2);
+    expect(q.instances.find((i) => i.instanceId === bat.instanceId)!.label).toBe(bat.label);
+    expect(describeChange(p, q)).toContain(`Đổi model: ${old.name} revision ${old.revision} → ${old.revision + 1}`);
+  });
   test('khác loại → KIND_MISMATCH; id lạ → UNKNOWN_INSTANCE', () => {
     const p = seed();
     expect(() => replaceComponent(p, [p.instances.find((i) => i.kind === 'battery')!.instanceId], catalog('hestia-650'))).toThrow('KIND_MISMATCH');

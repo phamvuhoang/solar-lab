@@ -68,6 +68,14 @@ describe('dữ liệu báo cáo A4', () => {
     expect(facts({ pv: null, runs: [] }).levels.slice(2, 4).map((l) => l.state)).toEqual(['not-run', 'not-run']);
     expect(f.checks.counts.pass + f.checks.counts.fail + f.checks.counts.limited + f.checks.counts.unknown).toBeGreaterThan(0);
   });
+  test('A4 đếm và gọi tên trạng thái như màn hình: 8 tấm Lâm Hà chưa thuộc chuỗi là "chưa đủ dữ liệu", không phải lỗi', () => {
+    const f = facts({ project: openLamHa(), pv: null, runs: [], cost: null });
+    const un = f.checks.notable.find((x) => x.code === 'PANEL_UNASSIGNED')!;
+    expect(un.status).toBe('fail'); // the validator's own status is kept; the report states the displayed one
+    expect(un.shown).toBe('unknown');
+    expect(f.checks.counts.fail).toBe(f.checks.notable.filter((x) => x.status === 'fail' && x.severity === 'error').length);
+    expect(f.levels[1].detail).toMatch(/^\d+ đạt · \d+ có lỗi · \d+ bị giới hạn · \d+ chưa đủ dữ liệu\.$/);
+  });
   test('nhà mẫu, kể cả khi đã đổi tên, mang nhãn mẫu ở đầu trang A4; dự án thật thì không', () => {
     expect(facts().sample).toBe(false);
     expect(facts({ project: { ...buildSampleHouse(), name: 'Nhà anh Ba' }, pv: null, runs: [], cost: null }).sample).toBe(true);

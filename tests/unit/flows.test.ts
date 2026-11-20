@@ -4,6 +4,7 @@ import { buildLamHaConfig } from '../../src/domain/presets';
 import { openLamHa } from '../../src/domain/project';
 import { buildSampleHouse, SAMPLE_WEATHER_ID } from '../../src/domain/seed';
 import type { Project } from '../../src/domain/types';
+import { REASONS } from '../../src/engine/dispatch';
 import { compileSim } from '../../src/engine/sim-compile';
 import { simulateSystem, type SimResult } from '../../src/engine/system';
 import { flowsAt } from '../../src/scene/flows';
@@ -114,11 +115,18 @@ test('cho xuất lưới: chữ có "Lưới xuất" đúng số của engine, c
   expect(flowsAt(m, r, i, p).text.some((t) => t.startsWith('Lưới xuất'))).toBe(false); // the sample does not export
 });
 
+const SHORT = 1 << REASONS.indexOf('UNSERVED_LOAD');
 test('bước thiếu điện: chữ nói "Thiếu x kW" (Tải là phần đã cấp); bước đủ điện thì không', () => {
-  const s = rs.dispatch.series, i = s.unservedWh.findIndex((x) => x > 0), ok = s.unservedWh.findIndex((x) => x === 0);
+  const s = rs.dispatch.series, i = s.reasons.findIndex((x) => (x & SHORT) !== 0), ok = s.unservedWh.findIndex((x) => x === 0);
   expect(i).toBeGreaterThanOrEqual(0); // Lâm Hà 6+2 không có lưới: có giờ thiếu
   const { text } = flowsAt(buildSceneModel(split), rs, i, split);
   expect(text).toContain(`Thiếu ${kw(s.unservedWh[i])}`);
   expect(text).toContain(`Tải: ${kw(s.loadServedWh[i])}`);
   expect(flowsAt(buildSceneModel(split), rs, ok, split).text.some((t) => t.startsWith('Thiếu'))).toBe(false);
+});
+
+test('Nhà mẫu: số dư dấu phẩy động trong unservedWh không thành "Thiếu 0 kW"; chữ "Thiếu" đúng các bước engine đếm giờ thiếu', () => {
+  const s = r.dispatch.series, said = s.t.map((_, i) => flowsAt(m, r, i, p).text.some((t) => t.startsWith('Thiếu')));
+  expect(said).toEqual([...s.reasons].map((x) => (x & SHORT) !== 0));
+  expect(said.filter(Boolean).length).toBe(r.dispatch.metrics.hoursShort); // hourly steps
 });

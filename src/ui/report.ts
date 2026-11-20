@@ -2,6 +2,7 @@ import { barChart, lineChart } from '../diagrams/charts';
 import { compareQuotes, buildQuote } from '../cost/quote';
 import { hashOf } from '../domain/hash';
 import { SAMPLE_TAG } from '../domain/seed';
+import { STATUS_LABEL } from '../validation/strings';
 import { nowIso } from '../domain/ids';
 import type { Project } from '../domain/types';
 import { compilePv, hashPvInput } from '../engine/compile';
@@ -64,7 +65,7 @@ export function buildReportPage(f: ReportFacts): HTMLElement {
       dtab(['Nhóm', 'Mô tả', 'SL', 'Thành tiền', 'Trạng thái'], q.lines.map((l) => [l.category, l.label, l.qtyUnit === 'mm' ? `${l.qty / 1000} m` : String(l.qty), l.totalMinor === null ? '—' : money(l.totalMinor), l.status === 'known' ? 'đã có giá' : l.status === 'missing' ? 'CHƯA CÓ GIÁ' : 'trong kit']), 'rp-lines')),
     h('section', {}, h('h3', {}, 'Cấp độ kiểm tra'),
       dtab(['Lớp kiểm tra', 'Trạng thái', 'Chi tiết'], f.levels.map((l) => [l.name, LEVEL_TEXT[l.state], l.detail]), 'rp-levels'),
-      f.checks.notable.length ? h('ul', { id: 'rp-notable' }, ...f.checks.notable.slice(0, 8).map((x) => h('li', {}, `${x.status === 'fail' ? 'KHÔNG ĐẠT' : x.status === 'limited' ? 'Sát giới hạn' : 'Chưa kiểm được'} · ${x.message}`))) : null),
+      f.checks.notable.length ? h('ul', { id: 'rp-notable' }, ...f.checks.notable.slice(0, 8).map((x) => h('li', {}, `${x.shown === 'fail' ? STATUS_LABEL.fail.toUpperCase() : STATUS_LABEL[x.shown].replace(/^./, (c) => c.toUpperCase())} · ${x.message}`))) : null),
     h('section', {}, h('h3', {}, 'Giả định'), h('ul', { id: 'rp-assumptions' }, ...f.assumptions.map((x) => h('li', {}, x)))),
     h('section', {}, h('h3', {}, 'Nguồn thời tiết'),
       f.weather ? dtab(['Mục', 'Giá trị'], [['Tên', f.weather.name], ['Nguồn', f.weather.source], ['Phương pháp', f.weather.method], ['Kỳ dữ liệu', f.weather.period], ['Giấy phép', f.weather.license], ['Ngày lấy', f.weather.retrieved], ['Số bước', String(f.weather.steps)], ['Số liệu đính kèm', f.weather.attached ? 'có' : 'không (chỉ tham chiếu)']], 'rp-weather') : h('p', {}, 'Chưa chọn dữ liệu thời tiết.')),

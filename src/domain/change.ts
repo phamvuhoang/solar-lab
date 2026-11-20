@@ -1,6 +1,6 @@
 import { indexProject, portKey, stringsOf } from './graph';
 import { unplacedPanels } from './layout-edit';
-import type { Project } from './types';
+import { refKey, type Project, type Ref } from './types';
 import { validateDesign } from '../validation/strings';
 
 const num = (x: number) => x.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
@@ -13,9 +13,15 @@ export function describeChange(before: Project, after: Project): string[] {
   if (panels) out.push(`Thêm ${panels} tấm`);
   for (const i of added) if (i.kind !== 'panel') out.push(`Thêm ${i.label}`);
   const renamed = new Map<string, number>(); // a model swap relabels "<model> #k": one line per old → new model
+  const name = (l: string) => l.replace(/ #\d+$/, ''), ref = (r: Ref | null | undefined) => (r ? refKey(r) : '');
   for (const i of after.instances) {
-    const o = was.get(i.instanceId), k = o && o.label !== i.label ? `${o.label.replace(/ #\d+$/, '')} → ${i.label.replace(/ #\d+$/, '')}` : null;
-    if (k) renamed.set(k, (renamed.get(k) ?? 0) + 1);
+    const o = was.get(i.instanceId);
+    if (!o || (o.label === i.label && ref(o.componentRef) === ref(i.componentRef))) continue;
+    // same name, other model or revision (new specs or price under the old name): say which revision, or the swap reads as nothing
+    const [a, b] = [o.componentRef, i.componentRef];
+    const k = o.label !== i.label ? `${name(o.label)} → ${name(i.label)}`
+      : a && b && a.modelId === b.modelId ? `${name(i.label)} revision ${a.revision} → ${b.revision}` : `${name(i.label)} (${ref(a)} → ${ref(b)})`;
+    renamed.set(k, (renamed.get(k) ?? 0) + 1);
   }
   for (const [k, n] of renamed) out.push(`Đổi model: ${n > 1 ? `${n} × ` : ''}${k}`);
   const faces = new Set(before.roofFaces.map((f) => f.roofFaceId));

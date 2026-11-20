@@ -109,8 +109,17 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
       return false;
     }
   };
-  /** Every edit is a new stored revision; undo restores the previous content as another new revision. */
-  const mutate = async (next: Project) => { const prev = project!; if (await save(next)) history.record(prev); };
+  /**
+   * Every edit is a new stored revision; undo restores the previous content as another new revision. An edit made from a copy older
+   * than the project (a form still on screen while its repaint after another save is on the way) is refused, never saved over that save.
+   */
+  const mutate = async (next: Project) => {
+    if (next.revision !== project.revision || next.updatedAt !== project.updatedAt) {
+      say(`Màn hình vừa được cập nhật (revision ${project.revision}) trong lúc bạn sửa, nên thay đổi này chưa được lưu. Hãy làm lại trên màn hình mới.`);
+      return;
+    }
+    const prev = project!; if (await save(next)) history.record(prev);
+  };
 
   const stringOfPanel = (id: string) => project?.strings?.find((x) => x.panelIds.includes(id))?.stringId ?? null;
   const isPanel = (id: string) => project.instances.some((i) => i.instanceId === id && i.kind === 'panel');
@@ -123,12 +132,12 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     return project.instances.some((i) => i.instanceId === base) || project.obstacles?.some((o) => o.obstacleId === base) ? [base] : [];
   };
   /**
-   * The one selection, from any view. The diagram's object: the id itself when one non-panel id is picked (string, device, port, edge),
-   * else the string all chosen panels share. Returns false when nothing changed.
+   * The one selection, from any view. The diagram's object: the id itself when one non-panel id (string, device, port, edge) or one
+   * panel outside every string is picked (its check is "tấm chưa thuộc chuỗi"), else the string all chosen panels share. Returns false when nothing changed.
    */
   const choose = (ids: string[]): boolean => {
     const sel = [...new Set(ids.flatMap(resolve))], owners = new Set(sel.map(stringOfPanel).filter(Boolean));
-    const obj = ids.length === 1 && !isPanel(ids[0]) ? ids[0] : owners.size === 1 ? [...owners][0]! : null;
+    const obj = ids.length === 1 && (!isPanel(ids[0]) || !stringOfPanel(ids[0])) ? ids[0] : owners.size === 1 ? [...owners][0]! : null;
     const coded = selectedCode !== null; selectedCode = null; // any other pick shows the object's worst check again
     if (!coded && obj === selected && sel.join(',') === selection.join(',')) return false;
     selection = sel; selected = obj;
@@ -150,7 +159,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
 
   // ---- navigation: a new step is a new history entry, a tab inside the step replaces it ---------------------------
   const navigate = (s: Step, t: Tab) => {
-    if (!stored) return void show(s, t); // a preview keeps its #/mau or #/moi address until the first save
+    if (!stored) { if (s !== step || t !== tab) void show(s, t); return; } // a preview keeps its #/mau or #/moi address until the first save; the open tab stays as typed
     const url = formatRoute({ kind: 'project', projectId: project.projectId, step: s, tab: t });
     if (s === step) location.replace(url); else location.hash = url;
   };
@@ -217,7 +226,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   };
   const view = createViewport({
     project: () => project, selection: () => selection, apply: (next) => saved(next), selected: () => selected,
-    setSelection: viewPick, select: (id) => viewPick([id]), remove: () => { void requestDelete(selection); },
+    setSelection: viewPick, select: (id) => viewPick([id]), remove: (ids) => { void requestDelete(ids); },
     replay: () => simState.runs.find((r) => r.source.kind === 'current')?.result ?? null,
   });
 
@@ -263,12 +272,14 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     if (tab && SHOWS_SELECTION.includes(tab)) await renderPanel(null); else repaintSelection();
     document.getElementById('insp-confirm')?.focus();
   };
-  // the add palette: rebuilt only when the project changed, so its preview is never stale and an open block survives other repaints
-  let palette = h('aside', { id: 'ws-add' }), paletteOf: Project | null = null;
+  // the add palette: rebuilt only when the project or the user's catalog changed (a model just made is offered), so its preview is
+  // never stale and an open block survives other repaints
+  let palette = h('aside', { id: 'ws-add' }), paletteOf: Project | null = null, paletteCat = '';
   const paintPalette = () => {
-    if (paletteOf === project) return;
+    const cat = JSON.stringify([userComponents, userOffers]);
+    if (paletteOf === project && paletteCat === cat) return;
     const next = renderPalette({ project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], apply: saved, fold: addFold });
-    palette.replaceWith(next); palette = next; paletteOf = project;
+    palette.replaceWith(next); palette = next; paletteOf = project; paletteCat = cat;
   };
   /** The design's "Mái nhà 3D" and the roof's "Sơ đồ điện" also switch the view to what they name. */
   const goView = (t: Tab) => { if (t === 'mai') view.setMode('3d'); else if (t === 'thiet-ke') view.setMode('diagram'); go(t); };
@@ -365,14 +376,15 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     });
   };
   /**
-   * The bar shows the run at once. Of the panel only the progress list and the system screen show it: the system screen
-   * repaints, unless a field in the panel is being typed into or a manual run is going there; then "Hiện" offers the repaint.
+   * The bar shows the run at once. Of the panel only the progress list, the system screen and a PV screen that could not run (its
+   * shade was still being computed) show it: they repaint, unless a field in the panel is being typed into or a manual run is going
+   * there; then "Hiện" offers the repaint.
    */
   const autoDone = () => {
-    const a = document.activeElement;
-    fresh = tab === 'he-thong' && (simState.busy || (!!a && panel.contains(a) && a.matches('input, select, textarea')));
+    const a = document.activeElement, shows = tab === 'he-thong' || (tab === 'pv' && !!panel.querySelector('#compile-issues'));
+    fresh = shows && (simState.busy || (!!a && panel.contains(a) && a.matches('input, select, textarea')));
     paintHealth();
-    if (tab === 'he-thong' && !fresh) return void renderPanel();
+    if (shows && !fresh) return void renderPanel();
     const items = progressItems();
     panel.querySelector('#checklist')?.replaceWith(...(progressComplete(items) ? [] : [checklist(items)]));
   };
@@ -480,7 +492,7 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
         select: pick,
       });
     },
-    'thiet-bi': async () => renderCatalog({ project, repo, mutate, rerender: () => { void edited(); }, say }),
+    'thiet-bi': async () => { await reload(); return renderCatalog({ project, repo, mutate, rerender: () => { void edited(); }, say }); },
     'bao-cao': async (again) => renderReport({
       project, revisions: await repo.listRevisions(project.projectId), state: reportState, buildId: __BUILD_ID__, loadRevision: (n) => repo.loadRevision(project.projectId, n), loadWeather,
       apply: saved, rerender: () => { void again(); }, go,

@@ -24,7 +24,8 @@ export function componentForm(
   const name = h('input', { id: 'f-name', value: base.name, required: true });
   const brand = h('input', { id: 'f-brand', value: base.brand, required: true });
   const sku = h('input', { id: 'f-sku', value: base.sku ?? '' });
-  const url = h('input', { id: 'f-url', value: base.datasheet?.url ?? '', type: 'url' });
+  // a link or a file name with its version (the built-in catalog holds both): type=url would block the save without a word on the page
+  const url = h('input', { id: 'f-url', value: base.datasheet?.url ?? '' });
   const cond = h('select', { id: 'f-cond' }, h('option', { value: 'new' }, 'Mới'), h('option', { value: 'used' }, 'Đã dùng'));
   cond.value = base.condition;
   const notes = h('textarea', { id: 'f-notes', value: base.notes ?? '' });
@@ -74,7 +75,7 @@ export function componentForm(
   return h('form', { onSubmit: save, 'aria-label': 'Thiết bị' },
     h('h2', {}, `${base.derivedFrom ? 'Nhân bản' : 'Tạo'} thiết bị · ${KIND_LABEL[kind]}`),
     field('Tên', name, 'f-name'), field('Hãng', brand, 'f-brand'), field('SKU / mã', sku, 'f-sku'),
-    field('Tình trạng', cond, 'f-cond'), field('Datasheet URL', url, 'f-url'),
+    field('Tình trạng', cond, 'f-cond'), field('Datasheet (link hoặc tên file)', url, 'f-url'),
     h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, 'Thông số'), h('th', {}, 'Giá trị'), h('th', {}, 'Nguồn'), h('th', {}, ''))), h('tbody', {}, ...rows)),
     field('Ghi chú', notes, 'f-notes'), summary,
     h('button', { type: 'submit' }, 'Lưu thiết bị'), h('button', { type: 'button', onClick: onCancel }, 'Hủy'));

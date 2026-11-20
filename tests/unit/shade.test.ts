@@ -158,6 +158,18 @@ describe('cache: hit/miss và invalidation', () => {
     expect(a.field.access[0][3]).toBeGreaterThan(0); // 10:00–11:00 giờ địa phương: Mặt Trời cao phía Nam, tấm thấy một phần trời
     expect(Array.from(a.field.done.slice(0, 24)).every((x) => x === 1)).toBe(true);
   });
+  test('lượt một ngày bắt đầu trước, xong sau lượt cả năm: cache vẫn đủ cả năm, không mất bước nào', async () => {
+    const { p } = await panelOnWall();
+    const s = await buildShadeSpec(p, weatherFor(48), { mode: 'standard', grid: 4 });
+    const cache = new ShadeCache();
+    const day = (await computeShade(s, cache.get(s.key), [24, 48]))!; // started on an empty cache
+    const year = (await computeShade(s, null))!;
+    cache.put(year.field);
+    const want = Array.from(year.field.access[0]);
+    cache.put(day.field); // finishes last
+    expect(cache.missing(s.key, s.n, 0, s.n)).toBe(0);
+    expect(Array.from(cache.get(s.key)!.access[0])).toEqual(want);
+  });
   test('dời vật cản đổi key (miss); dời camera, đổi màu, đổi giá thì không; đổi lưới/mẫu, vị trí hay lưới thời gian đều đổi key', async () => {
     const { p } = await panelOnWall();
     const key = async (q: Project, g = 4, w = weatherFor()) => (await buildShadeSpec(q, w, { mode: 'standard', grid: g })).key;

@@ -1,10 +1,12 @@
 import type { Project } from '../domain/types';
-import { parseNumber } from '../domain/units';
 import { farText, farWeather, NEAR_KM, nearestBundled } from '../weather/nearest';
 import { h } from './dom';
 
+/** Decimal degrees: one dot or comma is the decimal mark ("10.823" is 10,823°, never ten thousand); no thousands grouping. */
+const degrees = (s: string): number | null => { const t = s.trim().replace('−', '-').replace(',', '.'); return /^[+-]?\d+(\.\d+)?$/.test(t) ? Number(t) : null; };
+
 export function parseLocation(lat: string, lon: string): { ok: true; latitude: number; longitude: number } | { ok: false; message: string } {
-  const la = parseNumber(lat.trim()), lo = parseNumber(lon.trim());
+  const la = degrees(lat), lo = degrees(lon);
   if (la === null || la < -90 || la > 90) return { ok: false, message: 'Vĩ độ phải là số từ −90 đến 90.' };
   if (lo === null || lo < -180 || lo > 180) return { ok: false, message: 'Kinh độ phải là số từ −180 đến 180.' };
   return { ok: true, latitude: la, longitude: lo };

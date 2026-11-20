@@ -23,7 +23,8 @@ canvas:focus-visible, [tabindex="-1"]:focus-visible { outline-offset: -3px; }
 canvas:focus-visible { outline-color: #2874a6; } /* the 3D scene is drawn light in both themes (three-view clear colour #f1f5f9): 4.6:1 */
 /* "Tới bảng bước" at the start of the view: out of sight until a key brings focus to it; .sr-only: for screen readers only */
 .skip { align-self: flex-start; }
-.skip:not(:focus), .sr-only { position: absolute; width: 1px; height: 1px; min-height: 0; margin: 0; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* an empty status line is hidden the same way, not display:none: it stays in the accessibility tree, so its first message is read out */
+.skip:not(:focus), .sr-only, #ws-top #status:empty { position: absolute; width: 1px; height: 1px; min-height: 0; margin: 0; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
@@ -53,7 +54,6 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 #ws-help summary { line-height: var(--touch); cursor: pointer; }
 #ws-depth [aria-pressed=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
 #ws-top #status { flex-basis: 100%; margin: 0; }
-#ws-top #status:empty { display: none; }
 #ws-steps { display: flex; gap: var(--space-1); overflow-x: auto; margin-top: var(--space-2); }
 #ws-steps button { flex: 0 0 auto; border-radius: var(--radius); }
 #ws-steps [aria-current=step] { background: var(--accent); color: var(--bg); font-weight: 600; }

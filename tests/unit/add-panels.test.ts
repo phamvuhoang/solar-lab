@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { addString } from '../../src/domain/graph';
 import { addInstances, createProject } from '../../src/domain/project';
-import { addPanelBatch, addPanels, restringPanels } from '../../src/domain/presets';
+import { addFirstInverter, addPanelBatch, addPanels, restringPanels } from '../../src/domain/presets';
 import { describeChange } from '../../src/domain/change';
 import { buildSampleHouse } from '../../src/domain/seed';
 import { validateLayout } from '../../src/domain/placement';
@@ -48,6 +48,19 @@ describe('addPanels', () => {
     // both ports held by Hestia strings: no free port for VSUN
     const blocked = { ...p, strings: [p.strings![0], { ...p.strings![1], panelIds: ids.slice(0, 4) }] };
     expect(() => restringPanels(blocked, inv, refKey(vs))).toThrow('NO_FREE_MPPT');
+  });
+
+  test('inverter đầu tiên, 8 VSUN + 4 Hestia: mỗi model một MPPT, không NO_FREE_MPPT, không lỗi, không giới hạn', () => {
+    const vs = catalog('vsun-620'), hes = catalog('hestia-650'), lux = catalog('luxpower-sna6000wpv');
+    const p = addInstances(addInstances(createProject('x'), vs, 8), hes, 4);
+    const q = addFirstInverter(p, lux);
+    const model = (id: string) => refKey(q.instances.find((i) => i.instanceId === id)!.componentRef!);
+    expect(q.strings!.map((s) => [s.panelIds.length, new Set(s.panelIds.map(model)).size, s.target!.port])).toEqual([[8, 1, 'M1'], [4, 1, 'M2']]);
+    expect(validateDesign(q).filter((f) => f.status === 'fail' || f.status === 'limited')).toEqual([]);
+    // one model keeps every port (the sample's 4 + 4)
+    expect(sizes(addFirstInverter(addInstances(createProject('y'), vs, 8), lux))).toEqual([[4, 'M1'], [4, 'M2']]);
+    // more models than ports: said, never a model left out silently
+    expect(() => addFirstInverter(addInstances(p, { ...vs, modelId: 'third-panel' }, 2), lux)).toThrow('NO_FREE_MPPT');
   });
 
   const lamha = () => buildLamHaConfig(openLamHa(), 'split6+2', { inverter: catalog('luxpower-sna6000wpv'), battery: catalog('used-battery'), home: catalog('sample-home-load'), pump: catalog('sample-pump-load'), controller: catalog('sample-pump-controller') }, (c) => offersFor(BUILTIN_OFFERS, c));

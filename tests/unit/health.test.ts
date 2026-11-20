@@ -6,7 +6,7 @@ import { buildSampleHouse } from '../../src/domain/seed';
 import { formatKWh } from '../../src/domain/units';
 import type { SimResult } from '../../src/engine/system';
 import type { Kit, Project } from '../../src/domain/types';
-import { healthOf, pvYear } from '../../src/ui/health';
+import { healthOf, pvTotal } from '../../src/ui/health';
 import { validateDesign } from '../../src/validation/strings';
 import { catalog, rig, withStrings } from './helpers';
 
@@ -54,7 +54,8 @@ test('dự án trống: Điện và tiền "chưa đủ dữ liệu"; PV và c�
 });
 
 // a finished run, as far as the bar reads it (simMetrics)
-const result = { pv: { totals: { eInverterWh: 7_123_456 } }, dispatch: { totals: { gridImportWh: 343_412 }, metrics: { hoursShort: 0, lowestSunMonth: null }, ledger: { maxResidualWh: 0 } } } as unknown as SimResult;
+const YEAR = { stepSeconds: 3600, n: 8760 };
+const result = { pv: { totals: { eInverterWh: 7_123_456 }, period: YEAR }, dispatch: { totals: { gridImportWh: 343_412 }, metrics: { hoursShort: 0, lowestSunMonth: null }, ledger: { maxResidualWh: 0 } } } as unknown as SimResult;
 const live = (auto: AutoState) => healthOf(buildSampleHouse(), auto).filter((c) => c.key === 'pv' || c.key === 'supply');
 
 test('done: PV pass có MWh/năm và (bóng: xem trước); cấp điện thiếu 0 giờ, mua lưới = formatKWh(gridImportWh)', () => {
@@ -62,6 +63,15 @@ test('done: PV pass có MWh/năm và (bóng: xem trước); cấp điện thiế
   expect(pv).toMatchObject({ state: 'pass', text: '☀ 7,12 MWh/năm (bóng: xem trước)', missing: null });
   expect(supply).toMatchObject({ state: 'pass', text: `Cấp điện: thiếu 0 giờ/năm · mua lưới ${formatKWh(343_412)} kWh` });
   expect(formatKWh(343_412)).toBe('343,4');
+});
+test('dữ liệu ngắn hơn một năm: tổng trong kỳ dữ liệu, không bao giờ "/năm"', () => {
+  const day = { ...result, pv: { ...result.pv, totals: { eInverterWh: 17_560 }, period: { stepSeconds: 3600, n: 24 } }, dispatch: { ...result.dispatch, metrics: { hoursShort: 3, lowestSunMonth: null } } } as unknown as SimResult;
+  const [pv, supply] = live({ kind: 'done', hash: 'h', result: day, shadePreview: false });
+  expect(pv.text).toBe('☀ 17,6 kWh trong 1 ngày dữ liệu');
+  expect(supply.text).toMatch(/^Cấp điện: thiếu 3 giờ trong 1 ngày dữ liệu/);
+  expect(`${pv.text} ${supply.text}`).not.toContain('năm');
+  expect(pvTotal(500, { stepSeconds: 3600, n: 6 })).toBe('0,5 kWh trong 6 giờ dữ liệu');
+  expect(pvTotal(7_123_456, { stepSeconds: 3600, n: 8784 })).toBe('7,12 MWh/năm'); // a leap year is a year
 });
 test('running: không còn chữ số nào trong ô PV và cấp điện', () => {
   for (const c of live({ kind: 'running' })) {
@@ -84,7 +94,7 @@ test('mỗi ô tới nguồn của số: điện mở lỗi nặng nhất (công
   expect(worst.status).toBe('limited'); // Nhà mẫu: 2 giới hạn đứng đầu, đúng trạng thái của ô
   expect(e.target).toEqual({ step: 'dau-noi', tab: 'thiet-ke', focusId: 'finding-detail', select: worst.objectIds[0] });
   expect(pv.target).toEqual({ step: 'chay-thu', tab: 'he-thong', focusId: 'sim-pv-total' }); // the same number on the system screen
-  expect(pv.text).toBe(`☀ ${pvYear(7_123_456)} (bóng: xem trước)`); // written by the one function the screen's row uses
+  expect(pv.text).toBe(`☀ ${pvTotal(7_123_456, YEAR)} (bóng: xem trước)`); // written by the one function the screen's row uses
   // a target hidden at this depth falls back to the next one shown: the ledger is for Kỹ sư, "Đủ điện …" and the total for everyone
   expect(supply.target).toEqual({ step: 'chay-thu', tab: 'he-thong', focusId: ['sim-ledger', 'sim-days'] });
   expect(money.target).toEqual({ step: 'chi-phi', tab: 'du-toan', focusId: ['quote-lines', 'quote-total'] });

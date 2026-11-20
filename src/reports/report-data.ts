@@ -6,7 +6,7 @@ import { pvSettingsOf } from '../engine/compile';
 import { simPolicyOf } from '../engine/sim-compile';
 import type { SimResult } from '../engine/system';
 import { shadeSettingsOf } from '../shade/sampler';
-import { designOf, validateDesign, type Finding, type Status } from '../validation/strings';
+import { designOf, displayStatus, STATUS_LABEL, validateDesign, type Finding, type Status } from '../validation/strings';
 import { localDate, localHour, type WeatherSeries } from '../weather/series';
 
 /** `base` is the design that was run for side A (a stored revision); undefined for the current project. */
@@ -22,7 +22,8 @@ export interface ReportFacts {
   /** The sample house, renamed or not: the page says "mẫu minh họa" in its header. */
   sample: boolean;
   quote: { quote: Quote; date: string | null; validUntil: string | null; totalText: string; missingText: string[] };
-  checks: { counts: Record<Status, number>; notable: Finding[] };
+  /** Counted and labelled by displayStatus, as on screen: an unchecked wiring warning is "chưa đủ dữ liệu", never an error. */
+  checks: { counts: Record<Status, number>; notable: (Finding & { shown: Status })[] };
   levels: Level[]; assumptions: string[];
   weather: { name: string; source: string; method: string; period: string; license: string; retrieved: string; steps: number; attached: boolean } | null;
   monthly: { month: string; kWh: number }[] | null; typicalDay: { hours: number[]; avgW: number[] } | null;
@@ -39,8 +40,10 @@ export function reportFacts(i: ReportInput): ReportFacts {
   const p = i.project, quote = buildQuote(p), tz = p.location?.timezone ?? 'Asia/Ho_Chi_Minh';
   const findings = validateDesign({ ...p, design: p.design });
   const counts: Record<Status, number> = { pass: 0, fail: 0, limited: 0, unknown: 0 };
-  for (const f of findings) counts[f.status]++;
-  const notable = findings.filter((f) => f.status !== 'pass').sort((a, b) => ({ fail: 0, limited: 1, unknown: 2, pass: 3 })[a.status] - ({ fail: 0, limited: 1, unknown: 2, pass: 3 })[b.status]);
+  const order: Record<Status, number> = { fail: 0, limited: 1, unknown: 2, pass: 3 };
+  const shown = findings.map((f) => ({ ...f, shown: displayStatus(f) }));
+  for (const f of shown) counts[f.shown]++;
+  const notable = shown.filter((f) => f.shown !== 'pass').sort((a, b) => order[a.shown] - order[b.shown]);
 
   const used = new Set(p.priceSelections.map((s) => s.offerId));
   const offerDates = p.snapshots.offers.filter((o) => used.has(o.offerId));
@@ -69,7 +72,7 @@ export function reportFacts(i: ReportInput): ReportFacts {
   const sh = shadeSettingsOf(p), pvs = pvSettingsOf(p), pol = simPolicyOf(p), des = designOf(p);
   const levels: Level[] = [
     { name: 'Dữ liệu dự án (cấu trúc, đơn vị, tham chiếu)', state: 'done', detail: 'Đã qua kiểm tra schema và tham chiếu chéo khi lưu/nhập.' },
-    { name: 'Sơ đồ điện và chuỗi (datasheet)', state: counts.unknown || counts.limited ? 'gaps' : 'done', detail: `${counts.pass} đạt · ${counts.fail} không đạt · ${counts.limited} sát giới hạn · ${counts.unknown} chưa kiểm được (thiếu dữ liệu).` },
+    { name: 'Sơ đồ điện và chuỗi (datasheet)', state: counts.unknown || counts.limited ? 'gaps' : 'done', detail: `${(['pass', 'fail', 'limited', 'unknown'] as const).map((k) => `${counts[k]} ${STATUS_LABEL[k]}`).join(' · ')}.` },
     { name: 'Mô phỏng PV theo giờ', state: i.pv ? 'done' : 'not-run', detail: i.pv ? `Engine ${i.pv.engineVersion}, mã đầu vào ${i.pv.inputHash.slice(0, 12)}.` : 'Chưa chạy cho báo cáo này.' },
     { name: 'Hệ thống pin, tải, bơm (dispatch)', state: i.runs.length ? (i.runs.every((r) => r.result.dispatch.ledger.toleranceOk) ? 'done' : 'gaps') : 'not-run',
       detail: i.runs.length ? `${i.runs[0].result.dispatch.version}; sổ năng lượng cân trong ngưỡng ở ${i.runs.filter((r) => r.result.dispatch.ledger.toleranceOk).length}/${i.runs.length} phương án.` : 'Chưa chạy cho báo cáo này.' },

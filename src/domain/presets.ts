@@ -1,4 +1,4 @@
-import { addEdge, addString, dropInstances, indexProject, portsOf, suggestGrouping, stringsOf, unassignedPanels, type PortRef } from './graph';
+import { addEdge, addString, dropInstances, indexProject, portsOf, removeString, suggestGrouping, stringsOf, unassignedPanels, type PortRef } from './graph';
 import { addInstances, snapshotInto } from './project';
 import { fillFace } from './layout-edit';
 import { refKey, type Component, type LoadPlan, type Offer, type Project } from './types';
@@ -107,14 +107,14 @@ export function addPanelBatch(p: Project, panel: Component, n: number, invComp: 
 }
 
 /** Strings on this inverter made only of `modelKey` panels, plus unassigned panels of that model, re-split by proposeStrings over the MPPT ports no other string uses. Series order kept (existing strings in order, then unassigned in instance order). Throws NO_INVERTER, NO_FREE_MPPT. */
-export function restringPanels(p: Project, inverterId: string, modelKey: string): Project {
+export function restringPanels(p: Project, inverterId: string, modelKey: string, maxPorts = Infinity): Project {
   const ix = indexProject(p), inv = ix.inst.get(inverterId);
   if (!inv || inv.inst.kind !== 'inverter') throw new Error('NO_INVERTER');
   const isModel = (id: string) => { const r = ix.inst.get(id)?.inst.componentRef; return !!r && refKey(r) === modelKey; };
   const mine = stringsOf(p).filter((s) => s.target?.instanceId === inverterId && s.panelIds.length > 0 && s.panelIds.every(isModel));
   const mineIds = new Set(mine.map((s) => s.stringId));
   const taken = new Set(stringsOf(p).filter((s) => !mineIds.has(s.stringId) && s.target?.instanceId === inverterId).map((s) => s.target!.port));
-  const free = portsOf(inv.inst, inv.comp).filter((x) => x.type === 'mppt-in' && !taken.has(x.id));
+  const free = portsOf(inv.inst, inv.comp).filter((x) => x.type === 'mppt-in' && !taken.has(x.id)).slice(0, maxPorts);
   if (!free.length) throw new Error('NO_FREE_MPPT');
   const ids = [...mine.flatMap((s) => s.panelIds), ...unassignedPanels(p).filter(isModel)];
   if (!ids.length) return p;
@@ -130,6 +130,21 @@ export function restringPanels(p: Project, inverterId: string, modelKey: string)
     next = addString(next, { label: mine[i]?.label ?? `Chuỗi ${k}`, panelIds: ids.slice(at, at + size), target: { instanceId: inverterId, port: free[i].id } });
     at += size;
   });
+  return next;
+}
+
+/**
+ * Bảng Thêm "Inverter" on a design without one: the inverter, then every panel model strung onto its MPPT ports. The ports are shared
+ * out between the models first (in model order, at least one each), so the first model never takes them all. Unconnected strings of
+ * one model (the old batch form) give their panels back first. Throws NO_FREE_MPPT when there are more models than ports.
+ */
+export function addFirstInverter(p: Project, c: Component, offers: readonly Offer[] = []): Project {
+  let next = addInstances(p, c, 1, offers);
+  const inv = next.instances[next.instances.length - 1], model = (id: string) => { const r = p.instances.find((i) => i.instanceId === id)?.componentRef; return r ? refKey(r) : ''; };
+  for (const s of stringsOf(next)) if (s.target === null && s.panelIds.length && new Set(s.panelIds.map(model)).size === 1) next = removeString(next, s.stringId);
+  const models = [...new Set(p.instances.filter((i) => i.kind === 'panel' && i.componentRef).map((i) => refKey(i.componentRef!)))];
+  const ports = portsOf(inv, c).filter((x) => x.type === 'mppt-in').length;
+  models.forEach((k, i) => { next = restringPanels(next, inv.instanceId, k, Math.floor(ports / models.length) + (i < ports % models.length ? 1 : 0)); });
   return next;
 }
 

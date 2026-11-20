@@ -119,7 +119,17 @@ export class ShadeCache {
   private map = new Map<string, ShadeField>();
   hits = 0; misses = 0;
   get(key: string) { return this.map.get(key) ?? null; }
-  put(f: ShadeField) { this.map.set(f.key, f); if (this.map.size > 8) this.map.delete(this.map.keys().next().value!); }
+  /**
+   * Keeps every step either field has done: a day computed from an older copy, finishing after a full-year run, must not
+   * throw the year away. Same key = same panels, steps and inputs, so a done step holds the same values in both.
+   */
+  put(f: ShadeField) {
+    const old = this.map.get(f.key);
+    if (old && old !== f) for (let i = 0; i < f.n; i++) if (old.done[i] && !f.done[i]) { f.done[i] = 1; for (let k = 0; k < f.access.length; k++) f.access[k][i] = old.access[k][i]; }
+    this.map.delete(f.key); // re-inserted last: the newest is evicted last
+    this.map.set(f.key, f);
+    if (this.map.size > 8) this.map.delete(this.map.keys().next().value!);
+  }
   /** Steps in [from, to) not yet done for this key (all of them if the key is unknown). */
   missing(key: string, n: number, from: number, to: number): number {
     const f = this.map.get(key);

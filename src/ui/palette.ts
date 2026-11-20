@@ -1,9 +1,8 @@
 import { offersFor } from '../catalog/catalog';
 import { buildQuote, type Quote } from '../cost/quote';
 import { describeChange } from '../domain/change';
-import { removeString, stringsOf } from '../domain/graph';
 import { addObstacle, addRoofFace, faceRect, fillFace } from '../domain/layout-edit';
-import { addAcLoad, addBatteryBranch, addPanels, addPumpBranch, ALL_DAY, atHour, replaceComponent, restringPanels } from '../domain/presets';
+import { addAcLoad, addBatteryBranch, addFirstInverter, addPanels, addPumpBranch, ALL_DAY, atHour, replaceComponent } from '../domain/presets';
 import { addInstances } from '../domain/project';
 import { toWorld } from '../domain/roof';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
@@ -83,13 +82,7 @@ export function renderPalette(ctx: PaletteCtx): HTMLElement {
     } },
     { id: 'add-inverter', label: 'Inverter', fields: [note(inverter ? `Thay ${inverter.label}; giữ chuỗi, dây và vị trí.` : 'Thêm inverter và nối mọi tấm vào các MPPT của nó.'), invModel], make: () => {
       const c = need(invs.find((x) => refKey(x) === invModel.value), 'inverter');
-      if (inverter) return replaceComponent(p, [inverter.instanceId], c, of(c));
-      let next = addInstances(p, c, 1, of(c));
-      const inv = next.instances[next.instances.length - 1], model = (id: string) => { const r = p.instances.find((i) => i.instanceId === id)?.componentRef; return r ? refKey(r) : ''; };
-      // unconnected strings of one model (the old batch form without an inverter) give their panels back, so the new inverter takes them all
-      for (const s of stringsOf(next)) if (s.target === null && s.panelIds.length && new Set(s.panelIds.map(model)).size === 1) next = removeString(next, s.stringId);
-      for (const k of new Set(p.instances.filter((i) => i.kind === 'panel' && i.componentRef).map((i) => refKey(i.componentRef!)))) next = restringPanels(next, inv.instanceId, k);
-      return next;
+      return inverter ? replaceComponent(p, [inverter.instanceId], c, of(c)) : addFirstInverter(p, c, of(c));
     } },
     { id: 'add-battery', label: 'Pin', fields: [note(battery ? `${battery.name}, nối vào cổng pin của inverter.` : '')], make: () => addBatteryBranch(p, need(battery, 'pin lưu trữ'), of(battery!)) },
     { id: 'add-load', label: 'Tải', fields: [note(home ? `${home.name}, nối vào AC, chạy cả ngày (lịch mặc định; sửa lịch ở bước ③, chế độ Thợ).` : '')], make: () => addAcLoad(p, need(home, 'tải'), of(home!), { fractions: ALL_DAY, priority: 1 }) },

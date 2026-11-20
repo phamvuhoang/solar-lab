@@ -1,4 +1,5 @@
 import { indexProject } from '../domain/graph';
+import { REASONS } from '../engine/dispatch';
 import type { Project } from '../domain/types';
 import type { SimResult } from '../engine/system';
 import { localHour } from '../weather/series';
@@ -7,6 +8,7 @@ import type { SceneModel } from './model';
 /** Power on one drawn wire at a replay step: w ≥ 0 (W, step average); dir 1 = from → to as the wire is drawn. */
 export interface Flow { wireId: string; w: number; dir: 1 | -1 }
 
+const SHORT = 1 << REASONS.indexOf('UNSERVED_LOAD'); // the steps the engine counts in hoursShort, not float residue in unservedWh
 const kw = (w: number) => `${(w / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} kW`;
 
 /**
@@ -40,7 +42,7 @@ export function flowsAt(model: SceneModel, r: SimResult, step: number, p: Projec
     `PV vào inverter ${kw(at(s.pvBusWh[step]))}`,
     ...(has('dc-bat') ? [`Pin: ${net >= 0 ? 'sạc' : 'xả'} ${kw(Math.abs(net))}`] : []),
     `Tải: ${kw(at(s.loadServedWh[step]))}`,
-    ...(s.unservedWh[step] > 0 ? [`Thiếu ${kw(at(s.unservedWh[step]))}`] : []), // "Tải" is what was served: a shortage is said, never left out
+    ...(s.reasons[step] & SHORT ? [`Thiếu ${kw(at(s.unservedWh[step]))}`] : []), // "Tải" is what was served: a shortage is said, never left out
     `Lưới nhập ${kw(at(s.gridImportWh[step]))}`,
     ...(s.exportWh[step] > 0.5 ? [`Lưới xuất ${kw(at(s.exportWh[step]))}`] : []),
     // the PV arrows show what the strings can give; what the bus had to cut is said, so the numbers add up (a limit is never hidden)

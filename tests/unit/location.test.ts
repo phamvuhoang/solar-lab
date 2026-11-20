@@ -36,4 +36,9 @@ test('nhập tọa độ: dấu phẩy như dấu chấm; ngoài phạm vi hoặ
   expect(parseLocation('95', '108')).toMatchObject({ ok: false, message: expect.stringContaining('Vĩ độ') });
   expect(parseLocation('11', '200')).toMatchObject({ ok: false, message: expect.stringContaining('Kinh độ') });
   expect(parseLocation('abc', '108')).toMatchObject({ ok: false });
+  // three decimals with a dot are decimal degrees, not thousands (TP.HCM); what the form writes back reads back the same
+  expect(parseLocation('10.823', '106.629')).toEqual({ ok: true, latitude: 10.823, longitude: 106.629 });
+  expect(parseLocation(String(-33.865), String(151.209))).toEqual({ ok: true, latitude: -33.865, longitude: 151.209 });
+  expect(parseLocation('−8,5', '115,25')).toEqual({ ok: true, latitude: -8.5, longitude: 115.25 });
+  expect(parseLocation('1.234,5', '108')).toMatchObject({ ok: false });
 });

@@ -15,7 +15,7 @@ import { shadeSettingsOf } from '../shade/sampler';
 import { shadeFor } from '../shade/usage';
 import type { Depth } from './depth';
 import { download, h } from './dom';
-import { pvYear } from './health';
+import { pvTotal } from './health';
 import type { Tab } from './route';
 import { term } from './term';
 
@@ -238,7 +238,7 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
   const m = (r: Run) => ({ d: r.result.dispatch, t: r.result.dispatch.totals, mm: r.result.dispatch.metrics });
   const rows: [string, (r: Run) => string, ((x: Run, y: Run) => string) | null, Depth?, string?][] = [
     // the ☀ number of the health bar, written the same way (every depth): every string, the pump branch's too, unlike the bus row below
-    ['Sản lượng PV cả năm (mọi chuỗi, kể cả nhánh bơm; số ☀ trên thanh)', (r) => pvYear(r.result.pv.totals.eInverterWh),
+    ['Sản lượng PV (mọi chuỗi, kể cả nhánh bơm; số ☀ trên thanh)', (r) => pvTotal(r.result.pv.totals.eInverterWh, r.result.pv.period),
       (x, y) => `${((y.result.pv.totals.eInverterWh - x.result.pv.totals.eInverterWh) / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} MWh`, undefined, 'sim-pv-total'],
     ['Điện PV tới inverter (sau giới hạn)', (r) => `${formatKWh(m(r).t.pvBusWh)} kWh`, (x, y) => `${formatKWh(m(y).t.pvBusWh - m(x).t.pvBusWh)} kWh`],
     ['Tải yêu cầu', (r) => `${formatKWh(m(r).t.loadRequestedWh)} kWh`, null],

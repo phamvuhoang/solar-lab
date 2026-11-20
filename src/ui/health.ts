@@ -46,8 +46,17 @@ const PV: Target = { step: 'chay-thu', tab: 'pv' }, SYSTEM: Target = { step: 'ch
 /** Where a finished run's numbers are on the system screen: the same ☀ number (every depth); the energy ledger (Kỹ sư), else "Đủ điện …". */
 const PV_SOURCE: Target = { ...SYSTEM, focusId: 'sim-pv-total' }, SUPPLY_SOURCE: Target = { ...SYSTEM, focusId: ['sim-ledger', 'sim-days'] };
 
-/** A run's PV energy for the year as the bar and the system screen (#sim-pv-total) both write it: every string, the pump branch's too. */
-export const pvYear = (wh: number) => `${(wh / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} MWh/năm`;
+type Span = { stepSeconds: number; n: number };
+/** What a run's totals cover: null for a whole year of weather (they are per year); a shorter set says its length, never "/năm". */
+export const spanText = ({ stepSeconds, n }: Span): string | null => {
+  const days = (n * stepSeconds) / 86400, num = (x: number) => x.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+  return days >= 365 ? null : days >= 1 ? `trong ${num(days)} ngày dữ liệu` : `trong ${num(days * 24)} giờ dữ liệu`;
+};
+/** A run's PV energy as the bar and the system screen (#sim-pv-total) both write it: every string, the pump branch's too. */
+export const pvTotal = (wh: number, span: Span) => {
+  const s = spanText(span);
+  return s ? `${formatKWh(wh)} kWh ${s}` : `${(wh / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} MWh/năm`;
+};
 
 /** PV and supply from the automatic run: never an old number while a new one is being computed. */
 function live(p: Project, auto: AutoState): [HealthCell, HealthCell] {
@@ -57,11 +66,11 @@ function live(p: Project, auto: AutoState): [HealthCell, HealthCell] {
   if (auto.kind === 'idle') return cells('unknown', 'chưa chạy', 'chưa chạy', NOT_RUN);
   if (auto.kind === 'running') return cells('unknown', 'đang tính lại…', 'đang tính lại…', null);
   if (auto.kind === 'blocked') return cells('unknown', auto.message, auto.message, auto.message, auto.target);
-  const m = simMetrics(auto.result), hours = m['metrics.hoursShort'] ?? 0;
+  const m = simMetrics(auto.result), hours = m['metrics.hoursShort'] ?? 0, span = spanText(auto.result.pv.period);
   const grid = simPolicyOf(p).gridAvailable ? ` · mua lưới ${formatKWh(m['dispatch.gridImportWh'] ?? 0)} kWh` : '';
   return [
-    { key: 'pv', state: 'pass', text: `☀ ${pvYear(m['pv.eInverterWh'] ?? 0)}${auto.shadePreview ? ' (bóng: xem trước)' : ''}`, missing: null, target: PV_SOURCE },
-    { key: 'supply', state: hours > 0 ? 'limited' : 'pass', text: `Cấp điện: thiếu ${hours.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ/năm${grid}`, missing: null, target: SUPPLY_SOURCE }];
+    { key: 'pv', state: 'pass', text: `☀ ${pvTotal(m['pv.eInverterWh'] ?? 0, auto.result.pv.period)}${auto.shadePreview ? ' (bóng: xem trước)' : ''}`, missing: null, target: PV_SOURCE },
+    { key: 'supply', state: hours > 0 ? 'limited' : 'pass', text: `Cấp điện: thiếu ${hours.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ${span ? ` ${span}` : '/năm'}${grid}`, missing: null, target: SUPPLY_SOURCE }];
 }
 
 /** Always four cells: electric, pv, supply, money. Without `auto` PV and supply have not run. */
