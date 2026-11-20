@@ -15,3 +15,4 @@ Mỗi file là một backlog có thể giao riêng. Đọc cùng [kế hoạch t
 - [W10 · Vỏ workspace](W10.md)
 - [W11 · Nhà mẫu, bắt đầu từ số 0, trang đầu](W11.md)
 - [W12 · 3D toàn hệ thống](W12.md)
+- [W13 · Kết quả tự cập nhật](W13.md)
