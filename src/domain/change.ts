@@ -49,6 +49,13 @@ export function describeChange(before: Project, after: Project): string[] {
     if (faces.size > 1) out.push(`${s.label}: tấm nằm trên ${faces.size} mặt mái, chưa chạy thử được`);
     if (placed > 0 && placed < s.panelIds.length) out.push(`${s.label}: ${placed}/${s.panelIds.length} tấm đã đặt lên mái, chưa chạy thử được`);
   }
+  const oldAt = new Map((before.placements ?? []).map((x) => [x.instanceId, x]));
+  const replaced = new Map<string, number>(); // panels that were placed before and now sit elsewhere, per face
+  for (const x of after.placements ?? []) {
+    const o = oldAt.get(x.instanceId);
+    if (o && (o.roofFaceId !== x.roofFaceId || o.angleDeg !== x.angleDeg || o.center[0] !== x.center[0] || o.center[1] !== x.center[1])) replaced.set(x.roofFaceId, (replaced.get(x.roofFaceId) ?? 0) + 1);
+  }
+  for (const [id, n] of replaced) out.push(`Đặt lại ${n} tấm trên ${after.roofFaces.find((f) => f.roofFaceId === id)?.label ?? id}`);
   const kept = new Set(after.instances.map((i) => i.instanceId));
   for (const i of before.instances) if (!kept.has(i.instanceId)) out.push(`Bỏ ${i.label}`);
   const k = before.edges.length - after.edges.length;

@@ -45,9 +45,12 @@ export function quickFixForLayout(p: Project, i: PlacementIssue): QuickFix | nul
   const faceId = i.faceId ?? p.placements?.find((x) => x.instanceId === i.instanceId)?.roofFaceId;
   if (!faceId) return null;
   const apply = (q: Project) => {
-    const r = fillFace(removePlacements(q, ids), faceId, ids, q.placements?.find((x) => x.instanceId === ids[0])?.angleDeg ?? 0);
-    if (r.left.length) throw new Error('NO_ROOM');
-    return r.project;
+    const base = removePlacements(q, ids), was = q.placements?.find((x) => x.instanceId === ids[0])?.angleDeg ?? 0;
+    for (const angle of [was, 0]) { // keep the panel's orientation if it fits, else upright
+      const r = fillFace(base, faceId, ids, angle);
+      if (!r.left.length) return r.project;
+    }
+    throw new Error('NO_ROOM');
   };
   return verified(p, { label: 'Đặt lại tấm vào chỗ trống', apply }, (q) => layoutCount(q, i.code));
 }

@@ -66,6 +66,18 @@ test('W06: mái minh họa → điền 8 tấm → 3D cùng 8 ID → chọn/kéo
   await page.locator('#undo').click();
   await expect(page.locator('#layout-issues')).toContainText('Mọi vị trí hợp lệ');
 
+  // W13: nudge a panel onto its neighbour → quick fix previews "Đặt lại", confirm fixes it, undo restores the overlap
+  await page.locator('#rotate-sel').click();
+  await expect(page.locator('#layout-issues button.finding').first()).toBeVisible();
+  await page.locator('#layout-issues button.quick-fix').first().click();
+  await expect(page.locator('#fix-preview')).toContainText('Đặt lại');
+  await page.locator('#fix-confirm').click();
+  await expect(page.locator('#layout-issues')).toContainText('Mọi vị trí hợp lệ');
+  await page.locator('#ws-undo').click();
+  await expect(page.locator('#layout-issues')).toContainText(/PANEL_(OVERLAP|OUT_OF_BOUNDS)/);
+  await page.locator('#undo').click();
+  await expect(page.locator('#layout-issues')).toContainText('Mọi vị trí hợp lệ');
+
   // Đo FPS và ghi lại
   await page.locator('#measure-fps').click();
   await expect(page.locator('#fps-result')).toContainText('FPS (8 tấm', { timeout: 15000 });

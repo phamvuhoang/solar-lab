@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { movePanels } from '../../src/domain/layout-edit';
 import { validateLayout } from '../../src/domain/placement';
 import { buildSampleHouse } from '../../src/domain/seed';
+import { describeChange } from '../../src/domain/change';
 import { quickFixFor, quickFixForLayout } from '../../src/validation/quick-fix';
 import { validateDesign } from '../../src/validation/strings';
 import { catalog, rig, withSpecs, withStrings } from './helpers';
@@ -37,6 +38,8 @@ describe('W13 quick fixes', () => {
     const fix = quickFixForLayout(bad, issue)!;
     expect(fix.label).toBe('Đặt lại tấm vào chỗ trống');
     expect(validateLayout(fix.apply(bad))).toEqual([]);
+    expect(describeChange(bad, fix.apply(bad)).some((l) => l.startsWith('Đặt lại 1 tấm trên'))).toBe(true);
+    expect(describeChange(base, base)).toEqual([]);
   });
   test('không còn MPPT trống → null', () => {
     const p = withStrings(rig(panel, inv(), 8), [{ n: 4, port: 'M1' }, { n: 2, port: 'M1' }, { n: 2, port: 'M2' }]);
