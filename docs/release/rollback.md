@@ -17,7 +17,7 @@ Mục tiêu: quay về bản trước mà không ai mất việc. Thứ tự ưu
 |---|---|---|
 | Bản mới chưa nâng DB (người dùng chưa mở) | Bản cũ đọc bình thường | — |
 | Bản mới đã nâng DB rồi quay về bản cũ | Bản cũ gặp `VersionError`, **không ghi và không xóa gì**; trang nói rõ "dữ liệu do bản MỚI HƠN tạo ra". Bản cũ không có ô nhập file trong tình huống này | (a) mở lại bản mới: mọi dự án còn nguyên; (b) trên màn báo lỗi, bấm "Xuất dữ liệu ra file" (chỉ đọc kho mới, không sửa gì; có từ bản sau rc.1) để giữ một bản; (c) **không** xóa dữ liệu trang để ép dùng bản cũ: việc đó xóa luôn kho mới và mọi bản sao lưu tự động |
-| Mất dữ liệu trình duyệt | Dự án trong IndexedDB mất | Nhập file đã xuất. **Khuyến nghị người dùng bấm "Xuất tất cả dự án" định kỳ** |
+| Mất dữ liệu trình duyệt | Dự án trong IndexedDB mất | Nhập file đã xuất. **Khi quay về rc.2:** rc.2 từ chối file JSON, gói hay bản sao lưu của 1.1 có dự án mang `sample` (bắt đầu từ Nhà mẫu) hoặc `devicePlacements` (thiết bị đã dời chỗ trên 3D), báo lỗi schema; dùng file đã xuất trước khi dùng 1.1. **Khuyến nghị người dùng bấm "Xuất tất cả dự án" định kỳ** |
 
 ## 4. Phục hồi từ sao lưu tự động (bản mới)
 Màn hình chính → "Khôi phục": **bản mới nhất** của mỗi dự án trong sao lưu được thêm lại (lịch sử revision của bản sao lưu không được chép sang; DB sao lưu vẫn giữ nguyên tới khi bạn xóa). Dự án trong máy y hệt bản sao lưu thì bỏ qua; cùng ID nhưng đã sửa khác thì bản sao lưu thành **bản sao** "(khôi phục)", không ghi đè. Bấm "Khôi phục" lần nữa (sau lỗi giữa chừng) chỉ thêm phần còn thiếu. Nhập lại cùng file "Xuất tất cả" cũng vậy; dự án hỏng trong file được liệt kê kèm vị trí, các dự án khác vẫn nhập. "Xóa bản sao lưu" chỉ khi đã chắc.
