@@ -15,6 +15,7 @@ import { shadeFor } from '../shade/usage';
 import type { Depth } from './depth';
 import { download, h } from './dom';
 import type { Tab } from './route';
+import { term } from './term';
 
 export const REASON_VI: Record<Reason, string> = {
   PV_TO_LOAD: 'PV cấp thẳng cho tải', BATTERY_CHARGE: 'Sạc pin từ PV dư', BATTERY_DISCHARGE: 'Pin cấp cho tải', BATTERY_FULL: 'Pin đầy, không sạc thêm', RESERVE_REACHED: 'Pin chạm mức dự phòng, không cấp thêm',
@@ -263,6 +264,7 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
     h('p', { id: 'sim-scope' }, `Kết luận chỉ đúng cho dữ liệu đã chọn: ${weather.name} (${weather.source.period ?? '?'}), SoC đầu ${pct(simPolicyOf(ctx.project).soc0)}, chính sách và lịch tải như trên. Không suy ra cho năm hay địa điểm khác.`),
     h('table', { id: 'sim-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Chỉ số'), ...cols.map((r) => h('th', {}, r.title)), a ? h('th', {}, 'Chênh B − A') : null)),
       h('tbody', {}, ...rows.map(([label, f, d, depth]) => h('tr', { 'data-min-depth': depth }, h('th', { scope: 'row' }, label), ...cols.map((r) => h('td', {}, f(r))), a ? h('td', {}, d ? d(a, b) : '—') : null)))),
+    term('gio-thieu-dien'), term('mua-luoi'), term('cat-cong-suat'),
     energyNote ? h('p', { id: 'sim-energy-note' }, energyNote) : null, cost,
     h('h4', {}, 'Lý do giới hạn (số bước)'), reasonTable(cols), h('h4', {}, 'Giả định đã áp dụng'),
     h('ul', {}, ...[...new Set(cols.flatMap((r) => [...r.result.pv.assumptions, ...r.result.dispatch.assumptions, ...r.result.dispatch.skipped.map((x) => 'Không áp: ' + x)]))].map((x) => h('li', {}, x))),

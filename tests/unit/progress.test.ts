@@ -30,11 +30,12 @@ describe('progressOf', () => {
     const p = createProject('x');
     expect([3, 4, 5, 6].map((n) => step(p, n).action.focusId)).toEqual(['add-panel', 'add-inverter', 'add-battery', 'add-load']);
   });
-  test('bước 6: có tải chưa lịch → Đặt lịch tải ③ he-thong; progressComplete bỏ qua optional', () => {
+  test('bước 6: có tải chưa lịch → Đặt lịch tải ③ he-thong, ô giờ chạy của tải đầu; progressComplete bỏ qua optional', () => {
     const s = buildSampleHouse();
     const p = { ...s, loadPlans: [] } as Project;
     const a = step(p, 6).action;
-    expect([a.step, a.tab, a.focusId, a.label]).toEqual(['chay-thu', 'he-thong', undefined, 'Đặt lịch tải']);
+    const load = p.instances.find((i) => i.kind === 'load')!;
+    expect([a.step, a.tab, a.focusId, a.label]).toEqual(['chay-thu', 'he-thong', `lp-hours-${load.instanceId}`, 'Đặt lịch tải']);
     expect(progressComplete(progressOf(createProject('x'), { simRan: false }))).toBe(false);
   });
 });

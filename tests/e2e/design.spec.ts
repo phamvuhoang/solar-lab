@@ -33,7 +33,7 @@ test('W03: preset 2 chuỗi cùng tracker → lỗi Isc → bấm lỗi → chuy
   // bấm lỗi → focus vào cổng của chuỗi; đổi bằng bàn phím/form
   await page.locator('button.finding[data-code="ISC_TRACKER"]').click();
   await expect(page.locator('#finding-detail')).toContainText('Σ_chuỗi min(Isc)');
-  await expect(page.locator('#finding-detail')).toContainText('Hậu quả');
+  await expect(page.locator('#finding-detail h3')).toContainText('Có lỗi: Dòng ngắn mạch vượt giới hạn cổng'); // trạng thái + hậu quả
   await expect(page.locator('select[id^="str-target-"]:focus')).toHaveCount(1);
   await pick(page.locator('tr[data-string]').nth(1).locator('select'), /MPPT 2/);
   await expect(page.locator('#findings-summary')).toContainText('0 lỗi thiết kế');

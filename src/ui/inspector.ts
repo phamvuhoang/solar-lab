@@ -4,11 +4,13 @@ import { moveDevice, moveObstacle, removeObstacle } from '../domain/layout-edit'
 import { replaceComponent } from '../domain/presets';
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { buildSceneModel } from '../scene/model';
+import { findingLines } from '../validation/finding-view';
 import type { Finding } from '../validation/strings';
 import { errText, STATUS_LABEL } from './design';
 import { h } from './dom';
 import { previewer } from './palette';
 import type { Target } from './route';
+import { term } from './term';
 
 export interface InspectorCtx {
   project: Project; selection: string[]; findings: Finding[]; components: Component[]; offers: Offer[];
@@ -21,6 +23,8 @@ export interface InspectorCtx {
 }
 
 const num = (x: number) => x.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+/** "… là gì?" under one device of this kind. */
+const KIND_TERMS: Record<string, string[]> = { inverter: ['inverter', 'mppt'], battery: ['soc', 'bms'], load: ['kw-kwh'], controller: ['mppt'] };
 const STEP_M = 0.1;
 
 /** "Đang chọn": what the shared selection is, its checks in words, and the edits on it (replace model, delete, nudge), each previewed first. */
@@ -38,14 +42,16 @@ export function renderInspector(ctx: InspectorCtx): HTMLElement {
   const one = insts.length + obs.length === 1, dev = one && insts[0] && insts[0].kind !== 'panel' ? insts[0] : null, ob = one ? obs[0] : undefined;
   const port = (r: { instanceId: string; port: string }) => ix.port(r)?.label ?? r.port;
   const lines: string[] = [];
+  let terms: string[] = [];
   if (insts.length && !obs.length && insts.every((i) => i.kind === 'panel') && strs.length === 1) {
     const s = strs[0], voc = ctx.findings.find((f) => f.code === 'VOC_COLD_ABS' && f.stringId === s.stringId);
     if (one) lines.push(insts[0].label);
     lines.push(`${s.label} · ${s.panelIds.length} tấm → ${s.target ? port(s.target) : 'chưa nối'}`,
       voc && voc.value !== null && voc.limit !== null ? `Voc lạnh ${num(voc.value)}/${num(voc.limit)} V` : 'Voc lạnh chưa đủ dữ liệu');
     if (insts.length < s.panelIds.length) lines.push(`Đang chọn ${insts.length}/${s.panelIds.length} tấm của chuỗi`);
+    terms = ['chuoi', 'voc'];
   } else if (!one) lines.push(`${insts.length + obs.length} món: ${[...insts.map((i) => i.label), ...obs.map((o) => o.label)].join(', ')}`);
-  else if (ob) lines.push(ob.label, `${ob.kind === 'box' ? 'Hộp' : 'Trụ'} ${num(ob.size.x)} × ${num(ob.size.y)} × ${num(ob.size.z)} m · ${ob.roofFaceId ? 'trên mái' : 'đứng riêng'}`);
+  else if (ob) { lines.push(ob.label, `${ob.kind === 'box' ? 'Hộp' : 'Trụ'} ${num(ob.size.x)} × ${num(ob.size.y)} × ${num(ob.size.z)} m · ${ob.roofFaceId ? 'trên mái' : 'đứng riêng'}`); terms = ['shade']; }
   else {
     const i = insts[0], c = ix.inst.get(i.instanceId)?.comp;
     const conn = [
@@ -56,6 +62,7 @@ export function renderInspector(ctx: InspectorCtx): HTMLElement {
       ...stringsOf(p).filter((s) => s.target?.instanceId === i.instanceId).map((s) => `${port(s.target!)} ← ${s.label} (${s.panelIds.length} tấm)`),
     ];
     lines.push(i.label, `Model: ${c ? `${c.name}${c.sku ? ` (${c.sku})` : ''}` : 'chưa gắn model'}`, conn.length ? `Kết nối: ${conn.join('; ')}` : i.kind === 'panel' ? 'Chưa vào chuỗi nào.' : 'Chưa nối với gì.');
+    terms = i.kind === 'panel' ? ['chuoi'] : KIND_TERMS[i.kind] ?? [];
   }
   // statuses in words, one line; the findings themselves fold underneath
   const bad = mine.filter((f) => f.status !== 'pass');
@@ -99,7 +106,8 @@ export function renderInspector(ctx: InspectorCtx): HTMLElement {
       btn('insp-move-up', '↑', move(0, STEP_M), 'Dịch về Bắc'), btn('insp-move-down', '↓', move(0, -STEP_M), 'Dịch về Nam'),
       center ? h('span', {}, ' Vị trí thiết bị là minh họa, không vào phép tính nào.') : '') : '',
     modelBox, ...pv.nodes,
-    bad.length ? h('details', {}, h('summary', {}, 'Các kiểm tra chưa đạt'), h('ul', {}, ...bad.map((f) => h('li', {}, `${STATUS_LABEL[f.status]}: ${f.message}`)))) : '');
+    ...terms.map(term),
+    bad.length ? h('details', {}, h('summary', {}, 'Các kiểm tra chưa đạt'), h('ul', {}, ...bad.map((f) => h('li', {}, findingLines(f, 'co-ban', null).title, h('span', { 'data-min-depth': 'tho' }, ` · ${f.message}`))))) : '');
   if (ctx.open === 'delete') remove();
   return box;
 }

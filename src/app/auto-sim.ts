@@ -18,11 +18,14 @@ const SYSTEM: Target = { step: 'chay-thu', tab: 'he-thong' };
 const IDLE: AutoState = { kind: 'idle' };
 const blocked = (message: string, target: Target = SYSTEM): AutoState => ({ kind: 'blocked', message, target });
 
+/** The field of the system screen (sim.ts) an issue's path points at: a load's hours, or the dispatch policy. */
+const POLICY_FIELD: Record<string, string> = { '/sim/minSoc': 's-min', '/sim/soc0': 's-soc0', '/sim/inverterEfficiency': 's-ei' };
 /** Where a compile issue is fixed: orientation on the PV screen, strings in the design, everything else on the system screen. */
-function targetOf(code: string): Target {
+function targetOf({ code, field }: { code: string; field: string }): Target {
   if (code === 'ORIENTATION_MISSING') return { step: 'chay-thu', tab: 'pv', focusId: 'pv-tilt' };
   if (code === 'NO_STRINGS' || code === 'INVERTER_COUNT' || code.startsWith('STRING_')) return { step: 'dau-noi', tab: 'thiet-ke' };
-  return SYSTEM;
+  const focusId = field.startsWith('/loadPlans/') ? `lp-hours-${field.slice('/loadPlans/'.length)}` : POLICY_FIELD[field];
+  return focusId ? { ...SYSTEM, focusId } : SYSTEM;
 }
 
 /**
@@ -46,7 +49,7 @@ export async function runAuto(p: Project, deps: { loadWeather(id: string): Promi
   }
   const c = await compileSim(p, weather, { shade: field });
   if (signal.aborted) return IDLE;
-  if (!c.input || !c.hash) return blocked(c.issues[0].message, targetOf(c.issues[0].code));
+  if (!c.input || !c.hash) return blocked(c.issues[0].message, targetOf(c.issues[0]));
   const shadePreview = st.enabled && st.mode === 'preview';
   const hit = deps.cache.get(c.hash);
   if (hit) return { kind: 'done', hash: c.hash, result: hit, shadePreview };

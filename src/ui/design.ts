@@ -3,10 +3,13 @@ import { addAcLoad, addBatteryBranch, addPanelBatch, addPumpBranch, applyPreset,
 import { refKey, type Component, type Offer, type Project } from '../domain/types';
 import { parseNumber, parseQuantity } from '../domain/units';
 import { designOf, validateDesign, type Finding } from '../validation/strings';
-import { quickFixFor } from '../validation/quick-fix';
+import { FINDING_TERMS, findingLines } from '../validation/finding-view';
+import { quickFixFor, type QuickFix } from '../validation/quick-fix';
+import type { Depth } from './depth';
 import { h } from './dom';
 import { previewer } from './palette';
 import type { Tab } from './route';
+import { term } from './term';
 
 export interface DesignCtx {
   project: Project; components: Component[]; offers: Offer[]; selected: string | null;
@@ -35,18 +38,17 @@ export function renderDesign(ctx: DesignCtx): Node[] {
 
   const pv = previewer(p, { preview: 'fix-preview', confirm: 'fix-confirm', cancel: 'fix-cancel' }, (next) => { void ctx.apply(next); }, () => {});
   const finding = (f: Finding) => { const qf = quickFixFor(p, f); return h('li', {}, h('button', { className: `finding ${f.status}`, 'data-code': f.code, onClick: () => ctx.select(f.objectIds[0], fixTargets(f)) },
-    `[${STATUS_LABEL[f.status]}${f.assumed ? ', có giả định' : ''}] ${f.message}`),
+    ...findingTitle(f)),
     qf && h('button', { className: 'quick-fix', type: 'button', onClick: () => pv.show(() => qf.apply(p)) }, qf.label)); };
+  const portName = (f: Finding) => f.port && `${ix.inst.get(f.port.instanceId)?.inst.label ?? 'thiết bị đã xóa'} · ${ix.port(f.port)?.label ?? f.port.port}`;
 
   const detail = () => {
     const f = findings.find((x) => x.objectIds[0] === ctx.selected) ?? findings.find((x) => ctx.selected && x.objectIds.includes(ctx.selected));
     if (!f) return h('p', { id: 'finding-detail', tabIndex: -1 }, ctx.selected ? 'Không có kiểm tra nào gắn với đối tượng đang chọn.' : 'Chọn một mục trong sơ đồ hoặc danh sách lỗi.');
+    const qf = quickFixFor(p, f), assumed = f.assumed ? term('gia-dinh') : null;
+    assumed?.setAttribute('data-min-depth', 'ky-su'); // with its "có giả định" line
     return h('div', { id: 'finding-detail', 'aria-live': 'polite', tabIndex: -1 },
-      h('h3', {}, f.code), h('p', {}, f.message),
-      f.formula && h('p', { 'data-min-depth': 'ky-su' }, h('strong', {}, 'Công thức: '), f.formula),
-      f.value !== null && h('p', {}, h('strong', {}, 'Giá trị / giới hạn: '), `${f.value} ${f.unit} / ${f.limit ?? '—'} ${f.unit}`),
-      f.sources.length ? h('ul', { 'data-min-depth': 'ky-su' }, ...f.sources.map((x) => h('li', {}, `${x.where} · ${x.field} = ${x.value ?? 'chưa có'} ${x.unit} (${x.provenance})`))) : null,
-      h('p', {}, h('strong', {}, 'Hậu quả: '), f.consequence), h('p', {}, h('strong', {}, 'Cách sửa: '), f.fix));
+      h('h3', {}, ...findingTitle(f)), findingList(f, qf, portName(f)), ...(FINDING_TERMS[f.code] ?? []).map(term), assumed);
   };
 
   return [
@@ -75,6 +77,17 @@ export const errText = (e: unknown) => ({
   DIMENSION_UNKNOWN: 'Tấm chưa có kích thước nên chưa đặt lên mái được.',
 } as Record<string, string>)[(e as Error).message] ?? (e as Error).message;
 
+/** A check's title (the same at every depth) and, from Thợ, its measured sentence ("Voc lạnh Chuỗi 1: 645 V > 500 V"). */
+const findingTitle = (f: Finding): Node[] => [document.createTextNode(findingLines(f, 'co-ban', null).title),
+  ...(f.status === 'pass' ? [] : [h('span', { 'data-min-depth': 'tho' }, ` · ${f.message}`)])];
+
+/** A check's lines for every depth in one list; the stylesheet hides what is deeper than the current depth (switching repaints nothing). */
+export function findingList(f: Finding, fix: QuickFix | null, port?: string): HTMLElement {
+  const [basic, tho, kySu] = (['co-ban', 'tho', 'ky-su'] as const).map((d) => findingLines(f, d, fix, port).lines);
+  const li = (min?: Depth) => (x: string) => h('li', { 'data-min-depth': min }, x);
+  return h('ul', { className: 'finding-lines' }, ...basic.map(li()), ...tho.slice(basic.length).map(li('tho')), ...kySu.slice(tho.length).map(li('ky-su')));
+}
+
 /** Controls that fix a finding, most specific first; the first one shown at this depth gets the focus. */
 const fixTargets = (f: Finding): string[] => [...(f.stringId ? [`str-target-${f.stringId}`] : []), `edge-del-${f.objectIds[0]}`, 'edge-from', 'finding-detail'];
 
@@ -98,7 +111,7 @@ function settingsForm(ctx: DesignCtx, fail: (m: string) => void): HTMLElement {
   h('label', {}, 'Tcell thấp nhất (°C) ', cold), h('label', {}, ' Tcell cao nhất (°C) ', hot),
   h('label', { 'data-min-depth': 'ky-su' }, ' Hệ số Isc ', isc), h('label', { 'data-min-depth': 'ky-su' }, ' Giả định βVmp (%/°C) ', beta), h('label', { 'data-min-depth': 'ky-su' }, ' Nguồn ', src),
   h('button', { type: 'submit' }, 'Lưu thiết lập'),
-  h('p', {}, 'Để trống thì các kiểm tra phụ thuộc trả "chưa đủ dữ liệu". βVmp không được suy từ βPmax.'));
+  h('p', {}, 'Để trống thì các kiểm tra phụ thuộc trả "chưa đủ dữ liệu". βVmp không được suy từ βPmax.'), term('nhiet-do-cell'));
 }
 
 function batchForm(ctx: DesignCtx, invComp: Component | undefined, fail: (m: string) => void, run: (f: () => Project) => Promise<void>): HTMLElement {

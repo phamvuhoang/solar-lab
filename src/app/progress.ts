@@ -23,8 +23,8 @@ export function progressOf(p: Project, o: { simRan: boolean }): ProgressItem[] {
       hasPanels ? t('bo-tri', 'mai', 'Đặt tấm', 'fill-face') : t('dau-noi', 'thiet-ke', 'Thêm tấm', 'add-panel')),
     row('inverter', 'Chọn inverter', has('inverter'), t('dau-noi', 'thiet-ke', 'Chọn inverter', 'add-inverter')),
     row('pin', 'Thêm pin (bỏ qua được)', has('battery'), t('dau-noi', 'thiet-ke', 'Thêm pin (bỏ qua được)', 'add-battery'), 'optional'),
-    row('tai', 'Thêm tải và lịch chạy', loads.some((l) => planned.has(l.instanceId)),
-      loads.length ? t('chay-thu', 'he-thong', 'Đặt lịch tải') : t('dau-noi', 'thiet-ke', 'Thêm tải', 'add-load')),
+    row('tai', 'Thêm tải và lịch chạy', loads.some((l) => planned.has(l.instanceId)), // the hours field of the first load (sim.ts loadPlans)
+      loads.length ? t('chay-thu', 'he-thong', 'Đặt lịch tải', `lp-hours-${loads[0].instanceId}`) : t('dau-noi', 'thiet-ke', 'Thêm tải', 'add-load')),
     row('loi-do', 'Nối chuỗi và sửa lỗi đỏ',
       stringsOf(p).some((s) => s.target !== null) && !validateDesign(p).some((f) => f.status === 'fail' && f.severity === 'error'),
       t('dau-noi', 'thiet-ke', 'Sửa lỗi đỏ', 'findings')),

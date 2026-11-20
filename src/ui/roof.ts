@@ -8,6 +8,7 @@ import { quickFixForLayout } from '../validation/quick-fix';
 import { h } from './dom';
 import { previewer } from './palette';
 import type { Tab } from './route';
+import { term } from './term';
 
 export interface RoofState { faceId: string | null; angle: 0 | 90; stepCm: number }
 export interface RoofCtx {
@@ -52,7 +53,7 @@ export function renderRoof(ctx: RoofCtx): Node[] {
     const outline = h('textarea', { id: `rf-outline-${f.roofFaceId}`, rows: 2, cols: 40, value: ringText(f.outline), 'aria-label': 'Đường biên mặt mái' });
     const holes = h('textarea', { id: `rf-holes-${f.roofFaceId}`, rows: 2, cols: 40, value: f.holes.map(ringText).join('\n'), placeholder: 'mỗi dòng một vùng loại trừ: a b; a b; a b', 'aria-label': 'Vùng loại trừ' });
     return h('details', { className: 'card', 'data-face': f.roofFaceId, open: p.roofFaces.length === 1 }, h('summary', {}, `${f.label} · ${f.tiltDeg}° · hướng ${f.azimuthDeg}°`),
-      lab.node, tilt.node, az.node, h('span', { 'data-min-depth': 'tho' }, sb.node),
+      lab.node, tilt.node, az.node, h('span', { 'data-min-depth': 'tho' }, sb.node), term('khoang-lui-mep'),
       h('div', { 'data-min-depth': 'tho' }, oe.node, on.node, ou.node, h('br'),
         h('label', {}, 'Biên (a b; a b; … mét trong khung mặt mái) ', outline), h('br'), h('label', {}, 'Vùng loại trừ ', holes)), h('br'),
       btn('Lưu mặt mái', () => {

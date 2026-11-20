@@ -11,6 +11,7 @@ import { runPvInWorker } from '../worker/client';
 import { shadeFor } from '../shade/usage';
 import { download, h } from './dom';
 import { renderLocationForm } from './location';
+import { term } from './term';
 
 export interface PvCtx {
   project: Project;
@@ -173,6 +174,7 @@ function resultSection(r: PvResult, w: WeatherSeries, tz: string, unplaced = 0):
       row('Tổn hao DC', `${t.lossWh < 50 ? '' : '−'}${kwh(t.lossWh)} kWh`), row('Bị cắt bởi tracker', `${t.clippedTrackerWh < 50 ? '' : '−'}${kwh(t.clippedTrackerWh)} kWh`), row('Bị cắt bởi inverter (PV vào tối đa)', `${t.clippedInverterWh < 50 ? '' : '−'}${kwh(t.clippedInverterWh)} kWh`),
       row('Điện năng DC sau giới hạn', `${kwh(t.eInverterWh)} kWh`), row('Công suất đỉnh sau giới hạn', `${Math.round(t.peakW).toLocaleString('vi-VN')} W`),
       row('Suất phát', t.specificYieldKWhPerKWp === null ? 'không tính được' : `${t.specificYieldKWhPerKWp.toLocaleString('vi-VN', { maximumFractionDigits: 0 })} kWh/kWp trong khoảng dữ liệu`)),
+    term('kwp'), term('poa'),
     r.shade ? h('p', { id: 'pv-shade-note' }, `Có bóng che: ${r.shade.modelVersion}, ${r.shade.mode === 'preview' ? '1 điểm' : `lưới ${Math.sqrt(r.shade.samplesPerPanel)}×${Math.sqrt(r.shade.samplesPerPanel)}`} mỗi tấm, chuỗi tính theo ${r.shade.stringMode === 'sum' ? 'cộng công suất tấm (cận trên)' : 'tấm yếu nhất (cận dưới)'}. ${r.shade.notes.join('. ')}.${unplaced ? ` ${unplaced} tấm chưa đặt lên mái nên không có bóng.` : ''}`) : null,
     h('p', {}, 'Đây là công suất DC theo mô hình ở đầu vào inverter, chưa qua hiệu suất inverter, pin và tải (W05); không phải cam kết sản lượng thực.'),
     h('h4', {}, 'Giả định và giới hạn đã áp dụng'),

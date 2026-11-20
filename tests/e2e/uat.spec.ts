@@ -100,7 +100,7 @@ test('UAT thợ: tạo một SKU, đọc giải thích lỗi MPPT (công thức,
   await page.locator('button.finding[data-code="ISC_TRACKER"]').click();
   const detail = page.locator('#finding-detail');
   await expect(detail).toContainText('Σ_chuỗi min(Isc)'); // công thức
-  await expect(detail).toContainText('Hậu quả');
+  await expect(detail.locator('h3')).toContainText('Có lỗi: Dòng ngắn mạch vượt giới hạn cổng'); // hậu quả, mở đầu bằng trạng thái
   await expect(detail).toContainText('manufacturer'); // nguồn của số liệu (hãng sản xuất)
   await pick(page.locator('tr[data-string]').nth(1).locator('select'), /MPPT 2/);
   await expect(page.locator('#findings-summary')).toContainText('0 lỗi thiết kế');

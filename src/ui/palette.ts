@@ -91,8 +91,8 @@ export function renderPalette(ctx: PaletteCtx): HTMLElement {
       return next;
     } },
     { id: 'add-battery', label: 'Pin', fields: [note(battery ? `${battery.name}, nối vào cổng pin của inverter.` : '')], make: () => addBatteryBranch(p, need(battery, 'pin lưu trữ'), of(battery!)) },
-    { id: 'add-load', label: 'Tải', fields: [note(home ? `${home.name}, nối vào AC, chạy cả ngày (sửa lịch ở bước ③).` : '')], make: () => addAcLoad(p, need(home, 'tải'), of(home!), { fractions: ALL_DAY, priority: 1 }) },
-    { id: 'add-pump-ac', label: 'Bơm (AC)', fields: [note(pump ? `${pump.name}, nối vào AC, chạy 1 giờ lúc 18h (sửa lịch ở bước ③).` : '')], make: () => addAcLoad(p, need(pump, 'bơm'), of(pump!), { fractions: atHour(18), priority: 2, pump: PUMP }) },
+    { id: 'add-load', label: 'Tải', fields: [note(home ? `${home.name}, nối vào AC, chạy cả ngày (lịch mặc định; sửa lịch ở bước ③, chế độ Thợ).` : '')], make: () => addAcLoad(p, need(home, 'tải'), of(home!), { fractions: ALL_DAY, priority: 1 }) },
+    { id: 'add-pump-ac', label: 'Bơm (AC)', fields: [note(pump ? `${pump.name}, nối vào AC, chạy 1 giờ lúc 18h (lịch mặc định; sửa lịch ở bước ③, chế độ Thợ).` : '')], make: () => addAcLoad(p, need(pump, 'bơm'), of(pump!), { fractions: atHour(18), priority: 2, pump: PUMP }) },
     { id: 'add-pump-pv', label: 'Bơm cấp bằng tấm riêng', fields: [note('2 tấm mới → controller → bơm DC, không qua inverter; bơm chạy 1 giờ lúc 11h.')], make: () => {
       const old = new Set(p.instances.map((i) => i.instanceId)), pv = need(panel, 'tấm pin');
       let next = addInstances(p, pv, 2, of(pv));

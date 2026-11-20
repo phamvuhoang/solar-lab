@@ -63,7 +63,8 @@ describe('ba bài học: fixture riêng, đo bằng engine thật, dự đoán �
     const { l, before, after } = await run('series-parallel');
     expect(l.explain(before, after, 'engineer').length).toBe(l.explain(before, after, 'basic').length + 1);
     expect(before.engineer.length).toBeGreaterThan(0);
-    for (const id of ['kw-kwh', 'mppt', 'soc', 'bms']) { const t = GLOSSARY.find((x) => x.id === id)!; expect(t.basic.length).toBeGreaterThan(40); expect(t.engineer.length).toBeGreaterThan(t.basic.length / 2); }
+    for (const id of ['kw-kwh', 'mppt', 'soc', 'bms']) expect(GLOSSARY.some((x) => x.id === id), id).toBe(true);
+    for (const t of GLOSSARY) { expect(t.basic.length, t.id).toBeGreaterThan(40); expect(t.engineer.length, t.id).toBeGreaterThan(t.basic.length / 2); } // every term, old and new
     expect(LESSONS.every((x) => x.terms.length > 0)).toBe(true);
   });
 });

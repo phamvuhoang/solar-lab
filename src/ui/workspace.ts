@@ -151,7 +151,8 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const goTarget = (t: Target) => { pendingFocus = t.focusId ? [t.focusId] : []; if (t.tab === tab) applyFocus(); else navigate(t.step, t.tab); };
   const applyFocus = () => {
     // the first target shown at this depth; one in a closed <details> (the Thêm column on phones) opens it
-    const target = pendingFocus.map((id) => document.getElementById(id)).find((el) => {
+    const els = pendingFocus.map((id) => document.getElementById(id));
+    const target = els.find((el) => {
       const fold = el?.closest('details:not([open])') as HTMLDetailsElement | null;
       if (fold) fold.open = true;
       if (el && (el.checkVisibility?.() ?? el.getClientRects().length > 0)) return true; // checkVisibility: Safari 17.4+, Chrome 105+
@@ -159,8 +160,27 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
       return false;
     });
     pendingFocus = [];
+    const gated = target ? undefined : els.find(depthFor);
+    if (gated) return depthHint(gated, depthFor(gated)!);
     target?.focus();
     target?.scrollIntoView({ block: 'nearest' });
+  };
+  /** The depth that shows `el` when it is deeper than the current one; null when it is shown here or hidden for another reason. */
+  const depthFor = (el: HTMLElement | null): Depth | null => {
+    const d = currentDepth();
+    if (el?.closest('[data-min-depth="ky-su"]') && d !== 'ky-su') return 'ky-su';
+    return el?.closest('[data-min-depth]') && d === 'co-ban' ? 'tho' : null;
+  };
+  /**
+   * Every target of a fix is detail of a deeper depth (a load plan for Thợ, the dispatch policy for Kỹ sư): say so at the top of the
+   * panel with a button that switches, instead of doing nothing. After the switch the target takes the focus.
+   */
+  const depthHint = (el: HTMLElement, need: Depth) => {
+    const hint = h('p', { id: 'depth-hint', role: 'status' }, `Mục này sửa ở chế độ ${DEPTH_LABEL[need]}. `,
+      h('button', { id: `to-${need}`, type: 'button', onClick: () => { setDepth(need); hint.remove(); document.getElementById(el.id)?.focus(); } }, `Chuyển sang ${DEPTH_LABEL[need]}`));
+    panel.querySelector('#depth-hint')?.remove();
+    panel.prepend(hint);
+    hint.querySelector('button')!.focus();
   };
 
   // ---- chrome -------------------------------------------------------------------------------------------------------
@@ -216,14 +236,12 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   help.addEventListener('click', (e) => { if ((e.target as Element).closest('button')) help.open = false; }); // a picked item closes the menu
   const home = h('button', { id: 'ws-home', type: 'button', onClick: () => { say(''); location.hash = formatRoute({ kind: 'home' }); } }, 'Danh sách dự án');
   /** Cơ bản · Thợ · Kỹ sư: the stylesheet hides detail by depth, so nothing repaints; only the pressed button changes. */
-  const depthSwitch = () => {
-    const group = h('div', { id: 'ws-depth', role: 'group', 'aria-label': 'Mức chi tiết' });
-    group.append(...(Object.keys(DEPTH_LABEL) as Depth[]).map((d) => h('button', { id: `depth-${d}`, type: 'button', 'aria-pressed': String(d === currentDepth()), onClick: () => {
-      applyDepth(d); writeDepth(d);
-      for (const b of group.children) b.setAttribute('aria-pressed', String(b.id === `depth-${d}`));
-    } }, DEPTH_LABEL[d])));
-    return group;
+  const setDepth = (d: Depth) => {
+    applyDepth(d); writeDepth(d);
+    for (const b of top.querySelectorAll('#ws-depth button')) b.setAttribute('aria-pressed', String(b.id === `depth-${d}`));
   };
+  const depthSwitch = () => h('div', { id: 'ws-depth', role: 'group', 'aria-label': 'Mức chi tiết' },
+    ...(Object.keys(DEPTH_LABEL) as Depth[]).map((d) => h('button', { id: `depth-${d}`, type: 'button', 'aria-pressed': String(d === currentDepth()), onClick: () => setDepth(d) }, DEPTH_LABEL[d])));
 
   function paintChrome() {
     const hist = historyFor(edited);

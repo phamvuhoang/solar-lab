@@ -46,7 +46,8 @@ test('bỏ lịch tải → blocked, message LOAD_PLAN_MISSING', async () => {
   const s = await runAuto({ ...p, loadPlans: [] }, { loadWeather, runner, cache: new Lru(4), signal: live() });
   if (s.kind !== 'blocked') throw new Error(s.kind);
   expect(s.message).toContain('chưa đặt lịch chạy'); // the LOAD_PLAN_MISSING issue's own words
-  expect(s.target).toEqual({ step: 'chay-thu', tab: 'he-thong' });
+  const load = p.instances.find((i) => i.kind === 'load')!;
+  expect(s.target).toEqual({ step: 'chay-thu', tab: 'he-thong', focusId: `lp-hours-${load.instanceId}` }); // the hours field of that load
   expect(calls.sim).toBe(0);
 }, 60_000);
 

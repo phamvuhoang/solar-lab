@@ -6,6 +6,7 @@ import { parseMoney, parseNumber, parseQuantity } from '../domain/units';
 import { validateOffer } from '../domain/validate';
 import { quoteToCsv } from '../reports/csv';
 import { download, h } from './dom';
+import { term } from './term';
 
 const vnd = (m: string | null) => (m === null ? '—' : Number(m).toLocaleString('vi-VN') + ' đ');
 const CAT: Record<Category, string> = { equipment: 'Thiết bị', frame: 'Khung', cable: 'Dây', protection: 'Thiết bị bảo vệ', labor: 'Công lắp', shipping: 'Giao hàng', discount: 'Giảm giá', other: 'Khác' };
@@ -74,7 +75,7 @@ export function renderQuote(ctx: QuoteCtx): Node[] {
       h('tbody', {}, ...q.lines.map(row))),
     h('p', { id: 'quote-known' }, `Tổng phần đã biết (chưa VAT): ${vnd(q.knownSubtotalMinor)}`),
     h('p', { id: 'quote-vat', 'data-min-depth': 'tho' }, `VAT trên dòng chưa gồm VAT: ${vnd(q.vatMinor)} · giao hàng: ${vnd(q.shippingMinor)}`),
-    h('p', { id: 'quote-total' }, q.complete ? `Tổng hoàn chỉnh: ${vnd(q.totalMinor)}` : `Tổng hoàn chỉnh: chưa đủ để báo (${reasons || 'chưa có dòng nào'})`),
+    h('p', { id: 'quote-total' }, q.complete ? `Tổng hoàn chỉnh: ${vnd(q.totalMinor)}` : `Tổng hoàn chỉnh: chưa đủ để báo (${reasons || 'chưa có dòng nào'})`), term('thieu-gia'),
     waive,
     q.issues.length ? h('ul', {}, ...q.issues.map((i) => h('li', {}, `Cảnh báo ${i.code}: ${i.message}`))) : null,
     errBox,
