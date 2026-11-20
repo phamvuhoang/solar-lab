@@ -78,7 +78,7 @@ export function createViewport(host: ViewportHost): Viewport {
   const flowText = h('p', { id: 'view-flows', hidden: true });
   /** Flows follow the model drawn now (wires move with devices); the text shows in every mode, also without WebGL. */
   const paintFlows = () => {
-    const r = replayStep === null ? null : host.replay(), at = r && drawn ? flowsAt(drawn.model, r, replayStep!) : null;
+    const r = replayStep === null ? null : host.replay(), at = r && drawn ? flowsAt(drawn.model, r, replayStep!, drawn.project) : null;
     api?.setFlows(at?.flows ?? []);
     flowText.hidden = !at; flowText.textContent = at ? `Bước đang phát lại: ${at.text.join(' · ')}` : '';
   };
