@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { tab } from './nav';
 
 // A fresh browser context per test, so this starts with no saved project.
 const item = (page: Page, id: string) => page.locator(`#checklist li[data-progress="${id}"]`);
@@ -71,7 +72,7 @@ test('đi hết 9 bước từ số 0', async ({ page }) => {
   await load.getByRole('button', { name: 'Lưu lịch' }).click();
   await done(page, 'tai');
 
-  // ⑨ giá, trước ⑧: mọi lần sửa sau một lần chạy thử làm kết quả đó cũ đi
+  // ⑨ giá; ⑧ chạy thử tự chạy sau mỗi lần sửa, nên không cần bấm "Chạy"
   await doStep(page, 'gia');
   for (const [key, price] of [['vsun-620@1', '1.900.000'], ['luxpower-sna6000wpv@1', '14.500.000'], ['dyness-dl5-0c@1', '17.000.000']] as const) {
     await page.locator(`[data-device="${key}"]`).getByRole('button', { name: 'Thêm báo giá' }).click();
@@ -90,29 +91,23 @@ test('đi hết 9 bước từ số 0', async ({ page }) => {
   await done(page, 'gia');
   await expect(page.locator('#quote-total')).not.toContainText('chưa đủ');
 
-  // ⑧ chạy thử thiết kế hiện tại: đủ 9 bước thì danh sách tự biến mất
-  await doStep(page, 'chay-thu');
-  await expect(page.locator('#sim-run')).toBeFocused();
-  await page.locator('#sim-run').click();
-  await expect(page.locator('#sim-result')).toBeVisible({ timeout: 60_000 });
-  await expect(list).toHaveCount(0);
+  // ⑧ the automatic run of the last edit: once it is done all 9 steps are, and the list goes away by itself
+  await expect(list).toHaveCount(0, { timeout: 60_000 });
+  await tab(page, 'he-thong');
+  await expect(page.locator('#sim-result')).toBeVisible(); // the automatic run is the current design's result
 });
 
-test('chạy thử chỉ được tính cho đúng bản thiết kế đã chạy, kể cả khi bản xem thử vừa được lưu', async ({ page }) => {
-  test.setTimeout(90_000);
+test('chạy thử chỉ được tính cho đúng bản thiết kế hiện tại: sửa thì thành chưa chạy tới khi lần tự chạy của bản mới xong', async ({ page }) => {
+  test.setTimeout(150_000);
   await page.goto('/#/mau');
   await page.locator('#coach-skip').click();
-  await page.locator('#shade-btn').click(); // the sample's water tank shades the roof: a run needs the year of shade first
-  await page.locator('#sh-year').click();
-  await expect(page.locator('#sh-results')).toBeVisible({ timeout: 40_000 });
-  await page.locator('#step-chay-thu').click();
-  await page.locator('#sim-btn').click();
-  await page.locator('#sim-run').click();
-  await expect(page.locator('#sim-result')).toBeVisible({ timeout: 30_000 });
-  await done(page, 'chay-thu');
-  // the first edit stores the preview as revision 1, the same number the run was made at
+  await expect(item(page, 'chay-thu')).toHaveAttribute('data-status', 'done', { timeout: 60_000 }); // shade preview + PV + dispatch, no click
+  await tab(page, 'he-thong');
+  // the first edit stores the preview as revision 1; the run of the preview is not a run of it
   await page.locator('#s-min').fill('30');
   await page.locator('#s-save').click();
   await expect(page.locator('#ws-rev')).toHaveText('Đã lưu · r1');
   await expect(item(page, 'chay-thu')).toHaveAttribute('data-status', 'todo');
+  await expect(page.locator('#health-supply')).toContainText('đang tính lại…');
+  await expect(item(page, 'chay-thu')).toHaveAttribute('data-status', 'done', { timeout: 60_000 });
 });

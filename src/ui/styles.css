@@ -53,7 +53,7 @@ button.entry { display: flex; flex-direction: column; gap: var(--space-1); text-
 #ws-tabs [aria-selected=true] { font-weight: 600; box-shadow: inset 0 -3px var(--accent); }
 #ws-panel { overflow-x: auto; }
 #ws-health { display: flex; gap: var(--space-1); overflow-x: auto; white-space: nowrap; border-top: 1px solid var(--border); padding-top: var(--space-1); }
-#ws-health button { flex: 0 0 auto; text-align: left; border-left: 6px dotted var(--unk); }
+#ws-health [data-state] { flex: 0 0 auto; text-align: left; border-left: 6px dotted var(--unk); }
 #ws-health [data-state=pass] { border-left: 6px solid var(--ok); }
 #ws-health [data-state=fail] { border-left: 6px solid var(--err); }
 #ws-health [data-state=limited] { border-left: 6px dashed var(--lim); }

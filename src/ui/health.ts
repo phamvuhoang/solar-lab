@@ -1,5 +1,9 @@
+import type { AutoState } from '../app/auto-sim';
 import type { Project } from '../domain/types';
+import { formatKWh } from '../domain/units';
 import { buildQuote } from '../cost/quote';
+import { simPolicyOf } from '../engine/sim-compile';
+import { simMetrics } from '../reports/package';
 import { validateDesign, type Status } from '../validation/strings';
 import { h } from './dom';
 import type { Target } from './route';
@@ -37,14 +41,27 @@ function money(p: Project): HealthCell {
   };
 }
 
-/** Always four cells: electric, pv, supply, money. */
-export function healthOf(p: Project): HealthCell[] {
+const PV: Target = { step: 'chay-thu', tab: 'pv' }, SYSTEM: Target = { step: 'chay-thu', tab: 'he-thong' };
+
+/** PV and supply from the automatic run: never an old number while a new one is being computed. */
+function live(p: Project, auto: AutoState): [HealthCell, HealthCell] {
+  const cells = (state: Status, pv: string, supply: string, missing: string | null, at?: Target): [HealthCell, HealthCell] => [
+    { key: 'pv', state, text: `☀ ${pv}`, missing, target: at ?? PV },
+    { key: 'supply', state, text: `Cấp điện: ${supply}`, missing, target: at ?? SYSTEM }];
+  if (auto.kind === 'idle') return cells('unknown', 'chưa chạy', 'chưa chạy', NOT_RUN);
+  if (auto.kind === 'running') return cells('unknown', 'đang tính lại…', 'đang tính lại…', null);
+  if (auto.kind === 'blocked') return cells('unknown', auto.message, auto.message, auto.message, auto.target);
+  const m = simMetrics(auto.result), hours = m['metrics.hoursShort'] ?? 0;
+  const mwh = ((m['pv.eInverterWh'] ?? 0) / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+  const grid = simPolicyOf(p).gridAvailable ? ` · mua lưới ${formatKWh(m['dispatch.gridImportWh'] ?? 0)} kWh` : '';
   return [
-    electric(p),
-    { key: 'pv', state: 'unknown', text: '☀ chưa chạy', missing: NOT_RUN, target: { step: 'chay-thu', tab: 'pv' } },
-    { key: 'supply', state: 'unknown', text: 'Cấp điện: chưa chạy', missing: NOT_RUN, target: { step: 'chay-thu', tab: 'he-thong' } },
-    money(p),
-  ];
+    { key: 'pv', state: 'pass', text: `☀ ${mwh} MWh/năm${auto.shadePreview ? ' (bóng: xem trước)' : ''}`, missing: null, target: PV },
+    { key: 'supply', state: hours > 0 ? 'limited' : 'pass', text: `Cấp điện: thiếu ${hours.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ/năm${grid}`, missing: null, target: SYSTEM }];
+}
+
+/** Always four cells: electric, pv, supply, money. Without `auto` PV and supply have not run. */
+export function healthOf(p: Project, auto: AutoState = { kind: 'idle' }): HealthCell[] {
+  return [electric(p), ...live(p, auto), money(p)];
 }
 
 export function renderHealth(cells: HealthCell[], go: (t: Target) => void): HTMLElement {

@@ -60,6 +60,9 @@ export function formatQuantity(v: number, dim: Dim): string {
   return formatNumber(Number((v / d.units[d.defaultUnit]).toPrecision(12)));
 }
 
+/** Energy in kWh as screens show it: vi-VN, one decimal, |x| < 5 Wh shows 0 (never "-0"). */
+export const formatKWh = (wh: number) => (Math.abs(wh) < 5 ? 0 : wh / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+
 /** VND amount as whole đồng: "1.984.000", "3200 đ", "16 000 000" → "1984000" etc. Fractions are rejected. */
 export function parseMoney(text: string): { ok: true; minor: string } | { ok: false; message: string } {
   const t = (text ?? '').replace(/\s*(đ|₫|vnd)\s*$/i, '').replace(/(?<=\d) (?=\d{3}\b)/g, '').trim();

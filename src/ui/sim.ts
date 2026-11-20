@@ -6,10 +6,11 @@ import { asRunFor, compileSim, formatHours, parseHours, simPolicyOf } from '../e
 import type { SimResult } from '../engine/system';
 import { buildLamHaConfig, LAMHA_CONFIG_LABEL, type LamHaConfig } from '../domain/presets';
 import { refKey, type Component, type LoadPlan, type Offer, type Project } from '../domain/types';
-import { parseNumber } from '../domain/units';
+import { formatKWh, parseNumber } from '../domain/units';
 import { simResultToCsv } from '../reports/sim-csv';
 import { localDate, localHour, type WeatherSeries } from '../weather/series';
 import { runSimInWorker } from '../worker/client';
+import { shadeSettingsOf } from '../shade/sampler';
 import { shadeFor } from '../shade/usage';
 import { download, h } from './dom';
 import type { Tab } from './route';
@@ -22,8 +23,7 @@ export const REASON_VI: Record<Reason, string> = {
   NO_BATTERY: 'Không có pin', PUMP_BRANCH_CURTAILED: 'PV nhánh bơm dư bị cắt',
 };
 
-/** `revision`: the project revision the run was made from (the progress list counts a run of the current revision only). */
-export interface Run { label: 'A' | 'B'; source: { kind: 'current' } | { kind: 'revision'; n: number }; title: string; hash: string; result: SimResult; projectName: string; revision?: number }
+export interface Run { label: 'A' | 'B'; source: { kind: 'current' } | { kind: 'revision'; n: number }; title: string; hash: string; result: SimResult; projectName: string }
 export interface SimState { runs: Run[]; side: 0 | 1; step: number; progress: Record<string, number> }
 
 export interface SimCtx {
@@ -33,13 +33,12 @@ export interface SimCtx {
 }
 
 const pct = (x: number | null) => (x === null ? '—' : (x * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' %');
-const kwh = (wh: number) => (Math.abs(wh) < 5 ? 0 : wh / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 const dec = (x: number | null | undefined) => (x === null || x === undefined ? '' : String(x).replace('.', ','));
 
 export { asRunFor };
 
 export async function renderSim(ctx: SimCtx): Promise<Node[]> {
-  const p = ctx.project, tz = p.location?.timezone ?? 'Asia/Ho_Chi_Minh';
+  const p = ctx.project, tz = p.location?.timezone ?? 'Asia/Ho_Chi_Minh', sh = shadeSettingsOf(p);
   const weather = p.pv?.weatherId ? await ctx.loadWeather(p.pv.weatherId) : undefined;
   const msg = h('div', { id: 'sim-messages', role: 'alert' });
   const say = (lines: string[]) => msg.replaceChildren(...lines.map((l) => h('p', {}, l)));
@@ -66,6 +65,8 @@ export async function renderSim(ctx: SimCtx): Promise<Node[]> {
   return [
     h('h2', {}, `Hệ thống: pin, tải, bơm · ${p.name}`), h('button', { onClick: () => ctx.go('pv') }, 'Thời tiết và PV'), msg,
     h('p', { id: 'sim-weather' }, weather ? `Dữ liệu: ${weather.name} (${weather.source.period ?? 'không rõ năm'}) · ${weather.source.name}` : 'Chưa chọn dữ liệu thời tiết: vào "Thời tiết và PV" để chọn và khai độ nghiêng/hướng.'),
+    sh.enabled && sh.mode === 'preview' ? h('p', { id: 'sim-shade' }, 'Bóng che đang ở mức xem trước (1 điểm giữa mỗi tấm); số đưa vào báo cáo nên dùng bóng chuẩn. ',
+      h('button', { id: 'shade-standard', type: 'button', onClick: () => ctx.apply({ ...structuredClone(p), shade: { ...sh, mode: 'standard' } }) }, 'Tính bóng chuẩn (cho báo cáo)')) : null,
     h('h3', {}, '1. Cấu hình mẫu Lâm Hà'), configButtons(ctx, say),
     h('h3', {}, '2. Chính sách điều phối'), policyForm(ctx, say),
     h('h3', {}, '3. Lịch tải và bơm'), loadPlans(ctx, say),
@@ -198,7 +199,7 @@ function runControls(ctx: SimCtx, weather: WeatherSeries | undefined, say: (l: s
     }));
     jobs.length = 0;
     for (const { o, s } of outs) {
-      if (o.status === 'result') done.push({ label: s.label, source: s.source, title: s.title, hash: s.hash, result: o.result, projectName: s.base.name, revision: s.base.revision });
+      if (o.status === 'result') done.push({ label: s.label, source: s.source, title: s.title, hash: s.hash, result: o.result, projectName: s.base.name });
       else say(o.status === 'cancelled' ? ['Đã hủy; không có kết quả nào được lưu.'] : [`${s.title}: ${o.issues.map((i) => `${i.code} tại ${i.field}: ${i.message}`).join('; ')}`]);
     }
     if (done.length === prepared.length) ctx.state.runs = done;
@@ -223,16 +224,16 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
   const cols = a ? [a, b] : [b];
   const m = (r: Run) => ({ d: r.result.dispatch, t: r.result.dispatch.totals, mm: r.result.dispatch.metrics });
   const rows: [string, (r: Run) => string, ((x: Run, y: Run) => string) | null][] = [
-    ['Điện PV tới inverter (sau giới hạn)', (r) => `${kwh(m(r).t.pvBusWh)} kWh`, (x, y) => `${kwh(m(y).t.pvBusWh - m(x).t.pvBusWh)} kWh`],
-    ['Tải yêu cầu', (r) => `${kwh(m(r).t.loadRequestedWh)} kWh`, null],
-    ['Tải được cấp', (r) => `${kwh(m(r).t.loadServedWh)} kWh`, (x, y) => `${kwh(m(y).t.loadServedWh - m(x).t.loadServedWh)} kWh`],
+    ['Điện PV tới inverter (sau giới hạn)', (r) => `${formatKWh(m(r).t.pvBusWh)} kWh`, (x, y) => `${formatKWh(m(y).t.pvBusWh - m(x).t.pvBusWh)} kWh`],
+    ['Tải yêu cầu', (r) => `${formatKWh(m(r).t.loadRequestedWh)} kWh`, null],
+    ['Tải được cấp', (r) => `${formatKWh(m(r).t.loadServedWh)} kWh`, (x, y) => `${formatKWh(m(y).t.loadServedWh - m(x).t.loadServedWh)} kWh`],
     ['Tỉ lệ đáp ứng', (r) => (m(r).mm.servedRatio === null ? `— (${m(r).mm.servedRatioNote})` : pct(m(r).mm.servedRatio)), null],
     ['Số giờ tải thiếu', (r) => `${m(r).mm.hoursShort.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ`, (x, y) => `${(m(y).mm.hoursShort - m(x).mm.hoursShort).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} giờ`],
-    ['Điện thiếu', (r) => `${kwh(m(r).t.unservedWh)} kWh`, (x, y) => `${kwh(m(y).t.unservedWh - m(x).t.unservedWh)} kWh`],
-    ['PV dư (cắt + xuất)', (r) => `${kwh(m(r).t.curtailedWh + m(r).t.exportWh - m(r).t.clipWh)} kWh`, (x, y) => `${kwh((m(y).t.curtailedWh + m(y).t.exportWh - m(y).t.clipWh) - (m(x).t.curtailedWh + m(x).t.exportWh - m(x).t.clipWh))} kWh`],
-    ['Pin: điện năng xả (tại bus)', (r) => `${kwh(m(r).t.dischargeBusWh)} kWh`, (x, y) => `${kwh(m(y).t.dischargeBusWh - m(x).t.dischargeBusWh)} kWh`],
-    ['Nhập / xuất lưới', (r) => `${kwh(m(r).t.gridImportWh)} / ${kwh(m(r).t.exportWh)} kWh`, null],
-    ['Tổn hao: inverter / sạc / xả / tự dùng', (r) => `${kwh(m(r).t.inverterLossWh)} / ${kwh(m(r).t.chargeLossWh)} / ${kwh(m(r).t.dischargeLossWh)} / ${kwh(m(r).t.standbyWh)} kWh`, null],
+    ['Điện thiếu', (r) => `${formatKWh(m(r).t.unservedWh)} kWh`, (x, y) => `${formatKWh(m(y).t.unservedWh - m(x).t.unservedWh)} kWh`],
+    ['PV dư (cắt + xuất)', (r) => `${formatKWh(m(r).t.curtailedWh + m(r).t.exportWh - m(r).t.clipWh)} kWh`, (x, y) => `${formatKWh((m(y).t.curtailedWh + m(y).t.exportWh - m(y).t.clipWh) - (m(x).t.curtailedWh + m(x).t.exportWh - m(x).t.clipWh))} kWh`],
+    ['Pin: điện năng xả (tại bus)', (r) => `${formatKWh(m(r).t.dischargeBusWh)} kWh`, (x, y) => `${formatKWh(m(y).t.dischargeBusWh - m(x).t.dischargeBusWh)} kWh`],
+    ['Nhập / xuất lưới', (r) => `${formatKWh(m(r).t.gridImportWh)} / ${formatKWh(m(r).t.exportWh)} kWh`, null],
+    ['Tổn hao: inverter / sạc / xả / tự dùng', (r) => `${formatKWh(m(r).t.inverterLossWh)} / ${formatKWh(m(r).t.chargeLossWh)} / ${formatKWh(m(r).t.dischargeLossWh)} / ${formatKWh(m(r).t.standbyWh)} kWh`, null],
     ['SoC đầu → cuối', (r) => `${pct(m(r).mm.socStart)} → ${pct(m(r).mm.socEnd)}`, null],
     ['SoC thấp nhất', (r) => (m(r).mm.minSoc === null ? '—' : `${pct(m(r).mm.minSoc)} lúc ${fmtT(m(r).mm.minSocAt!, tz)}`), null],
     ['Lần thiếu điện đầu tiên', (r) => (m(r).mm.firstShortageAt === null ? 'không có' : fmtT(m(r).mm.firstShortageAt!, tz)), null],
@@ -242,7 +243,7 @@ function results(ctx: SimCtx, runs: Run[], weather: WeatherSeries, tz: string, c
     ['Sổ năng lượng: sai số lớn nhất / bước', (r) => `${m(r).d.ledger.maxResidualWh.toExponential(1)} Wh (ngưỡng đạt)`, null],
   ];
   const energyNote = a && Math.abs(m(a).t.eEndWh - m(b).t.eEndWh) > 1
-    ? `Hai phương án kết thúc với năng lượng trong pin khác nhau: B ${m(b).t.eEndWh > m(a).t.eEndWh ? 'còn nhiều hơn' : 'còn ít hơn'} A ${kwh(Math.abs(m(b).t.eEndWh - m(a).t.eEndWh))} kWh. Phần này chưa được tính như điện đã cấp; khi so điện đã cấp cần xét riêng.` : null;
+    ? `Hai phương án kết thúc với năng lượng trong pin khác nhau: B ${m(b).t.eEndWh > m(a).t.eEndWh ? 'còn nhiều hơn' : 'còn ít hơn'} A ${formatKWh(Math.abs(m(b).t.eEndWh - m(a).t.eEndWh))} kWh. Phần này chưa được tính như điện đã cấp; khi so điện đã cấp cần xét riêng.` : null;
   const vnd = (x: string) => `${BigInt(x) > 0n ? '+' : ''}${Number(x).toLocaleString('vi-VN')} đ`;
   const cost = costCmp ? h('p', { id: 'sim-cost' }, 'Chênh chi phí B − A: ',
     costCmp.totalDeltaMinor !== null ? `toàn hệ ${vnd(costCmp.totalDeltaMinor)}` : costCmp.knownDeltaMinor !== null ? `phần đã biết ${vnd(costCmp.knownDeltaMinor)} (chưa đủ giá để công bố chênh toàn hệ)` : 'không công bố: hai phương án thiếu giá hoặc hạng mục khác nhau (xem bảng dự toán A/B)') : null;
@@ -264,7 +265,7 @@ const fmtT = (epoch: number, tz: string) => new Intl.DateTimeFormat('vi-VN', { t
 function reasonTable(cols: Run[]): HTMLElement {
   const codes = REASONS.filter((r) => cols.some((c) => c.result.dispatch.reasonTotals[r]));
   return h('table', { id: 'reason-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Mã'), h('th', {}, 'Ý nghĩa'), ...cols.map((c) => h('th', {}, c.label)))),
-    h('tbody', {}, ...codes.map((code) => h('tr', {}, h('td', {}, code), h('td', {}, REASON_VI[code]), ...cols.map((c) => { const t = c.result.dispatch.reasonTotals[code]; return h('td', {}, t ? `${t.steps.toLocaleString('vi-VN')} bước${t.wh !== null ? ` · ${kwh(t.wh)} kWh` : ''}` : '0'); })))));
+    h('tbody', {}, ...codes.map((code) => h('tr', {}, h('td', {}, code), h('td', {}, REASON_VI[code]), ...cols.map((c) => { const t = c.result.dispatch.reasonTotals[code]; return h('td', {}, t ? `${t.steps.toLocaleString('vi-VN')} bước${t.wh !== null ? ` · ${formatKWh(t.wh)} kWh` : ''}` : '0'); })))));
 }
 
 function replay(ctx: SimCtx, cols: Run[], step: number, tz: string): HTMLElement {

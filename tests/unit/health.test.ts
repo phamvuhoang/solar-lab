@@ -1,5 +1,9 @@
 import { expect, test } from 'vitest';
 import { openLamHa, createProject } from '../../src/domain/project';
+import type { AutoState } from '../../src/app/auto-sim';
+import { buildSampleHouse } from '../../src/domain/seed';
+import { formatKWh } from '../../src/domain/units';
+import type { SimResult } from '../../src/engine/system';
 import { healthOf } from '../../src/ui/health';
 import { catalog, rig, withStrings } from './helpers';
 
@@ -24,4 +28,29 @@ test('dự án trống: Điện và tiền "chưa đủ dữ liệu"; PV và c�
   expect(cs.map((c) => c.key)).toEqual(['electric', 'pv', 'supply', 'money']);
   expect(cs.every((c) => c.state === 'unknown')).toBe(true);
   expect(cs[1].text).toContain('chưa chạy');
+});
+
+// a finished run, as far as the bar reads it (simMetrics)
+const result = { pv: { totals: { eInverterWh: 7_123_456 } }, dispatch: { totals: { gridImportWh: 343_412 }, metrics: { hoursShort: 0, lowestSunMonth: null }, ledger: { maxResidualWh: 0 } } } as unknown as SimResult;
+const live = (auto: AutoState) => healthOf(buildSampleHouse(), auto).filter((c) => c.key === 'pv' || c.key === 'supply');
+
+test('done: PV pass có MWh/năm và (bóng: xem trước); cấp điện thiếu 0 giờ, mua lưới = formatKWh(gridImportWh)', () => {
+  const [pv, supply] = live({ kind: 'done', hash: 'h', result, shadePreview: true });
+  expect(pv).toMatchObject({ state: 'pass', text: '☀ 7,12 MWh/năm (bóng: xem trước)', missing: null });
+  expect(supply).toMatchObject({ state: 'pass', text: `Cấp điện: thiếu 0 giờ/năm · mua lưới ${formatKWh(343_412)} kWh` });
+  expect(formatKWh(343_412)).toBe('343,4');
+});
+test('running: không còn chữ số nào trong ô PV và cấp điện', () => {
+  for (const c of live({ kind: 'running' })) {
+    expect(c.state).toBe('unknown');
+    expect(c.text).toContain('đang tính lại…');
+    expect(`${c.text} ${c.missing ?? ''}`).not.toMatch(/\d/);
+  }
+});
+test('blocked: chưa đủ dữ liệu kèm lý do, nút tới đúng chỗ nhập', () => {
+  const target = { step: 'chay-thu', tab: 'pv', focusId: 'wx-select' } as const;
+  for (const c of live({ kind: 'blocked', message: 'chưa đủ dữ liệu: thiếu thời tiết', target })) {
+    expect(c).toMatchObject({ state: 'unknown', missing: 'chưa đủ dữ liệu: thiếu thời tiết', target });
+    expect(c.text).toContain('thiếu thời tiết');
+  }
 });

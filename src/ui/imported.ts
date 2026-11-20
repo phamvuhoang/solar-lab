@@ -3,7 +3,7 @@ import type { RecordedSet } from '../persistence/repository';
 import type { RecordedRun } from '../reports/package';
 import { CURRENT_ENGINES, replayRun, type ReplayOutcome, type ReplayStatus, type Runner } from '../reports/replay';
 import type { WeatherSeries } from '../weather/series';
-import { runPvInWorker, runShadeInWorker, runSimInWorker } from '../worker/client';
+import { runPvInWorker, runShadeInWorker, runSimInWorker, type Job } from '../worker/client';
 import { h } from './dom';
 
 export interface ImportedState { outcomes: Map<string, ReplayOutcome>; busy: boolean }
@@ -22,11 +22,16 @@ const key = (r: RecordedRun, ms: Record<string, number | null> | null) => !ms ? 
   ? [kwh(ms['pv.eInverterWh']), '—', '—', '—']
   : [kwh(ms['pv.eInverterWh']), kwh(ms['dispatch.loadServedWh']), pct(ms['metrics.minSoc']), kwh(ms['dispatch.unservedWh'])];
 
-export const browserRunner: Runner = {
-  pv: async (i, hash) => { const o = await runPvInWorker(i, hash).promise; return o.status === 'result' ? o.result : null; },
-  sim: async (i, hash) => { const o = await runSimInWorker(i, hash).promise; return o.status === 'result' ? o.result : null; },
-  shade: async (spec) => { const o = await runShadeInWorker(spec, null, [0, spec.n]).promise; return o.status === 'result' ? o.field : null; },
+/** Runs in workers; aborting `signal` cancels the job in flight (an abandoned automatic run must not keep a worker busy). */
+export const workerRunner = (signal?: AbortSignal): Runner => {
+  const take = <O>(job: Job<O>) => { if (signal?.aborted) job.cancel(); else signal?.addEventListener('abort', () => job.cancel(), { once: true }); return job.promise; };
+  return {
+    pv: async (i, hash) => { const o = await take(runPvInWorker(i, hash)); return o.status === 'result' ? o.result : null; },
+    sim: async (i, hash) => { const o = await take(runSimInWorker(i, hash)); return o.status === 'result' ? o.result : null; },
+    shade: async (spec) => { const o = await take(runShadeInWorker(spec, null, [0, spec.n])); return o.status === 'result' ? o.field : null; },
+  };
 };
+export const browserRunner = workerRunner();
 
 export async function renderImported(ctx: ImportedCtx): Promise<Node[]> {
   const rec = ctx.recorded, p = ctx.project, st = ctx.state;

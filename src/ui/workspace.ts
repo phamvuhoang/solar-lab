@@ -8,17 +8,20 @@ import { exportProject } from '../persistence/exchange';
 import { exportAll } from '../persistence/backup';
 import { ConflictError, type ProjectRepository } from '../persistence/repository';
 import { isQuotaError } from '../persistence/import';
+import { AUTORUN_DELAY_MS, createScheduler, Lru } from '../app/autorun';
+import { runAuto, type AutoState } from '../app/auto-sim';
 import { History } from '../app/history';
 import { progressComplete, progressOf, type ProgressItem } from '../app/progress';
 import { BUNDLED_WEATHER, loadBundledWeather } from '../weather/bundled';
 import type { PvResult } from '../engine/pv';
+import type { SimResult } from '../engine/system';
 import { renderCatalog } from './catalog';
 import { renderChecklist } from './checklist';
 import { startCoach } from './coach';
 import { renderDesign } from './design';
 import { download, h } from './dom';
 import { healthOf, renderHealth } from './health';
-import { freshImported, renderImported } from './imported';
+import { freshImported, renderImported, workerRunner } from './imported';
 import { renderInspector } from './inspector';
 import { renderPalette } from './palette';
 import { renderPv } from './pv';
@@ -70,6 +73,9 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   const reportState = freshReport();
   let importedState = freshImported();
   const simState: SimState = { runs: [], side: 0, step: 0, progress: {} };
+  let auto: AutoState = { kind: 'idle' }, autoOf: Project | null = null; // the automatic run and the project it is for
+  let fresh = false; // a run finished while a field in the panel was being typed into: the panel waits for "Hiện"
+  const simCache = new Lru<SimResult>(8);
   let recordedOpen = false; // the "Dự án" tab shows the package's recorded results instead of the summary
   let step: Step = 'bo-tri', tab: Tab | null = null, seq = 0, disposed = false, stored = opts.stored;
   let checklistOpen: boolean | null = null; // what the person chose by clicking its summary; null = open only while the project is empty
@@ -83,7 +89,6 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
       else { // a preview becomes a project on its first edit; the address follows without a hashchange (nothing to re-route)
         project = await repo.createProject(next);
         stored = true;
-        for (const r of simState.runs) delete r.revision; // stored as revision 1 too, but with the edit: no run is of it
         if (ws.isConnected) window.history.replaceState(null, '', formatRoute({ kind: 'project', projectId: project.projectId, step, tab: tab! }));
       }
       say(''); return true;
@@ -213,10 +218,46 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
       help,
       message().includes('Mở bản mới nhất') && h('button', { id: 'ws-latest', type: 'button', onClick: async () => { project = (await repo.loadRevision(project.projectId))!; say(''); await renderPanel(); } }, 'Mở bản mới nhất'),
       h('p', { id: 'status', role: 'status' }, message())].filter(Boolean) as Node[]);
-    const next = renderHealth(healthOf(project), goTarget);
+    paintHealth();
+  }
+  function paintHealth() {
+    const next = renderHealth(healthOf(project, auto), goTarget);
+    if (fresh) next.append(h('button', { id: 'ws-fresh', type: 'button', onClick: () => { void renderPanel(); } }, 'Có kết quả mới · Hiện'));
     health.replaceWith(next);
     health = next;
   }
+
+  // ---- automatic run: shade + PV + dispatch about a second after the design stops changing ---------------------------
+  const autorun = createScheduler(AUTORUN_DELAY_MS, (e) => { // a failure is shown, never left as "đang tính lại…"
+    auto = { kind: 'blocked', message: `Không tính được: ${e instanceof Error ? e.message : String(e)}`, target: { step: 'chay-thu', tab: 'he-thong' } };
+    paintHealth();
+  });
+  /** A new project: its PV and supply are unknown until its own run finishes; a run still going for the old one is cancelled. */
+  const startAuto = () => {
+    if (autoOf === project) return;
+    const p = autoOf = project;
+    auto = { kind: 'running' };
+    paintHealth();
+    autorun.schedule(async (signal) => {
+      const next = await runAuto(p, { loadWeather, runner: workerRunner(signal), cache: simCache, signal });
+      if (signal.aborted || disposed) return;
+      auto = next;
+      autoDone();
+    });
+  };
+  /**
+   * The bar shows the run at once. Of the panel only the progress list and the system screen show it: the system screen
+   * repaints, unless a field in the panel is being typed into, then "Hiện" offers the repaint.
+   */
+  const autoDone = () => {
+    const a = document.activeElement;
+    fresh = tab === 'he-thong' && !!a && panel.contains(a) && a.matches('input, select, textarea');
+    paintHealth();
+    if (tab === 'he-thong' && !fresh) return void renderPanel();
+    const items = progressItems();
+    panel.querySelector('#checklist')?.replaceWith(...(progressComplete(items) ? [] : [checklist(items)]));
+  };
+  const progressItems = () => progressOf(project, { simRan: auto.kind === 'done' }); // done is always for the current project
   function paintNav() {
     const def = STEPS.find((s) => s.id === step)!;
     steps.replaceChildren(...STEPS.map((s) => h('button', { id: `step-${s.id}`, type: 'button', 'aria-current': s.id === step ? 'step' : undefined, onClick: () => { if (s.id !== step) navigate(s.id, s.tabs[0]!.id); } }, `${s.n} ${s.label}`)));
@@ -229,11 +270,13 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
   async function renderPanel(keep: string | null = focusKey()): Promise<void> {
     if (disposed) return; // a save that finishes after the project was closed repaints nothing
     const my = ++seq, t = tab!;
+    startAuto();
     // a screen's own re-render (selection, progress, results) is dropped once its tab is left: it must not wipe the open tab's input
     const again = async () => { if (tab === t) await renderPanel(); };
     const nodes = await SCREENS[t](again);
     if (my !== seq) return;
-    const items = progressOf(project, { simRan: simState.runs.some((r) => r.source.kind === 'current' && r.revision === project.revision) });
+    const items = progressItems();
+    fresh = false;
     panel.replaceChildren(inspector(), ...(progressComplete(items) ? [] : [checklist(items)]), ...nodes);
     view.refresh();
     paintChrome();
@@ -295,6 +338,10 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     },
     'he-thong': async (again) => {
       await reload();
+      // the automatic run is the current design's run, unless a run of it (alone or the B of an A/B) is already there
+      const a = auto;
+      if (a.kind === 'done' && !simState.runs.some((r) => r.source.kind === 'current' && r.hash === a.hash))
+        simState.runs = [{ label: 'B', source: { kind: 'current' }, title: `Hiện tại (revision ${project.revision})`, hash: a.hash, result: a.result, projectName: project.name }];
       return renderSim({
         project, components: [...BUILTIN_COMPONENTS, ...userComponents], offers: [...BUILTIN_OFFERS, ...userOffers], revisions: await repo.listRevisions(project.projectId),
         loadRevision: (n) => repo.loadRevision(project.projectId, n), loadWeather,
@@ -370,6 +417,6 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project, opts: { sto
     projectId: initial.projectId,
     get stored() { return stored; },
     show,
-    dispose() { disposed = true; seq++; stopShadePlayback(); view.dispose(); },
+    dispose() { disposed = true; seq++; autorun.cancel(); stopShadePlayback(); view.dispose(); },
   };
 }
