@@ -30,6 +30,8 @@ export interface WorkspaceDeps {
 export interface Workspace { readonly projectId: string; show(step: Step, tab: Tab): Promise<void>; dispose(): void }
 
 const vnd = (minor: string) => Number(minor).toLocaleString('vi-VN') + ' đ';
+/** Tabs whose screen draws the shared selection (roof, shade, diagram, BOM highlight). */
+const SHOWS_SELECTION: Tab[] = ['mai', 'bong', 'thiet-ke', 'du-toan'];
 
 /** Bundled datasets load from the app, imported ones from the store. */
 export const weatherLoader = (repo: ProjectRepository) => async (id: string) => {
@@ -119,7 +121,15 @@ export function openWorkspace(deps: WorkspaceDeps, initial: Project): Workspace 
   const panel = h('section', { id: 'ws-panel', role: 'tabpanel' });
   let health = h('footer', { id: 'ws-health' });
   // one 3D view for the whole workspace: it outlives step and tab changes; selecting or dragging in it works on every tab
-  const view = createViewport({ project: () => project, selection: () => selection, setSelection: (ids) => { setSelection(ids); void renderPanel(); }, apply: (next) => saved(next) });
+  const view = createViewport({
+    project: () => project, selection: () => selection, apply: (next) => saved(next),
+    setSelection: (ids) => {
+      if (ids.join(',') === selection.join(',')) return; // e.g. a click on empty ground with nothing selected
+      setSelection(ids);
+      // only tabs that show the selection repaint; any other tab keeps what is being typed into it
+      if (tab && SHOWS_SELECTION.includes(tab)) void renderPanel(); else view.refresh();
+    },
+  });
   const ws = h('div', { id: 'ws' }, top, steps, h('div', { id: 'ws-main' }, view.el, tabs, panel), health);
   const help = h('details', { id: 'ws-help' }, h('summary', {}, 'Trợ giúp'),
     h('button', { id: 'lessons-btn', type: 'button', onClick: () => { location.hash = formatRoute({ kind: 'help', page: 'bai-hoc' }); } }, 'Bài học'),

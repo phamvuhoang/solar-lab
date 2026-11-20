@@ -111,3 +111,14 @@ test('đóng dự án khi đang lưu: bản lưu xong muộn không dựng lại
   await page.waitForTimeout(1000); // let the save finish
   expect(await contexts()).toBe(before);
 });
+
+test('bấm chỗ trống trên 3D không xóa số đang gõ ở tab PV', async ({ page }) => {
+  await openLamHa(page);
+  await tab(page, 'pv');
+  const view = page.locator('canvas');
+  await expect(view).toBeVisible({ timeout: 20000 });
+  await page.locator('#pv-albedo').fill('0,31');
+  await view.click({ position: { x: 10, y: 10 } }); // empty ground: the 3D clears the selection
+  await page.waitForTimeout(500); // a repaint would have replaced the form by now
+  await expect(page.locator('#pv-albedo')).toHaveValue('0,31');
+});
