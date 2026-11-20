@@ -837,6 +837,23 @@
         }
       }
     },
+    "sample": {
+      "type": "boolean"
+    },
+    "devicePlacements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["instanceId", "e", "n", "up"],
+        "properties": {
+          "instanceId": { "type": "string", "minLength": 1 },
+          "e": { "type": "number" },
+          "n": { "type": "number" },
+          "up": { "type": "number" }
+        }
+      }
+    },
     "placements": {
       "type": "array",
       "items": {

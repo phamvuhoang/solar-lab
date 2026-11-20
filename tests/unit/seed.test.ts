@@ -4,7 +4,7 @@ import { canonicalJson } from '../../src/domain/hash';
 import { fillFace } from '../../src/domain/layout-edit';
 import { validateLayout } from '../../src/domain/placement';
 import { addInstances, openLamHa } from '../../src/domain/project';
-import { buildSampleHouse, SAMPLE_WEATHER_ID } from '../../src/domain/seed';
+import { buildSampleHouse, isSample, SAMPLE_WEATHER_ID } from '../../src/domain/seed';
 import type { Project } from '../../src/domain/types';
 import { hasErrors, validateProject } from '../../src/domain/validate';
 import { compileSim } from '../../src/engine/sim-compile';
@@ -70,4 +70,10 @@ test('thẻ trang đầu: số tấm, kWp và tổng đã biết lấy từ dự
   expect(cardOf(head(lamHa), lamHa)).toEqual({ projectId: lamHa.projectId, name: 'Lâm Hà', panels: 8, kWp: 4.96, knownMinor: '31872000', updatedAt: T });
   const sample = buildSampleHouse(T);
   expect(cardOf(head(sample), sample)).toMatchObject({ panels: 8, kWp: 4.96, knownMinor: '15872000' });
+});
+test('cờ sample: đổi tên vẫn là mẫu; Lâm Hà thì không; schema nhận sample: true', () => {
+  expect(isSample({ ...buildSampleHouse(T), name: 'Nhà của tôi' })).toBe(true);
+  expect(isSample(openLamHa())).toBe(false);
+  expect(hasErrors(validateProject(buildSampleHouse(T)))).toBe(false);
+  expect(buildSampleHouse(T).sample).toBe(true);
 });

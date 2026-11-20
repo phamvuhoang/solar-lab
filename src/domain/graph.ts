@@ -121,6 +121,7 @@ export function dropInstances(p: Project, ids: ReadonlySet<string>): Project {
   next.instances = next.instances.filter((i) => !ids.has(i.instanceId));
   next.edges = next.edges.filter((e) => !ids.has(e.from.instanceId) && !ids.has(e.to.instanceId));
   if (next.placements) next.placements = next.placements.filter((l) => !ids.has(l.instanceId));
+  if (next.devicePlacements) next.devicePlacements = next.devicePlacements.filter((l) => !ids.has(l.instanceId));
   if (next.loadPlans) next.loadPlans = next.loadPlans.filter((l) => !ids.has(l.instanceId));
   if (next.strings) next.strings = next.strings.map((s) => ({ ...s, panelIds: s.panelIds.filter((x) => !ids.has(x)), target: s.target && ids.has(s.target.instanceId) ? null : s.target }));
   return next;

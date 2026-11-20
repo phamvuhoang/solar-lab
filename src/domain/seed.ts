@@ -26,6 +26,7 @@ export function buildSampleHouse(now?: string, id?: string): Project {
   p = addObstacle(p, { label: 'Bồn nước', kind: 'cylinder', roofFaceId: null, center: { e: 10.5, n: -1 }, baseUp: 3, angleDeg: 0, size: { x: 1.2, y: 1.2, z: 1.8 } });
   return {
     ...p,
+    sample: true,
     design: { coldCellTempC: 5, hotCellTempC: 70, iscFactor: 1, betaVmpAssumption: null, source: 'Giả định minh họa (như bài học và golden Lâm Hà)' },
     pv: { weatherId: SAMPLE_WEATHER_ID },
     sim: { gridAvailable: true, importAllowed: true, exportAllowed: false },
@@ -33,4 +34,4 @@ export function buildSampleHouse(now?: string, id?: string): Project {
   } as Project;
 }
 
-export const isSample = (p: Project) => p.name.startsWith('Nhà mẫu'); // ponytail: nhận theo tên; cần cờ trong schema nếu người dùng đổi tên mà vẫn phải giữ nhãn
+export const isSample = (p: Project) => p.sample === true || p.name.startsWith('Nhà mẫu'); // ponytail: the name fallback is for samples saved before the flag existed

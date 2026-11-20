@@ -110,6 +110,11 @@ export function validateProject(p: unknown): Issue[] {
   });
   dup('DUPLICATE_ID', 'roofFaces', proj.roofFaces.map((f) => f.roofFaceId));
   dup('DUPLICATE_ID', 'obstacles', (proj.obstacles ?? []).map((o) => o.obstacleId));
+  dup('DUPLICATE_ID', 'devicePlacements', (proj.devicePlacements ?? []).map((d) => d.instanceId));
+  (proj.devicePlacements ?? []).forEach((d, i) => {
+    if (!ids.has(d.instanceId)) bad('BROKEN_REF', `/devicePlacements/${i}/instanceId`, `Không có instance ${d.instanceId}`);
+    else if (kindOf.get(d.instanceId) === 'panel') bad('NOT_A_DEVICE', `/devicePlacements/${i}/instanceId`, `${d.instanceId} là tấm pin, đặt trên mặt mái chứ không đặt như thiết bị`);
+  });
   const faceIds = new Set(proj.roofFaces.map((f) => f.roofFaceId));
   (proj.placements ?? []).forEach((pl, i) => {
     if (!ids.has(pl.instanceId)) bad('BROKEN_REF', `/placements/${i}/instanceId`, `Không có instance ${pl.instanceId}`);

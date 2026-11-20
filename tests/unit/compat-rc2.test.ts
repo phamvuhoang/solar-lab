@@ -48,3 +48,29 @@ test('fixture rc.2 có mặt (ghi bằng WRITE_RC2_FIXTURE=1 khi code còn là r
   expect(existsSync(JSON_F) && existsSync(HASH_F)).toBe(true);
 }, 120000);
 
+const inverterId = (p: Project) => p.instances.find((i) => i.kind === 'inverter')!.instanceId;
+const withDev = (p: Project, extra: { instanceId: string; e: number; n: number; up: number }[]): Project => ({ ...p, devicePlacements: extra });
+
+test('file rc.2 nhập lại được, không cảnh báo, hash kết quả bằng hash đã ghi lúc rc.2', async () => {
+  const s = await stageImport(readFileSync(JSON_F, 'utf8'), new Set());
+  if (!s.ok) throw new Error(JSON.stringify(s.issues));
+  expect(s.issues).toEqual([]);
+  expect(await hashOfSim(s.project)).toBe(readFileSync(HASH_F, 'utf8').trim());
+}, 120000);
+test('devicePlacements và sample không vào phép tính', async () => {
+  const p = build(), p2 = withDev(p, [{ instanceId: inverterId(p), e: 20, n: 1, up: 0 }]);
+  expect(hasErrors(validateProject(p2))).toBe(false);
+  expect(await hashOfSim(p2)).toBe(await hashOfSim(p));
+  expect(await hashOfSim({ ...p, sample: true })).toBe(await hashOfSim(p));
+}, 120000);
+test('xóa thiết bị kéo theo vị trí của nó', () => {
+  const p = build(), id = inverterId(p);
+  expect(dropInstances(withDev(p, [{ instanceId: id, e: 20, n: 1, up: 0 }]), new Set([id])).devicePlacements).toEqual([]);
+});
+test('kiểm tham chiếu: id lạ → BROKEN_REF; trỏ vào tấm → NOT_A_DEVICE; trùng → DUPLICATE_ID', () => {
+  const p = build(), id = inverterId(p), panel = p.instances.find((i) => i.kind === 'panel')!.instanceId, pos = { e: 1, n: 1, up: 0 };
+  const find = (q: Project, code: string) => validateProject(q).find((x) => x.code === code);
+  expect(find(withDev(p, [{ instanceId: 'ins-nope', ...pos }]), 'BROKEN_REF')?.field).toBe('/devicePlacements/0/instanceId');
+  expect(find(withDev(p, [{ instanceId: panel, ...pos }]), 'NOT_A_DEVICE')?.field).toBe('/devicePlacements/0/instanceId');
+  expect(find(withDev(p, [{ instanceId: id, ...pos }, { instanceId: id, ...pos }]), 'DUPLICATE_ID')?.field).toBe('/devicePlacements/1');
+});

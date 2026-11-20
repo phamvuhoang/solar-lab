@@ -31,7 +31,7 @@
     },
     "schemas/project-v1.json": {
       "group": "schemas",
-      "sha256": "8252808309d0adea1014af495a6912b59952e32714b06cdce1adb571f254ff23"
+      "sha256": "2cc97521ae2a84b666d10d267eb0a1bf0ea7c0b602f14376c2796f88938bacdd"
     },
     "tests/fixtures/reference/lam-ha-2023.json": {
       "group": "reference",

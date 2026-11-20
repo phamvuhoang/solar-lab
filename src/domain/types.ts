@@ -81,6 +81,9 @@ export interface Obstacle {
 export interface LayoutSettings { gridM: number; gapM: number }
 export interface QuoteSettings { vatRateBp: number; requiredCategories: Category[]; waived: Category[] }
 
+/** Illustrative position of a non-panel device in ENU metres. No calculation reads it. */
+export interface DevicePlacement { instanceId: string; e: number; n: number; up: number }
+
 export interface Project {
   schemaVersion: 1; projectId: string; revision: number; name: string; createdAt: string; updatedAt: string;
   location: { latitude: number; longitude: number; timezone: string } | null;
@@ -90,6 +93,9 @@ export interface Project {
   costLines?: CostLine[]; kits?: Kit[]; quote?: Partial<QuoteSettings>;
   strings?: StringDef[]; design?: Partial<DesignSettings>; pv?: Partial<PvSettings>;
   sim?: Partial<SimPolicy>; loadPlans?: LoadPlan[];
+  /** Set on projects built from the sample house; only the UI label reads it, no calculation. */
+  sample?: boolean;
+  devicePlacements?: DevicePlacement[];
   placements?: Placement[]; obstacles?: Obstacle[]; layout?: Partial<LayoutSettings>;
   shade?: { enabled?: boolean; mode?: 'preview' | 'standard'; grid?: number };
   /** Who the design is for. Contact details only; no calculation reads it, so removing it never changes a result. */
