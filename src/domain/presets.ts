@@ -1,7 +1,7 @@
 import { addEdge, addString, dropInstances, indexProject, portsOf, suggestGrouping, stringsOf, unassignedPanels, type PortRef } from './graph';
-import { addInstances } from './project';
+import { addInstances, snapshotInto } from './project';
 import { fillFace } from './layout-edit';
-import { refKey, type Component, type Offer, type Project } from './types';
+import { refKey, type Component, type LoadPlan, type Offer, type Project } from './types';
 
 export type PresetKind = 'one-string' | 'two-strings-one-tracker' | 'two-trackers';
 export const PRESET_LABEL: Record<PresetKind, string> = {
@@ -36,20 +36,42 @@ export function addBatteryBranch(p: Project, battery: Component, offers: readonl
 }
 
 /** AC load on the inverter's AC output. */
-export function addAcLoad(p: Project, load: Component, offers: readonly Offer[] = []): Project {
+export function addAcLoad(p: Project, load: Component, offers: readonly Offer[] = [], plan?: Omit<LoadPlan, 'instanceId'>): Project {
   const inv = firstOf(p, 'inverter');
   if (!inv) throw new Error('NO_INVERTER');
   const next = addInstances(p, load, 1, offers);
   const l = next.instances[next.instances.length - 1];
-  return addEdge(next, { instanceId: inv.instanceId, port: 'AC' }, { instanceId: l.instanceId, port: 'AC' });
+  return withPlan(addEdge(next, { instanceId: inv.instanceId, port: 'AC' }, { instanceId: l.instanceId, port: 'AC' }), l.instanceId, plan);
 }
 
 /** Separate PV pump branch: given panels → controller PV, controller OUT → pump load DC. */
-export function addPumpBranch(p: Project, controller: Component, pump: Component, panels: string[], offers: readonly Offer[] = []): Project {
+export function addPumpBranch(p: Project, controller: Component, pump: Component, panels: string[], offers: readonly Offer[] = [], plan?: Omit<LoadPlan, 'instanceId'>): Project {
   let next = addInstances(addInstances(p, controller, 1, offers.filter((o) => refKey(o.componentRef) === refKey(controller))), pump, 1, offers.filter((o) => refKey(o.componentRef) === refKey(pump)));
   const ctl = next.instances[next.instances.length - 2], load = next.instances[next.instances.length - 1];
   next = addString(next, { label: `Chuỗi bơm ${stringsOf(next).length + 1}`, panelIds: panels, target: { instanceId: ctl.instanceId, port: 'PV' } });
-  return addEdge(next, { instanceId: ctl.instanceId, port: 'OUT' }, { instanceId: load.instanceId, port: 'DC' });
+  return withPlan(addEdge(next, { instanceId: ctl.instanceId, port: 'OUT' }, { instanceId: load.instanceId, port: 'DC' }), load.instanceId, plan);
+}
+
+const flat = (v: number) => new Array<number>(24).fill(v);
+export const ALL_DAY: number[] = flat(1);
+export const atHour = (h: number): number[] => { const a = flat(0); a[h] = 1; return a; };
+const withPlan = (p: Project, instanceId: string, plan?: Omit<LoadPlan, 'instanceId'>): Project =>
+  plan ? { ...p, loadPlans: [...(p.loadPlans ?? []), { ...structuredClone(plan), instanceId }] } : p;
+
+/** Same kind only. Keeps instance ids, so strings, edges, placements and load plans stay. Relabels "<new name> #k" keeping k. Throws KIND_MISMATCH, UNKNOWN_INSTANCE. */
+export function replaceComponent(p: Project, instanceIds: string[], next: Component, offers: readonly Offer[] = []): Project {
+  const out = structuredClone(p);
+  const ref = { modelId: next.modelId, revision: next.revision };
+  for (const id of instanceIds) {
+    const i = out.instances.find((x) => x.instanceId === id);
+    if (!i) throw new Error('UNKNOWN_INSTANCE');
+    if (i.kind !== next.kind) throw new Error('KIND_MISMATCH');
+    i.componentRef = ref;
+    i.label = i.label.replace(/^.*?(\s#\d+)?$/, `${next.name}$1`);
+  }
+  snapshotInto(out, next, offers);
+  if (!out.priceSelections.some((s) => refKey(s.componentRef) === refKey(ref)) && offers[0]) out.priceSelections.push({ componentRef: ref, offerId: offers[0].offerId });
+  return out;
 }
 
 /**
@@ -129,7 +151,6 @@ export function addPanels(p: Project, panel: Component, n: number, offers: reado
 
 export type LamHaConfig = 'shared8' | 'split6+2';
 export const LAMHA_CONFIG_LABEL: Record<LamHaConfig, string> = { shared8: 'A · tất cả tấm vào inverter, bơm AC', 'split6+2': 'B · 6 tấm vào inverter + 2 tấm cấp bơm DC riêng' };
-const flat = (v: number) => new Array<number>(24).fill(v);
 
 /**
  * Rebuilds the electrical part of a project into one of the two Lâm Hà layouts, keeping its panels and its first battery.
@@ -164,7 +185,7 @@ export function buildLamHaConfig(p: Project, kind: LamHaConfig, c: { inverter: C
   let pumpId: string;
   if (kind === 'shared8') { next = addAcLoad(next, c.pump, offers(c.pump)); pumpId = next.instances[next.instances.length - 1].instanceId; }
   else { next = addPumpBranch(next, c.controller, c.pump, panels.slice(-2), [...offers(c.controller), ...offers(c.pump)]); pumpId = next.instances[next.instances.length - 1].instanceId; }
-  const at18 = flat(0); at18[18] = 1;
+  const at18 = atHour(18);
   next.loadPlans = [
     { instanceId: home.instanceId, fractions: oldHome ? [...oldHome.fractions] : flat(1), priority: oldHome?.priority ?? 1 },
     { instanceId: pumpId, fractions: oldPump ? [...oldPump.fractions] : at18, priority: oldPump?.priority ?? 2, pump: oldPump?.pump ? structuredClone(oldPump.pump) : { staticHeadM: null, frictionK: null, curve: null } },
